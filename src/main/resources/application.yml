@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: agentic-ai-chatbot
+  thymeleaf:
+    cache: false
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 10MB
+
+agentic:
+  output-dir: generated-app
+  llm:
+    api-key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-4o-mini}
+    enabled: ${LLM_ENABLED:true}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+
+logging:
+  level:
+    com.agentic: INFO

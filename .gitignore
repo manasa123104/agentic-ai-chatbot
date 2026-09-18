@@ -1,0 +1,17 @@
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+output/
+generated-app/**
+!generated-app/.gitkeep
+.env
+*.log
+.DS_Store
+
+generated-app/uploads/
+*.jar
+

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Edit site</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/editor.css}"/>
+</head>
+<body class="editor-body">
+<header class="top">
+    <div class="brand">
+        <span class="mark">A</span>
+        <div>
+            <strong>Site editor</strong>
+            <p>Colors, fonts, footer, images, Google sign-in</p>
+        </div>
+    </div>
+    <div class="editor-actions">
+        <a class="link-btn" th:href="${previewUrl}">Preview page</a>
+        <a class="link-btn ghost" href="/">Chatbot</a>
+    </div>
+</header>
+
+<main class="editor-layout">
+    <section class="editor-panel">
+        <div class="flash" th:if="${saved}">Saved — open Preview to see changes.</div>
+        <h1>Edit your generated website</h1>
+        <p class="lede">Page: <code th:text="${page}">login</code></p>
+
+        <form th:action="@{/edit/{p}(p=${page})}" th:object="${style}" method="post" enctype="multipart/form-data">
+            <fieldset>
+                <legend>Text</legend>
+                <label>Page title <input type="text" th:field="*{pageTitle}"/></label>
+                <label>Heading <input type="text" th:field="*{heading}"/></label>
+                <label>Subtitle <input type="text" th:field="*{subtitle}" placeholder="Welcome back"/></label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Colors</legend>
+                <div class="color-grid">
+                    <label>Background <input type="color" th:field="*{backgroundColor}"/></label>
+                    <label>Card <input type="color" th:field="*{cardColor}"/></label>
+                    <label>Accent <input type="color" th:field="*{accentColor}"/></label>
+                    <label>Text <input type="color" th:field="*{textColor}"/></label>
+                    <label>Footer color <input type="color" th:field="*{footerColor}"/></label>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Typography</legend>
+                <label>Font family
+                    <select th:field="*{fontFamily}">
+                        <option value="Segoe UI, sans-serif">Segoe UI</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="Arial, Helvetica, sans-serif">Arial</option>
+                        <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+                        <option value="'Courier New', monospace">Courier</option>
+                        <option value="Verdana, sans-serif">Verdana</option>
+                        <option value="system-ui, sans-serif">System UI</option>
+                    </select>
+                </label>
+                <label>Body font size
+                    <select th:field="*{fontSize}">
+                        <option value="14px">14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                        <option value="20px">20px</option>
+                        <option value="22px">22px</option>
+                    </select>
+                </label>
+                <label>Heading size
+                    <select th:field="*{headingSize}">
+                        <option value="1.25rem">Small</option>
+                        <option value="1.6rem">Medium</option>
+                        <option value="2rem">Large</option>
+                        <option value="2.4rem">XL</option>
+                    </select>
+                </label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Footer</legend>
+                <label><input type="checkbox" name="showFooter" th:checked="*{showFooter}"/> Show footer</label>
+                <label>Footer text <input type="text" th:field="*{footerText}"/></label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Images</legend>
+                <label>Logo URL <input type="url" th:field="*{logoUrl}" placeholder="https://... or upload below"/></label>
+                <label>Upload logo <input type="file" name="logoFile" accept="image/*"/></label>
+                <label>Hero image URL <input type="url" th:field="*{heroImageUrl}"/></label>
+                <label>Upload hero <input type="file" name="heroFile" accept="image/*"/></label>
+                <label>Background image URL <input type="url" th:field="*{backgroundImageUrl}"/></label>
+                <label>Upload background <input type="file" name="backgroundFile" accept="image/*"/></label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Sign in with Google (Gmail)</legend>
+                <label><input type="checkbox" name="showGoogleSignIn" th:checked="*{showGoogleSignIn}"/> Show “Sign in with Google” button</label>
+                <p class="hint" th:if="${!googleConfigured}">
+                    Demo mode is on (works without Google Cloud). For real Gmail OAuth, set
+                    <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>.
+                </p>
+                <p class="hint on" th:if="${googleConfigured}">Google OAuth client is configured.</p>
+            </fieldset>
+
+            <button type="submit">Save changes</button>
+            <a class="secondary" th:href="${previewUrl}">Open preview</a>
+        </form>
+    </section>
+
+    <aside class="preview-frame">
+        <h2>Live preview</h2>
+        <iframe th:src="${previewUrl}" title="Site preview"></iframe>
+    </aside>
+</main>
+</body>
+</html>
