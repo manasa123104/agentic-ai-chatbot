@@ -11,6 +11,8 @@ generated-app/**
 .env
 *.log
 .DS_Store
+data/
+
 
 generated-app/uploads/
 *.jar

@@ -9,6 +9,7 @@ public class PipelineResponse {
     private String outputDirectory;
     private String previewUrl;
     private String redirectPath;
+    private String historyId;
     private List<BotStepLog> steps = new ArrayList<>();
 
     public boolean isSuccess() {
@@ -49,6 +50,14 @@ public class PipelineResponse {
 
     public void setRedirectPath(String redirectPath) {
         this.redirectPath = redirectPath;
+    }
+
+    public String getHistoryId() {
+        return historyId;
+    }
+
+    public void setHistoryId(String historyId) {
+        this.historyId = historyId;
     }
 
     public List<BotStepLog> getSteps() {

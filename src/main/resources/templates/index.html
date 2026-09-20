@@ -17,9 +17,34 @@
         </div>
     </div>
     <button type="button" class="new-chat" id="newChat">+ New chat</button>
+    <div class="history-head">
+        <span>Previous results</span>
+        <button type="button" class="history-clear" id="clearHistory" title="Clear all history">Clear</button>
+    </div>
+    <div class="history-list" id="historyList" aria-label="Previous results">
+        <th:block th:if="${history != null and !history.isEmpty()}">
+            <button type="button" class="history-item"
+                    th:each="item : ${history}"
+                    th:attr="data-id=${item.id}, data-preview=${item.previewUrl}"
+                    th:classappend="${item.success} ? '' : ' is-fail'">
+                <span class="history-status" th:classappend="${item.success} ? ' ok' : ' fail'"></span>
+                <span class="history-body">
+                    <span class="history-text" th:text="${item.userStory}">Story</span>
+                    <span class="history-actions">
+                        <span class="history-meta" th:text="${item.createdLabel}">When</span>
+                        <a class="history-edit" href="/edit" onclick="event.stopPropagation()">Edit</a>
+                    </span>
+                </span>
+                <span class="history-del" title="Delete" aria-label="Delete">×</span>
+            </button>
+        </th:block>
+        <p class="history-empty" id="historyEmpty"
+           th:style="${history != null and !history.isEmpty()} ? 'display:none' : ''">
+            No previous results yet. Run a story and it will appear here.
+        </p>
+    </div>
     <nav class="rail-links">
         <a href="/edit">Edit generated site</a>
-        <a href="/results">Last results</a>
     </nav>
     <div class="rail-foot" th:text="${llmReady} ? 'LLM connected' : 'Offline mode'">Offline mode</div>
 </aside>
@@ -37,16 +62,16 @@
     </header>
 
     <main class="chat-thread" id="thread" aria-live="polite">
-        <div class="msg bot">
+        <div class="msg bot" id="welcomeMsg">
             <div class="avatar-sm">A</div>
             <div class="bubble">
                 <p>Hi — I’m your Agentic chatbot.</p>
-                <p>Describe a screen or user story and I’ll generate the website, unit tests, and functional tests.</p>
+                <p>Generate a website first, then type edit instructions in this chat (uses your previous site). Example: <em>change the color to blue</em> or <em>use travel images and Poppins font</em>.</p>
                 <div class="suggestions">
-                    <button type="button" class="chip" data-story="As a founder, I want a full multi-page company website called NovaTech so that customers can explore services, pricing, careers, and contact us.">Big company website</button>
-                    <button type="button" class="chip" data-story="As a user, I want a login page so that I can access my dashboard.">Login page</button>
-                    <button type="button" class="chip" data-story="As a patient, I want an appointment booking page so that I can schedule a visit.">Appointment booking</button>
-                    <button type="button" class="chip" data-story="As a customer, I want a product landing page so I can contact sales.">Company landing</button>
+                    <button type="button" class="chip" data-story="As a restaurant owner, I want a full multi-page website called OliveGrove with warm orange colors and Playfair font so guests can see the menu, pricing, and reserve a table.">Restaurant site</button>
+                    <button type="button" class="chip" data-story="As a traveler, I want a multi-page travel website called SkyTrail Travels with blue colors and Poppins font so people can browse destinations, packages, and contact us.">Travel site</button>
+                    <button type="button" class="chip" data-story="Change the website color to blue and use Poppins font">Edit: blue + Poppins</button>
+                    <button type="button" class="chip" data-story="Edit the website to use restaurant images and orange colors">Edit: restaurant look</button>
                 </div>
             </div>
         </div>
@@ -58,14 +83,14 @@
             <input type="hidden" name="runFunctionalTests" value="true"/>
             <div class="composer-box">
                 <textarea id="userStory" name="userStory" rows="1"
-                          placeholder="Message Agentic… e.g. As a user, I want a login page…"></textarea>
+                          placeholder="Generate a site… or edit: change color to blue, use travel images…"></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send">
                     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
                     </svg>
                 </button>
             </div>
-            <p class="hint">Press Enter to send · Shift+Enter for a new line</p>
+            <p class="hint">Press Enter to send · After a site is generated, type edit instructions in this same chat</p>
         </form>
     </footer>
 </div>
@@ -76,11 +101,18 @@
   var form = document.getElementById('chatForm');
   var input = document.getElementById('userStory');
   var sendBtn = document.getElementById('sendBtn');
+  var historyList = document.getElementById('historyList');
+  var historyEmpty = document.getElementById('historyEmpty');
+  var activeHistoryId = null;
 
   function el(html) {
     var t = document.createElement('template');
     t.innerHTML = html.trim();
     return t.content.firstChild;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function addUser(text) {
@@ -111,8 +143,132 @@
     if (t) t.remove();
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function formatWhen(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso);
+      return d.toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function truncate(text, n) {
+    text = String(text || '').trim().replace(/\s+/g, ' ');
+    if (text.length <= n) return text;
+    return text.slice(0, n - 1) + '…';
+  }
+
+  function renderResultBubble(data, fromHistory) {
+    if (!data.success) {
+      addBot('<p>I hit a problem: ' + escapeHtml(data.message || 'Unknown error') + '</p>');
+      return;
+    }
+    var steps = (data.steps || []).map(function (s) {
+      return '<li><strong>' + escapeHtml(s.botName) + '</strong> — ' + escapeHtml(s.summary) + '</li>';
+    }).join('');
+    var preview = data.previewUrl
+      ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
+        '<a class="btn ghost" href="/edit">Edit site</a></p>'
+      : '';
+    var label = fromHistory
+      ? '<p>Saved result from your history.</p>'
+      : '<p>Done — your page is ready. Saved under Previous results.</p>';
+    addBot(label + '<ul class="step-list">' + steps + '</ul>' + preview);
+  }
+
+  function setActiveHistory(id) {
+    activeHistoryId = id;
+    historyList.querySelectorAll('.history-item').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-id') === id);
+    });
+  }
+
+  function bindHistoryItem(btn, itemId) {
+    btn.addEventListener('click', function (e) {
+      if (e.target.closest('.history-del')) {
+        e.stopPropagation();
+        deleteHistory(itemId);
+        return;
+      }
+      if (e.target.closest('.history-edit')) {
+        return;
+      }
+      openHistory(itemId);
+    });
+  }
+
+  function renderHistory(items) {
+    historyList.querySelectorAll('.history-item').forEach(function (n) { n.remove(); });
+    if (!items || !items.length) {
+      historyEmpty.style.display = '';
+      return;
+    }
+    historyEmpty.style.display = 'none';
+    items.forEach(function (item) {
+      var btn = el(
+        '<button type="button" class="history-item" data-id="' + escapeHtml(item.id) + '">' +
+          '<span class="history-status ' + (item.success ? 'ok' : 'fail') + '"></span>' +
+          '<span class="history-body">' +
+            '<span class="history-text"></span>' +
+            '<span class="history-actions">' +
+              '<span class="history-meta"></span>' +
+              '<a class="history-edit" href="/edit">Edit</a>' +
+            '</span>' +
+          '</span>' +
+          '<span class="history-del" title="Delete" aria-label="Delete">×</span>' +
+        '</button>'
+      );
+      btn.querySelector('.history-text').textContent = truncate(item.userStory, 72);
+      btn.querySelector('.history-meta').textContent = item.createdLabel || formatWhen(item.createdAt);
+      if (item.id === activeHistoryId) btn.classList.add('active');
+      bindHistoryItem(btn, item.id);
+      historyList.appendChild(btn);
+    });
+  }
+
+  async function loadHistory() {
+    try {
+      var res = await fetch('/api/history');
+      if (!res.ok) return;
+      var items = await res.json();
+      renderHistory(items);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  async function openHistory(id) {
+    try {
+      var res = await fetch('/api/history/' + encodeURIComponent(id));
+      if (!res.ok) return;
+      var item = await res.json();
+      setActiveHistory(item.id);
+      thread.innerHTML = '';
+      thread.appendChild(el(
+        '<div class="msg bot"><div class="avatar-sm">A</div><div class="bubble">' +
+          '<p>Showing a saved result. Click <strong>Edit</strong> in the sidebar or below to change the site.</p>' +
+        '</div></div>'
+      ));
+      addUser(item.userStory || '');
+      renderResultBubble(item, true);
+      input.value = item.userStory || '';
+      autoSize();
+    } catch (e) {
+      addBot('<p>Could not load that saved result.</p>');
+    }
+  }
+
+  async function deleteHistory(id) {
+    try {
+      await fetch('/api/history/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (activeHistoryId === id) activeHistoryId = null;
+      loadHistory();
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   async function runPipeline(story) {
@@ -121,7 +277,7 @@
     autoSize();
     sendBtn.disabled = true;
     addTyping();
-    addBot('<p>Running Bot 1 (UI)… Bot 2 (Unit tests)… Bot 3 (Functional tests)…</p>');
+    addBot('<p>Working on it — generating a site or applying your edit to the previous website…</p>');
 
     try {
       var res = await fetch('/api/pipeline', {
@@ -136,27 +292,13 @@
       var data = await res.json();
       removeTyping();
 
-      if (!data.success) {
-        addBot('<p>I hit a problem: ' + escapeHtml(data.message || 'Unknown error') + '</p>');
-        return;
+      if (data.historyId) {
+        setActiveHistory(data.historyId);
       }
+      await loadHistory();
+      renderResultBubble(data, false);
 
-      var steps = (data.steps || []).map(function (s) {
-        return '<li><strong>' + escapeHtml(s.botName) + '</strong> — ' + escapeHtml(s.summary) + '</li>';
-      }).join('');
-
-      var preview = data.previewUrl
-        ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
-          '<a class="btn ghost" href="/edit">Edit site</a></p>'
-        : '';
-
-      addBot(
-        '<p>Done — your page is ready.</p>' +
-        '<ul class="step-list">' + steps + '</ul>' +
-        preview
-      );
-
-      if (data.previewUrl) {
+      if (data.success && data.previewUrl) {
         setTimeout(function () { window.location.href = data.previewUrl; }, 900);
       }
     } catch (e) {
@@ -198,6 +340,23 @@
     window.location.href = '/';
   });
 
+  document.getElementById('clearHistory').addEventListener('click', async function () {
+    if (!confirm('Clear all saved queries and results?')) return;
+    try {
+      await fetch('/api/history', { method: 'DELETE' });
+      activeHistoryId = null;
+      loadHistory();
+    } catch (e) {
+      /* ignore */
+    }
+  });
+
+  // Bind server-rendered history items
+  historyList.querySelectorAll('.history-item').forEach(function (btn) {
+    bindHistoryItem(btn, btn.getAttribute('data-id'));
+  });
+
+  loadHistory();
   input.focus();
 })();
 </script>

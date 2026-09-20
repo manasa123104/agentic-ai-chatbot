@@ -229,9 +229,9 @@ final class CompanyWebTemplates {
                 <header class="topnav">
                   <div class="brand"><span class="brand-mark"></span><span th:text="${title}">%s</span></div>
                   <nav>
-                    <a href="#product">Product</a>
-                    <a href="#solutions">Solutions</a>
-                    <a href="#form">Get started</a>
+                    <a href="#about">About</a>
+                    <a href="#solutions">What we offer</a>
+                    <a href="#form">Contact</a>
                   </nav>
                   <a class="cta-nav" href="#form">Contact sales</a>
                 </header>
@@ -239,27 +239,27 @@ final class CompanyWebTemplates {
                 <section class="hero">
                   <div>
                     <h1 th:text="${title}">%s</h1>
-                    <p class="story" th:text="${story}">%s</p>
+                    <p class="story">About %s — %s</p>
                     <div class="hero-actions">
-                      <a class="btn btn-primary" href="#form">Get started</a>
-                      <a class="btn btn-ghost" href="#product">Learn more</a>
+                      <a class="btn btn-primary" href="#about">About us</a>
+                      <a class="btn btn-ghost" href="#form">Contact</a>
                     </div>
                   </div>
                   <div class="hero-visual" role="img" aria-label="Product visual"></div>
                 </section>
 
-                <section class="features" id="product">
+                <section class="features" id="about">
                   <article class="feature">
-                    <h3>Built for teams</h3>
-                    <p>Collaborate securely with modern workflows inspired by leading company platforms.</p>
+                    <h3>About %s</h3>
+                    <p>We focus on clarity, quality, and a warm welcome for every visitor.</p>
                   </article>
                   <article class="feature" id="solutions">
-                    <h3>Enterprise ready</h3>
-                    <p>Clean design, fast forms, and reliable experiences across desktop and mobile.</p>
+                    <h3>What we offer</h3>
+                    <p>Clean design, fast pages, and reliable experiences across desktop and mobile.</p>
                   </article>
                   <article class="feature">
-                    <h3>Simple onboarding</h3>
-                    <p>Generated from your user story so the first screen matches what you asked for.</p>
+                    <h3>Our promise</h3>
+                    <p>Simple onboarding and support so you can get started with confidence.</p>
                   </article>
                 </section>
 
@@ -280,7 +280,7 @@ final class CompanyWebTemplates {
                 <footer class="site-footer">
                   <div>
                     <strong th:text="${title}">%s</strong>
-                    <span>A modern company experience generated from your prompt.</span>
+                    <span>About %s — clarity, quality, and a warm welcome.</span>
                   </div>
                   <div><strong>Product</strong><a href="#">Overview</a><a href="#">Pricing</a><a href="#">Security</a></div>
                   <div><strong>Company</strong><a href="#">About</a><a href="#">Careers</a><a href="#">Blog</a></div>
@@ -289,7 +289,9 @@ final class CompanyWebTemplates {
                 </footer>
                 </body>
                 </html>
-                """.formatted(title, title, title, story, route, title);
+                """.formatted(title, title, title, title,
+                "a welcoming place built around clear design and great service.",
+                title, route, title, title);
     }
 
     static String companyDashboardPage(String backRoute) {
@@ -436,14 +438,14 @@ final class CompanyWebTemplates {
                     <button type="submit">Search</button>
                   </form>
                 </div>
-                <p style="padding:1rem 5vw 0;color:#5f6368" th:text="${story}">%s</p>
+                <p style="padding:1rem 5vw 0;color:#5f6368">About %s — browse our collection.</p>
                 <section class="grid">
                   <article class="item"><div class="pic"></div><div class="body"><h3>Product Alpha</h3><p>Popular pick for new customers.</p><a class="btn" href="#">View</a></div></article>
                   <article class="item"><div class="pic"></div><div class="body"><h3>Product Beta</h3><p>Best value this week.</p><a class="btn" href="#">View</a></div></article>
                   <article class="item"><div class="pic"></div><div class="body"><h3>Product Gamma</h3><p>Premium quality option.</p><a class="btn" href="#">View</a></div></article>
                 </section>
                 </body></html>
-                """.formatted(title, title, route, story);
+                """.formatted(title, title, route, title);
     }
 
     static String serviceFormPage(String title, String brand, String story, String route, String[] labels, String accent) {
@@ -499,7 +501,7 @@ final class CompanyWebTemplates {
                 <main>
                   <div class="hero">
                     <h1 th:text="${title}">%s</h1>
-                    <p class="story" th:text="${story}">%s</p>
+                    <p class="story">About %s</p>
                   </div>
                   <div class="panel">
                     <div class="ok" th:if="${success}">Submitted successfully — your webpage action completed.</div>
@@ -516,9 +518,9 @@ final class CompanyWebTemplates {
                     </form>
                   </div>
                 </main>
-                <footer class="site-footer">Generated webpage for your user story · © 2026</footer>
+                <footer class="site-footer">© 2026 %s</footer>
                 </body></html>
-                """.formatted(title, accent, brand, title, story, route, l1, l1, l2, l2, extraFields);
+                """.formatted(title, accent, brand, title, brand, route, l1, l1, l2, l2, extraFields, brand);
     }
 
     static String confirmationPage(String title, String message, String backRoute, String[] bullets) {

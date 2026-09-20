@@ -209,7 +209,10 @@ public class ScreenCodeGenerator {
         String s = userStory == null ? "" : userStory.toLowerCase();
         if (s.contains("big site") || s.contains("full website") || s.contains("full site")
                 || s.contains("multi-page") || s.contains("entire website") || s.contains("complete website")
-                || s.contains("corporate site") || s.contains("company website") || s.contains("marketing website")) {
+                || s.contains("corporate site") || s.contains("company website") || s.contains("marketing website")
+                || s.contains("restaurant") || s.contains("travel") || s.contains("hotel") || s.contains("cafe")
+                || s.contains("café") || s.contains("tourism") || s.contains("resort") || s.contains("gym")
+                || s.contains("fitness") || s.contains("clinic") || s.contains("hospital")) {
             return true;
         }
         return a.domain() == StoryAnalyzer.Domain.LANDING;
@@ -233,6 +236,7 @@ public class ScreenCodeGenerator {
             }
         }
 
+        var theme = BigSiteTemplates.themeFor(userStory);
         var pages = BigSiteTemplates.generate(brand, userStory);
         Path templatesDir = projectDir.resolve("src/main/resources/templates");
         Files.createDirectories(templatesDir);
@@ -303,23 +307,35 @@ public class ScreenCodeGenerator {
                 {
                   "pageTitle": "%s",
                   "heading": "%s",
-                  "subtitle": "Full multi-page company website",
-                  "backgroundColor": "#ffffff",
+                  "subtitle": "%s website · theme %s",
+                  "backgroundColor": "%s",
                   "cardColor": "#ffffff",
-                  "accentColor": "#1a73e8",
-                  "textColor": "#0f172a",
-                  "footerColor": "#0b1220",
+                  "accentColor": "%s",
+                  "textColor": "%s",
+                  "footerColor": "%s",
                   "footerText": "© 2026 %s",
-                  "fontFamily": "Inter, Arial, sans-serif",
+                  "fontFamily": "%s",
                   "fontSize": "16px",
                   "headingSize": "2rem",
                   "logoUrl": "",
-                  "heroImageUrl": "",
+                  "heroImageUrl": "%s",
                   "backgroundImageUrl": "",
                   "showGoogleSignIn": false,
                   "showFooter": true
                 }
-                """.formatted(escapeJava(brand), escapeJava(brand), escapeJava(brand)), StandardCharsets.UTF_8);
+                """.formatted(
+                escapeJava(brand),
+                escapeJava(brand),
+                escapeJava(theme.kind().name().toLowerCase()),
+                escapeJava(theme.kind().name()),
+                escapeJava(theme.bg()),
+                escapeJava(theme.accent()),
+                escapeJava(theme.ink()),
+                escapeJava(theme.dark()),
+                escapeJava(brand),
+                escapeJava(theme.fontFamily()),
+                escapeJava(theme.heroImage())
+        ), StandardCharsets.UTF_8);
         paths.add(styleJson);
 
         Path meta = projectDir.resolve("SITE_META.json");
@@ -422,7 +438,7 @@ public class ScreenCodeGenerator {
                         public String show(Model model) {
                             model.addAttribute("form", new %sForm());
                             model.addAttribute("title", "%s");
-                            model.addAttribute("story", "%s");
+                            model.addAttribute("story", "About %s");
                             return "%s";
                         }
 
@@ -443,7 +459,7 @@ public class ScreenCodeGenerator {
                         }
                     }
                     """.formatted(a.packageName(), escapeComment(userStory), a.classPrefix(), route,
-                    a.classPrefix(), escapeJava(a.headline()), escapeJava(userStory), view, route, a.classPrefix(),
+                    a.classPrefix(), escapeJava(a.headline()), escapeJava(a.headline()), view, route, a.classPrefix(),
                     escapeJava(a.headline()),
                     a.redirectPath() == null || a.redirectPath().isBlank()
                             ? "return \"redirect:" + route + "-success\";"
@@ -453,7 +469,7 @@ public class ScreenCodeGenerator {
     }
 
     private String buildHtml(StoryAnalyzer.Analysis a, String route, String userStory) {
-        return CompanyWebTemplates.pageFor(a, escapeHtml(userStory), route);
+        return CompanyWebTemplates.pageFor(a, "", route);
     }
 
     private void ensurePom(Path projectDir, List<Path> written) throws IOException {

@@ -2,8 +2,11 @@ package com.agentic.chatbot.web;
 
 import com.agentic.chatbot.agent.PipelineOrchestrator;
 import com.agentic.chatbot.llm.LlmClient;
+import com.agentic.chatbot.model.ChatHistoryEntry;
 import com.agentic.chatbot.model.PipelineRequest;
 import com.agentic.chatbot.model.PipelineResponse;
+import com.agentic.chatbot.service.ChatHistoryService;
+import com.agentic.chatbot.service.SiteEditService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,10 +20,18 @@ public class ChatController {
 
     private final PipelineOrchestrator orchestrator;
     private final LlmClient llmClient;
+    private final ChatHistoryService historyService;
+    private final SiteEditService siteEditService;
 
-    public ChatController(PipelineOrchestrator orchestrator, LlmClient llmClient) {
+    public ChatController(
+            PipelineOrchestrator orchestrator,
+            LlmClient llmClient,
+            ChatHistoryService historyService,
+            SiteEditService siteEditService) {
         this.orchestrator = orchestrator;
         this.llmClient = llmClient;
+        this.historyService = historyService;
+        this.siteEditService = siteEditService;
     }
 
     @GetMapping("/")
@@ -29,6 +40,7 @@ public class ChatController {
             model.addAttribute("request", new PipelineRequest());
         }
         model.addAttribute("llmReady", llmClient.isAvailable());
+        model.addAttribute("history", historyService.list());
         return "index";
     }
 
@@ -38,21 +50,37 @@ public class ChatController {
             Model model,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
-        // Always run the full pipeline — no form toggles on the home page
         request.setRunUnitTests(true);
         request.setRunFunctionalTests(true);
-        PipelineResponse response = orchestrator.run(request);
+
+        String instruction = request.getUserStory() == null ? "" : request.getUserStory().trim();
+        String baseStory = resolveBaseStory(session);
+
+        PipelineResponse response;
+        if (siteEditService.looksLikeEdit(instruction) && siteEditService.hasGeneratedSite()) {
+            response = siteEditService.apply(instruction, baseStory);
+            if (baseStory != null && !baseStory.isBlank()) {
+                session.setAttribute("baseUserStory", baseStory);
+            }
+        } else {
+            response = orchestrator.run(request);
+            session.setAttribute("baseUserStory", instruction);
+        }
+
+        ChatHistoryEntry saved = historyService.save(instruction, response);
+        response.setHistoryId(saved.getId());
         session.setAttribute("lastPipelineResponse", response);
-        session.setAttribute("lastUserStory", request.getUserStory());
+        session.setAttribute("lastUserStory", instruction);
+        session.setAttribute("lastHistoryId", saved.getId());
 
         if (response.isSuccess() && response.getPreviewUrl() != null) {
-            // Redirect browser to the newly generated website page
             return "redirect:" + response.getPreviewUrl();
         }
 
         model.addAttribute("request", request);
         model.addAttribute("response", response);
         model.addAttribute("llmReady", llmClient.isAvailable());
+        model.addAttribute("history", historyService.list());
         return "index";
     }
 
@@ -67,9 +95,27 @@ public class ChatController {
         model.addAttribute("request", request);
         model.addAttribute("response", response);
         model.addAttribute("llmReady", llmClient.isAvailable());
+        model.addAttribute("history", historyService.list());
         if (response instanceof PipelineResponse pr && pr.getPreviewUrl() != null) {
             model.addAttribute("previewUrl", pr.getPreviewUrl());
         }
         return "index";
+    }
+
+    private String resolveBaseStory(HttpSession session) {
+        Object base = session.getAttribute("baseUserStory");
+        if (base instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        Object last = session.getAttribute("lastUserStory");
+        if (last instanceof String s && !s.isBlank() && !siteEditService.looksLikeEdit(s)) {
+            return s;
+        }
+        for (ChatHistoryEntry entry : historyService.list()) {
+            if (entry.getUserStory() != null && !siteEditService.looksLikeEdit(entry.getUserStory())) {
+                return entry.getUserStory();
+            }
+        }
+        return "";
     }
 }

@@ -148,7 +148,7 @@ public class GeneratedSiteController {
         }
 
         String themeCss = buildThemeCss(style);
-        String extras = buildExtras(style, page, googleUser, googleEmail);
+        String extras = buildExtras(style, page, googleUser, googleEmail, result);
 
         if (result.contains("</head>")) {
             result = result.replace("</head>", themeCss + "</head>");
@@ -189,35 +189,48 @@ public class GeneratedSiteController {
                 ? "body{background-image:linear-gradient(rgba(255,255,255,.72),rgba(255,255,255,.72)),url('"
                 + s.getBackgroundImageUrl() + "')!important;background-size:cover!important;background-position:center!important;}"
                 : "";
-        // Only set CSS variables so Google/company page layouts keep their structure
+        // Override theme tokens so editor / story colors and fonts apply on generated pages
         return """
                 <style id="site-theme">
                   :root {
-                    --bg: %s;
-                    --card: %s;
-                    --accent: %s;
-                    --text: %s;
-                    --ink: %s;
-                    --footer: %s;
+                    --bg: %s !important;
+                    --card: %s !important;
+                    --accent: %s !important;
+                    --text: %s !important;
+                    --ink: %s !important;
+                    --footer: %s !important;
+                    --dark: %s !important;
                   }
-                  body { font-family: %s; font-size: %s; color: %s; }
+                  body { font-family: %s !important; font-size: %s; color: %s !important; background: %s !important; }
+                  .btn-primary, .cta, form button, .btn.btn-primary { background: %s !important; color: #fff !important; }
+                  .btn-ghost, a.history-edit { color: %s !important; border-color: %s !important; }
+                  a.card:hover, .nav a.active, .nav a:hover { color: %s !important; border-color: %s !important; }
+                  .card .go { color: %s !important; }
                   %s
                   .hero-img, .logo-img { max-width: 100%%; display: block; margin: 0 auto 1rem; border-radius: 12px; }
                   .logo-img { max-height: 64px; width: auto; }
                 </style>
                 """.formatted(
                 s.getBackgroundColor(), s.getCardColor(), s.getAccentColor(), s.getTextColor(), s.getTextColor(),
-                s.getFooterColor(), s.getFontFamily(), s.getFontSize(), s.getTextColor(), bgImage
+                s.getFooterColor(), s.getFooterColor(),
+                s.getFontFamily(), s.getFontSize(), s.getTextColor(), s.getBackgroundColor(),
+                s.getAccentColor(),
+                s.getAccentColor(), s.getAccentColor(),
+                s.getAccentColor(), s.getAccentColor(),
+                s.getAccentColor(),
+                bgImage
         );
     }
 
-    private String buildExtras(SiteStyle style, String page, Object googleUser, Object googleEmail) {
+    private String buildExtras(SiteStyle style, String page, Object googleUser, Object googleEmail, String html) {
         StringBuilder sb = new StringBuilder();
         if (style.getLogoUrl() != null && !style.getLogoUrl().isBlank()) {
             sb.append("<div style=\"text-align:center;padding:1rem 1rem 0\"><img class=\"logo-img\" src=\"")
                     .append(escape(style.getLogoUrl())).append("\" alt=\"Logo\"/></div>");
         }
-        if (style.getHeroImageUrl() != null && !style.getHeroImageUrl().isBlank()) {
+        boolean hasEmbedded = html != null && (html.contains("class=\"card-img\"") || html.contains("class=\"visual\"")
+                || html.contains("card-media"));
+        if (!hasEmbedded && style.getHeroImageUrl() != null && !style.getHeroImageUrl().isBlank()) {
             sb.append("<div style=\"max-width:720px;margin:0 auto;padding:0 1rem\"><img class=\"hero-img\" src=\"")
                     .append(escape(style.getHeroImageUrl())).append("\" alt=\"Hero\"/></div>");
         }

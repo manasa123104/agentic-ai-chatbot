@@ -79,7 +79,10 @@ public final class StoryAnalyzer {
         if (story.contains("landing") || story.contains("homepage") || story.contains("home page")
                 || story.contains("marketing") || story.contains("saas") || story.contains("pricing")
                 || story.contains("company") || story.contains("website") || story.contains("big site")
-                || story.contains("full site") || story.contains("multi-page") || story.contains("corporate")) {
+                || story.contains("full site") || story.contains("multi-page") || story.contains("corporate")
+                || story.contains("restaurant") || story.contains("travel") || story.contains("hotel")
+                || story.contains("cafe") || story.contains("café") || story.contains("tourism")
+                || story.contains("resort") || story.contains("gym") || story.contains("fitness")) {
             return Domain.LANDING;
         }
         return Domain.GENERIC;
