@@ -212,7 +212,13 @@ public class ScreenCodeGenerator {
                 || s.contains("corporate site") || s.contains("company website") || s.contains("marketing website")
                 || s.contains("restaurant") || s.contains("travel") || s.contains("hotel") || s.contains("cafe")
                 || s.contains("café") || s.contains("tourism") || s.contains("resort") || s.contains("gym")
-                || s.contains("fitness") || s.contains("clinic") || s.contains("hospital")) {
+                || s.contains("fitness") || s.contains("clinic") || s.contains("hospital")
+                || s.contains("music") || s.contains("piano") || s.contains("guitar") || s.contains("concert")
+                || s.contains("choir") || s.contains("orchestra") || s.contains("violin") || s.contains("musician")
+                || s.contains("wedding") || s.contains("bridal") || s.contains("pet") || s.contains("bookstore")
+                || s.contains("library") || s.contains("garden") || s.contains("nursery") || s.contains("florist")
+                || s.contains("gaming") || s.contains("esport") || s.contains("planetarium") || s.contains("astronomy")
+                || s.contains("cleaning") || s.contains("surf")) {
             return true;
         }
         return a.domain() == StoryAnalyzer.Domain.LANDING;

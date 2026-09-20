@@ -82,7 +82,15 @@ public final class StoryAnalyzer {
                 || story.contains("full site") || story.contains("multi-page") || story.contains("corporate")
                 || story.contains("restaurant") || story.contains("travel") || story.contains("hotel")
                 || story.contains("cafe") || story.contains("café") || story.contains("tourism")
-                || story.contains("resort") || story.contains("gym") || story.contains("fitness")) {
+                || story.contains("resort") || story.contains("gym") || story.contains("fitness")
+                || story.contains("music") || story.contains("piano") || story.contains("guitar")
+                || story.contains("concert") || story.contains("choir") || story.contains("orchestra")
+                || story.contains("wedding") || story.contains("bridal") || story.contains("pet")
+                || story.contains("bookstore") || story.contains("library") || story.contains("garden")
+                || story.contains("nursery") || story.contains("florist")
+                || story.contains("gaming") || story.contains("esport") || story.contains("planetarium")
+                || story.contains("astronomy") || story.contains("cleaning") || story.contains("violin")
+                || story.contains("musician")) {
             return Domain.LANDING;
         }
         return Domain.GENERIC;

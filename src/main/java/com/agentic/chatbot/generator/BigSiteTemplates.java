@@ -197,15 +197,16 @@ final class BigSiteTemplates {
         return imgs[Math.floorMod(i, imgs.length)];
     }
 
-    private static String card(String href, String image, String title, String blurb) {
-        String src = (image == null || image.isBlank())
-                ? "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80"
-                : image;
+    private static String card(String href, String image, String title, String blurb, String fallback) {
+        String fb = (fallback == null || fallback.isBlank())
+                ? "https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=800&q=80"
+                : fallback;
+        String src = (image == null || image.isBlank()) ? fb : image;
         return """
                 <a class="card" href="%s">
                   <div class="card-media">
                     <img class="card-img" src="%s" alt="%s" loading="lazy"
-                         onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&amp;fit=crop&amp;w=800&amp;q=80'"/>
+                         onerror="this.onerror=null;this.src='%s'"/>
                   </div>
                   <div class="card-body">
                     <h3>%s</h3>
@@ -213,7 +214,15 @@ final class BigSiteTemplates {
                     <span class="go">Open page →</span>
                   </div>
                 </a>
-                """.formatted(href, escAttr(src), escAttr(title), title, blurb);
+                """.formatted(href, escAttr(src), escAttr(title), escAttr(fb), title, blurb);
+    }
+
+    private static String card(String href, String image, String title, String blurb, SiteThemePack.Theme theme) {
+        String fb = theme.heroImage();
+        if (fb == null || fb.isBlank()) {
+            fb = img(theme.cardImages(), 0);
+        }
+        return card(href, image, title, blurb, fb);
     }
 
     private static String homeBody(String brand, String story, SiteThemePack.Theme theme) {
@@ -254,11 +263,11 @@ final class BigSiteTemplates {
                 escAttr(theme.heroImage()), brand,
                 brand,
                 theme.homeLead(),
-                card("/site/about", img(imgs, 0), "Our story", "Learn who we are and what " + brand + " stands for."),
-                card("/site/services", img(imgs, 1), theme.servicesLabel(), theme.serviceBlurbs()[0]),
-                card("/site/contact", img(imgs, 2), "Get in touch", "Reach the " + brand + " team anytime."),
-                card("/site/about", img(imgs, 3), "About " + brand + " →", "Read more about our mission and values."),
-                card("/site/pricing", img(imgs, 4), "See pricing →", "Simple plans from " + brand + ".")
+                card("/site/about", img(imgs, 0), "Our story", "Learn who we are and what " + brand + " stands for.", theme),
+                card("/site/services", img(imgs, 1), theme.servicesLabel(), theme.serviceBlurbs()[0], theme),
+                card("/site/contact", img(imgs, 2), "Get in touch", "Reach the " + brand + " team anytime.", theme),
+                card("/site/about", img(imgs, 3), "About " + brand + " →", "Read more about our mission and values.", theme),
+                card("/site/pricing", img(imgs, 4), "See pricing →", "Simple plans from " + brand + ".", theme)
         );
     }
 
@@ -277,9 +286,9 @@ final class BigSiteTemplates {
                 """.formatted(
                 brand,
                 theme.homeLead(),
-                card("/site/services", img(imgs, 0), "What we do", theme.serviceBlurbs()[0]),
-                card("/site/careers", img(imgs, 1), "Our people", "The team behind " + brand + "."),
-                card("/site/contact", img(imgs, 2), "Talk to us", "Questions about " + brand + "? We’re here to help.")
+                card("/site/services", img(imgs, 0), "What we do", theme.serviceBlurbs()[0], theme),
+                card("/site/careers", img(imgs, 1), "Our people", "The team behind " + brand + ".", theme),
+                card("/site/contact", img(imgs, 2), "Talk to us", "Questions about " + brand + "? We’re here to help.", theme)
         );
     }
 
@@ -290,7 +299,7 @@ final class BigSiteTemplates {
         String[] links = theme.serviceLinks();
         StringBuilder cards = new StringBuilder();
         for (int i = 0; i < titles.length; i++) {
-            cards.append(card(links[i], img(imgs, i), titles[i], blurbs[i]));
+            cards.append(card(links[i], img(imgs, i), titles[i], blurbs[i], theme));
         }
         return """
                 <section class="section">
@@ -356,9 +365,9 @@ final class BigSiteTemplates {
                 </section>
                 """.formatted(
                 brand,
-                card("/site/services", img(imgs, 3), "Behind the experience", "How we craft moments guests remember."),
-                card("/site/about", img(imgs, 4), "Meet the makers", "People, places, and the craft behind " + brand + "."),
-                card("/site/contact", img(imgs, 5), "Ask us anything", "Planning a visit or trip? Start a conversation.")
+                card("/site/services", img(imgs, 3), "Behind the experience", "How we craft moments guests remember.", theme),
+                card("/site/about", img(imgs, 4), "Meet the makers", "People, places, and the craft behind " + brand + ".", theme),
+                card("/site/contact", img(imgs, 5), "Ask us anything", "Planning a visit or trip? Start a conversation.", theme)
         );
     }
 
@@ -377,10 +386,10 @@ final class BigSiteTemplates {
                 </section>
                 """.formatted(
                 brand,
-                card("/site/contact", img(imgs, 0), "Front of house lead", "Full-time · On-site"),
-                card("/site/contact", img(imgs, 1), "Experience designer", "Hybrid · Full-time"),
-                card("/site/contact", img(imgs, 2), "Operations manager", "Remote · Full-time"),
-                card("/site/contact", img(imgs, 3), "Guest success specialist", "Full-time · Flexible")
+                card("/site/contact", img(imgs, 0), "Front of house lead", "Full-time · On-site", theme),
+                card("/site/contact", img(imgs, 1), "Experience designer", "Hybrid · Full-time", theme),
+                card("/site/contact", img(imgs, 2), "Operations manager", "Remote · Full-time", theme),
+                card("/site/contact", img(imgs, 3), "Guest success specialist", "Full-time · Flexible", theme)
         );
     }
 

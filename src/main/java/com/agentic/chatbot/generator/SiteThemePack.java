@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 public final class SiteThemePack {
 
     public enum Kind {
+        MUSIC, WEDDING, PETS, BOOKS, GARDEN, GAMING, SPACE, CLEANING,
         RESTAURANT, TRAVEL, HOSPITAL, FITNESS, BANK, TECH
     }
 
@@ -34,6 +35,9 @@ public final class SiteThemePack {
     ) {
     }
 
+    private static final String Q800 = "?auto=format&fit=crop&w=800&q=80";
+    private static final String Q1400 = "?auto=format&fit=crop&w=1400&q=80";
+
     private SiteThemePack() {
     }
 
@@ -41,6 +45,14 @@ public final class SiteThemePack {
         String s = userStory == null ? "" : userStory.toLowerCase(Locale.ROOT);
         Kind kind = detectKind(s);
         Theme base = switch (kind) {
+            case MUSIC -> music();
+            case WEDDING -> wedding();
+            case PETS -> pets();
+            case BOOKS -> books();
+            case GARDEN -> garden();
+            case GAMING -> gaming();
+            case SPACE -> space();
+            case CLEANING -> cleaning();
             case RESTAURANT -> restaurant();
             case TRAVEL -> travel();
             case HOSPITAL -> hospital();
@@ -89,21 +101,50 @@ public final class SiteThemePack {
                 "image", "images", "photo", "picture", "pictures", "photos",
                 "restaurant", "travel", "traveler", "hotel", "cafe", "café",
                 "gym", "fitness", "hospital", "clinic", "bank", "food", "beach",
+                "music", "piano", "guitar", "concert", "wedding", "bridal",
+                "pet", "dog", "cat", "book", "library", "garden", "plant", "nursery",
+                "game", "gaming", "esports", "space", "planet", "museum", "cleaning",
                 "theme", "look like", "show me");
     }
 
     private static Kind detectKind(String s) {
+        // Most specific topics first
+        if (containsAny(s, "music", "piano", "guitar", "violin", "orchestra", "concert",
+                "choir", "song", "musician", "instrument", "harmonia", "notes academy", "music school", "music academy")) {
+            return Kind.MUSIC;
+        }
+        if (containsAny(s, "wedding", "bridal", "bride", "groom", "marriage", "vow")) {
+            return Kind.WEDDING;
+        }
+        if (containsAny(s, "pet", "pets", "dog", "cat", "puppy", "kitten", "boarding", "veterinary", "vet clinic", "paw")) {
+            return Kind.PETS;
+        }
+        if (containsAny(s, "bookstore", "book shop", "library", "reading", "bookstore", "chapter", "books")) {
+            return Kind.BOOKS;
+        }
+        if (containsAny(s, "garden", "nursery", "plant", "florist", "flower", "fern", "landscap")) {
+            return Kind.GARDEN;
+        }
+        if (containsAny(s, "esport", "gaming", "gamer", "video game", "neonrift", "console")) {
+            return Kind.GAMING;
+        }
+        if (containsAny(s, "planetarium", "astronomy", "space", "galaxy", "cosmos", "orion dome", "observatory")) {
+            return Kind.SPACE;
+        }
+        if (containsAny(s, "cleaning", "cleaner", "maid", "janitor", "leafshine", "housekeep")) {
+            return Kind.CLEANING;
+        }
         if (containsAny(s, "restaurant", "cafe", "café", "dining", "food", "menu", "bistro", "kitchen", "chef")) {
             return Kind.RESTAURANT;
         }
         if (containsAny(s, "travel", "traveler", "traveller", "tourism", "tour", "hotel", "vacation",
-                "holiday", "flight", "destination", "trip", "resort")) {
+                "holiday", "flight", "destination", "trip", "resort", "surf", "beach")) {
             return Kind.TRAVEL;
         }
-        if (containsAny(s, "hospital", "clinic", "doctor", "patient", "health", "medical", "care")) {
+        if (containsAny(s, "hospital", "clinic", "doctor", "patient", "medical", "healthcare", "health care", "dentist")) {
             return Kind.HOSPITAL;
         }
-        if (containsAny(s, "gym", "fitness", "workout", "yoga", "sport")) {
+        if (containsAny(s, "gym", "fitness", "workout", "yoga", "sport", "athletic")) {
             return Kind.FITNESS;
         }
         if (containsAny(s, "bank", "finance", "fintech", "loan", "insurance")) {
@@ -217,6 +258,265 @@ public final class SiteThemePack {
             last = m.group(1).toLowerCase(Locale.ROOT);
         }
         return last;
+    }
+
+    private static Theme music() {
+        return new Theme(
+                Kind.MUSIC,
+                "#7c3aed", "#f5f3ff", "#1e1b4b", "#faf9ff", "#1e1b4b", "#6b7280",
+                "Poppins, Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap",
+                // Mixing board / studio
+                "https://images.unsplash.com/photo-1511379938547-c1f69419868d" + Q1400,
+                new String[]{
+                        // Headphones / listening
+                        "https://images.unsplash.com/photo-1514320291840-2d0d18b0f0c0" + Q800,
+                        // Live singer / concert
+                        "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f" + Q800,
+                        // Piano keys
+                        "https://images.unsplash.com/photo-1507838153414-b4b713384bfd" + Q800,
+                        // Vocalist with mic
+                        "https://images.unsplash.com/photo-1516280440612-48037c9f3c5f" + Q800,
+                        // DJ / stage lights
+                        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745" + Q800,
+                        // Electric guitar
+                        "https://images.unsplash.com/photo-1510915361894-db8b50106b35" + Q800,
+                        // Drum kit
+                        "https://images.unsplash.com/photo-1519892300165-cb5542fb47e1" + Q800,
+                        // Vinyl / records
+                        "https://images.unsplash.com/photo-1487180144351-b8472daed4fc" + Q800
+                },
+                "Learn music. Love every note.",
+                "Lessons, ensembles, and stages where students grow from first scales to full performances.",
+                "Programs",
+                new String[]{"Piano", "Guitar", "Vocals", "Drums", "Kids classes", "Recitals"},
+                new String[]{
+                        "Private piano lessons for every level.",
+                        "Acoustic and electric guitar pathways.",
+                        "Voice coaching for solo and choir.",
+                        "Drum kits, rhythm, and groove labs.",
+                        "Fun starter classes for young musicians.",
+                        "End-of-term concerts on a real stage."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme wedding() {
+        return new Theme(
+                Kind.WEDDING,
+                "#db2777", "#fdf2f8", "#831843", "#fff7fb", "#831843", "#9f1239",
+                "\"Playfair Display\", Georgia, serif",
+                "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap",
+                "https://images.unsplash.com/photo-1519741497674-611481863552" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6" + Q800,
+                        "https://images.unsplash.com/photo-1520854221256-17451cc331bf" + Q800,
+                        "https://images.unsplash.com/photo-1511285560929-80b4565780ab" + Q800,
+                        "https://images.unsplash.com/photo-1606800052052-a08af7148866" + Q800,
+                        "https://images.unsplash.com/photo-1522673607200-164d1b6ce486" + Q800,
+                        "https://images.unsplash.com/photo-1460978812857-470ed1c77af0" + Q800
+                },
+                "Your day, beautifully planned.",
+                "Full wedding planning, styling, and coordination so every moment feels intentional.",
+                "Wedding services",
+                new String[]{"Full planning", "Day-of coord", "Florals", "Venues", "Photography", "Styling"},
+                new String[]{
+                        "End-to-end planning from vision to vows.",
+                        "Calm coordination when the day arrives.",
+                        "Bouquets and installs that photograph beautifully.",
+                        "Venue shortlists matched to your guest count.",
+                        "Trusted photographer partners.",
+                        "Tablescapes, lighting, and mood boards."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme pets() {
+        return new Theme(
+                Kind.PETS,
+                "#0d9488", "#f0fdfa", "#134e4a", "#ffffff", "#134e4a", "#5eead4",
+                "Montserrat, Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap",
+                "https://images.unsplash.com/photo-1450778869180-41d0601e046e" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1587300003388-59208cc962f0" + Q800,
+                        "https://images.unsplash.com/photo-1548199973-03cce0bbc87b" + Q800,
+                        "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba" + Q800,
+                        "https://images.unsplash.com/photo-1530281700549-e82e7bf110d6" + Q800,
+                        "https://images.unsplash.com/photo-1601758228041-f3b2795255f1" + Q800,
+                        "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e" + Q800
+                },
+                "Happy pets. Peaceful owners.",
+                "Boarding, daycare, and care plans designed around how animals actually feel safe.",
+                "Pet care",
+                new String[]{"Boarding", "Daycare", "Grooming", "Training", "Vet visits", "Pickup"},
+                new String[]{
+                        "Overnight stays with webcam check-ins.",
+                        "Playgroups matched by energy level.",
+                        "Baths, nails, and gentle coat care.",
+                        "Basic manners and confidence building.",
+                        "Partner clinics for routine checkups.",
+                        "Door-to-door transport for busy weeks."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme books() {
+        return new Theme(
+                Kind.BOOKS,
+                "#7c2d12", "#fff7ed", "#1c1917", "#fffaf5", "#1c1917", "#a8a29e",
+                "\"Playfair Display\", Georgia, serif",
+                "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap",
+                "https://images.unsplash.com/photo-1507842217343-583bb7270b66" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1481627834876-b7833e8f5570" + Q800,
+                        "https://images.unsplash.com/photo-1524995997943-a5c4d61d9a1c" + Q800,
+                        "https://images.unsplash.com/photo-1512820790803-83ca734da794" + Q800,
+                        "https://images.unsplash.com/photo-1495446815901-a7297e633e8d" + Q800,
+                        "https://images.unsplash.com/photo-1526243741027-444d633d7365" + Q800,
+                        "https://images.unsplash.com/photo-1521587760476-6c12a4b040da" + Q800
+                },
+                "Books, coffee, and quiet corners.",
+                "A neighborhood bookstore-café for readers who linger, browse, and discover.",
+                "For readers",
+                new String[]{"New releases", "Events", "Membership", "Café", "Kids corner", "Orders"},
+                new String[]{
+                        "Weekly shelves of fiction and nonfiction.",
+                        "Author nights and book clubs.",
+                        "Member perks and early holds.",
+                        "Espresso and pastry while you browse.",
+                        "Story time and junior shelves.",
+                        "Special orders arrive fast."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme garden() {
+        return new Theme(
+                Kind.GARDEN,
+                "#15803d", "#f0fdf4", "#14532d", "#ffffff", "#14532d", "#86efac",
+                "\"Open Sans\", Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap",
+                "https://images.unsplash.com/photo-1416879595882-3373a0480b5b" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1466692476866-aef1dfb1e735" + Q800,
+                        "https://images.unsplash.com/photo-1416879595882-3373a0480b5b" + Q800,
+                        "https://images.unsplash.com/photo-1485955900006-10f4d324a462" + Q800,
+                        "https://images.unsplash.com/photo-1459156212016-c812103e8a98" + Q800,
+                        "https://images.unsplash.com/photo-1463936577151-ac2dd4aa5c1e" + Q800,
+                        "https://images.unsplash.com/photo-1501004318641-b39e6451bec6" + Q800
+                },
+                "Grow greener, one plant at a time.",
+                "Nursery plants, soil advice, and garden design for balconies and backyards.",
+                "Garden services",
+                new String[]{"Indoor plants", "Outdoor beds", "Soil & pots", "Design", "Delivery", "Workshops"},
+                new String[]{
+                        "Low-light and bright-room favorites.",
+                        "Seasonal flowers and edibles.",
+                        "Mixes and containers that drain right.",
+                        "Layout plans for small spaces.",
+                        "Doorstep plant delivery.",
+                        "Weekend workshops for beginners."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme gaming() {
+        return new Theme(
+                Kind.GAMING,
+                "#2563eb", "#0f172a", "#020617", "#0b1220", "#e2e8f0", "#94a3b8",
+                "Montserrat, Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap",
+                "https://images.unsplash.com/photo-1542751371-adc38448a05e" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1538481199705-c710c4ea71b0" + Q800,
+                        "https://images.unsplash.com/photo-1493711662062-fa541f7f3d94" + Q800,
+                        "https://images.unsplash.com/photo-1511512578047-dfb367046420" + Q800,
+                        "https://images.unsplash.com/photo-1552820728-8b83bb6b773f" + Q800,
+                        "https://images.unsplash.com/photo-1550745165-9bc0b252726f" + Q800,
+                        "https://images.unsplash.com/photo-1593305841991-05c297ba4575" + Q800
+                },
+                "Compete louder. Fan harder.",
+                "Roster news, merch drops, and match nights for fans who live the game.",
+                "Fan hub",
+                new String[]{"Roster", "Matches", "Merch", "Streams", "Academy", "Sponsors"},
+                new String[]{
+                        "Meet the players behind the tags.",
+                        "Schedules and ticketed watch parties.",
+                        "Jerseys and limited drops.",
+                        "Live streams and VODs.",
+                        "Youth tryouts and coaching.",
+                        "Partner brands and community events."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme space() {
+        return new Theme(
+                Kind.SPACE,
+                "#f59e0b", "#0f172a", "#020617", "#020617", "#e2e8f0", "#94a3b8",
+                "Inter, Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap",
+                "https://images.unsplash.com/photo-1446776877081-d282a0f896e2" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1462331940025-496dfbfc7564" + Q800,
+                        "https://images.unsplash.com/photo-1451187580459-43490279c0fa" + Q800,
+                        "https://images.unsplash.com/photo-1444703686981-aaf876c3ff9a" + Q800,
+                        "https://images.unsplash.com/photo-1464802686167-b939a6910659" + Q800,
+                        "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a" + Q800,
+                        "https://images.unsplash.com/photo-1502134249126-9f3755a50d30" + Q800
+                },
+                "Look up. Wonder more.",
+                "Exhibits, shows, and education programs that bring the night sky close.",
+                "Visit",
+                new String[]{"Dome shows", "Exhibits", "Tickets", "School trips", "Night sky", "Shop"},
+                new String[]{
+                        "Immersive planetarium presentations.",
+                        "Hands-on astronomy galleries.",
+                        "Timed entry and memberships.",
+                        "Curriculum-aligned field trips.",
+                        "Seasonal stargazing evenings.",
+                        "Souvenirs and star charts."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
+    }
+
+    private static Theme cleaning() {
+        return new Theme(
+                Kind.CLEANING,
+                "#059669", "#ecfdf5", "#064e3b", "#ffffff", "#064e3b", "#6b7280",
+                "Lato, Arial, sans-serif",
+                "https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap",
+                "https://images.unsplash.com/photo-1581578731548-c64695cc6952" + Q1400,
+                new String[]{
+                        "https://images.unsplash.com/photo-1563453392212-326f5e854473" + Q800,
+                        "https://images.unsplash.com/photo-1527515637462-dff97aa6706f" + Q800,
+                        "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf" + Q800,
+                        "https://images.unsplash.com/photo-1556912173-46c336c7fd55" + Q800,
+                        "https://images.unsplash.com/photo-1585421514284-efb74c2b69ba" + Q800,
+                        "https://images.unsplash.com/photo-1600585154340-be6161a56a0c" + Q800
+                },
+                "Homes that feel freshly reset.",
+                "Eco-minded cleaning for apartments, offices, and move-outs.",
+                "Cleaning plans",
+                new String[]{"Standard clean", "Deep clean", "Move-out", "Offices", "Eco products", "Recurring"},
+                new String[]{
+                        "Weekly freshen-ups that stick to a checklist.",
+                        "Detail work for kitchens and bathrooms.",
+                        "Empty-home cleans before keys exchange.",
+                        "Desk areas and shared spaces.",
+                        "Plant-based supplies on request.",
+                        "Same team, same day each week."
+                },
+                new String[]{"/site/services", "/site/pricing", "/site/blog", "/site/about", "/site/contact", "/site/careers"}
+        );
     }
 
     private static Theme restaurant() {
