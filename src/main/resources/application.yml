@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: agentic-ai-chatbot
+    name: bot
   thymeleaf:
     cache: false
   servlet:
@@ -14,6 +14,7 @@ spring:
 agentic:
   output-dir: generated-app
   history-file: data/chat-history.json
+  training-file: data/bot-training.json
   llm:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}

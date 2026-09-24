@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>BOT · User stories + Java code</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/code.css}"/>
+</head>
+<body class="code-app">
+<header class="code-top">
+    <div class="code-brand">
+        <a class="rail-mark" href="/">B</a>
+        <div>
+            <strong>User stories + Java code</strong>
+            <small>BA story and the website code BOT generated for your request</small>
+        </div>
+    </div>
+    <nav class="code-actions">
+        <a class="btn ghost" href="/">Back to BOT</a>
+        <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
+        <a class="btn ghost" href="/edit">Edit site</a>
+    </nav>
+</header>
+
+<section class="story-banner" th:if="${hasUserStory}">
+    <div class="story-banner-inner">
+        <p class="pipe-label">Business Analyst · user story</p>
+        <pre class="story-pre" th:text="${userStoryText}">User story</pre>
+    </div>
+</section>
+
+<main class="code-layout" th:if="${hasCode}">
+    <aside class="code-files">
+        <p class="pipe-label">Generated code files</p>
+        <a th:each="f : ${files}"
+           class="file-link"
+           th:classappend="${f == selected} ? ' active' : ''"
+           th:href="@{/code(file=${f})}"
+           th:text="${f}">src/…</a>
+    </aside>
+    <section class="code-pane">
+        <div class="code-meta">
+            <span class="lang" th:text="${language}">java</span>
+            <code th:text="${selected}">file</code>
+        </div>
+        <p class="code-error" th:if="${error}" th:text="${error}">Error</p>
+        <pre th:if="${content}"><code th:text="${content}">// code</code></pre>
+    </section>
+</main>
+
+<main class="code-empty" th:unless="${hasCode}">
+    <div class="bubble">
+        <h1>No user story or website code yet</h1>
+        <p>Ask BOT to create a website. Agents will produce a Business Analyst user story and Java Developer website code (Spring Boot + Thymeleaf).</p>
+        <p class="actions"><a class="btn" href="/">Create a website with BOT</a></p>
+    </div>
+</main>
+</body>
+</html>

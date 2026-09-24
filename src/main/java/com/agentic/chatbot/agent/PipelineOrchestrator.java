@@ -19,21 +19,27 @@ public class PipelineOrchestrator {
 
     private static final Logger log = LoggerFactory.getLogger(PipelineOrchestrator.class);
 
+    private final BusinessAnalystBot businessAnalystBot;
     private final UiGeneratorBot uiGeneratorBot;
     private final UnitTestBot unitTestBot;
     private final FunctionalTestBot functionalTestBot;
+    private final ModelTrainerBot modelTrainerBot;
     private final Path outputDir;
     private final String llmApiKey;
 
     public PipelineOrchestrator(
+            BusinessAnalystBot businessAnalystBot,
             UiGeneratorBot uiGeneratorBot,
             UnitTestBot unitTestBot,
             FunctionalTestBot functionalTestBot,
+            ModelTrainerBot modelTrainerBot,
             @Value("${agentic.output-dir:generated-app}") String outputDir,
             @Value("${agentic.llm.api-key:}") String llmApiKey) {
+        this.businessAnalystBot = businessAnalystBot;
         this.uiGeneratorBot = uiGeneratorBot;
         this.unitTestBot = unitTestBot;
         this.functionalTestBot = functionalTestBot;
+        this.modelTrainerBot = modelTrainerBot;
         this.outputDir = Path.of(outputDir).toAbsolutePath().normalize();
         this.llmApiKey = llmApiKey;
     }
@@ -50,23 +56,35 @@ public class PipelineOrchestrator {
 
         try {
             Files.createDirectories(outputDir);
-            AgentContext context = new AgentContext(request.getUserStory().trim(), outputDir, llmApiKey);
+            AgentContext context = new AgentContext(
+                    request.getUserStory().trim(),
+                    outputDir,
+                    llmApiKey,
+                    request.getSystemPrompt());
 
-            steps.add(execute(uiGeneratorBot, context));
+            // 1) Business Analyst — refine prompts into user stories
+            steps.add(execute(businessAnalystBot, context));
             if (!steps.get(steps.size() - 1).isSuccess()) {
-                response.setSuccess(false);
-                response.setMessage("Pipeline stopped: UI bot failed.");
-                response.setSteps(steps);
-                response.setOutputDirectory(outputDir.toString());
-                return response;
+                return fail(response, steps, "Pipeline stopped: Business Analyst bot failed.");
             }
 
+            // 2) Java Developer — implement from the refined story
+            steps.add(execute(uiGeneratorBot, context));
+            if (!steps.get(steps.size() - 1).isSuccess()) {
+                return fail(response, steps, "Pipeline stopped: Java Developer bot failed.");
+            }
+
+            // 3) Java Unit Tester
             if (request.isRunUnitTests()) {
                 steps.add(execute(unitTestBot, context));
             }
+            // 4) Functional Tester
             if (request.isRunFunctionalTests()) {
                 steps.add(execute(functionalTestBot, context));
             }
+
+            // 5) Developer Tester — verify user stories + code, train model
+            steps.add(execute(modelTrainerBot, context));
 
             boolean allOk = steps.stream().allMatch(BotStepLog::isSuccess);
             StoryAnalyzer.Analysis analysis = StoryAnalyzer.analyze(request.getUserStory());
@@ -86,11 +104,43 @@ public class PipelineOrchestrator {
                 }
             } catch (Exception ignored) {
             }
+
+            String refined = context.getRefinedStory();
+            try {
+                Path storyPath = outputDir.resolve("USER_STORY.md");
+                if (Files.exists(storyPath)) {
+                    refined = Files.readString(storyPath);
+                }
+            } catch (Exception ignored) {
+            }
+            List<String> codeFiles = new ArrayList<>();
+            for (BotStepLog step : steps) {
+                if (step.getGeneratedFiles() == null) {
+                    continue;
+                }
+                for (String f : step.getGeneratedFiles()) {
+                    if (f == null) {
+                        continue;
+                    }
+                    String lower = f.toLowerCase();
+                    if (lower.endsWith(".java") || lower.endsWith(".html")
+                            || lower.endsWith("user_story.md") || lower.endsWith("pom.xml")) {
+                        if (!codeFiles.contains(f)) {
+                            codeFiles.add(f);
+                        }
+                    }
+                }
+            }
+
             response.setSuccess(allOk);
             response.setPreviewUrl(previewUrl);
+            response.setCodeUrl("/code");
+            response.setRefinedUserStory(refined);
+            response.setGeneratedCodeFiles(codeFiles);
             response.setRedirectPath(analysis.redirectPath());
             response.setMessage(allOk
-                    ? "All agents completed. Opening generated page at " + previewUrl
+                    ? "All 5 agents done. User story + Java website code ready — preview "
+                    + previewUrl + " · code /code"
                     : "Pipeline finished with one or more failures.");
             response.setSteps(steps);
             response.setOutputDirectory(outputDir.toString());
@@ -103,6 +153,14 @@ public class PipelineOrchestrator {
             response.setOutputDirectory(outputDir.toString());
             return response;
         }
+    }
+
+    private PipelineResponse fail(PipelineResponse response, List<BotStepLog> steps, String message) {
+        response.setSuccess(false);
+        response.setMessage(message);
+        response.setSteps(steps);
+        response.setOutputDirectory(outputDir.toString());
+        return response;
     }
 
     private BotStepLog execute(AgentBot bot, AgentContext context) {

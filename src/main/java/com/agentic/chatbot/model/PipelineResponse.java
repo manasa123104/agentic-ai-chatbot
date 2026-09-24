@@ -10,6 +10,11 @@ public class PipelineResponse {
     private String previewUrl;
     private String redirectPath;
     private String historyId;
+    private String codeUrl = "/code";
+    /** BA-refined user story text included with the generated website code. */
+    private String refinedUserStory;
+    /** Relative paths of generated Java / key source files. */
+    private List<String> generatedCodeFiles = new ArrayList<>();
     private List<BotStepLog> steps = new ArrayList<>();
 
     public boolean isSuccess() {
@@ -58,6 +63,30 @@ public class PipelineResponse {
 
     public void setHistoryId(String historyId) {
         this.historyId = historyId;
+    }
+
+    public String getCodeUrl() {
+        return codeUrl;
+    }
+
+    public void setCodeUrl(String codeUrl) {
+        this.codeUrl = codeUrl;
+    }
+
+    public String getRefinedUserStory() {
+        return refinedUserStory;
+    }
+
+    public void setRefinedUserStory(String refinedUserStory) {
+        this.refinedUserStory = refinedUserStory;
+    }
+
+    public List<String> getGeneratedCodeFiles() {
+        return generatedCodeFiles;
+    }
+
+    public void setGeneratedCodeFiles(List<String> generatedCodeFiles) {
+        this.generatedCodeFiles = generatedCodeFiles != null ? generatedCodeFiles : new ArrayList<>();
     }
 
     public List<BotStepLog> getSteps() {

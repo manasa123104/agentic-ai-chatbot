@@ -17,7 +17,7 @@ public class FunctionalTestBot implements AgentBot {
 
     @Override
     public String name() {
-        return "Bot 3 - Functional Testing";
+        return "Bot 4 - Functional Testing";
     }
 
     @Override
@@ -30,7 +30,7 @@ public class FunctionalTestBot implements AgentBot {
                             + ". Run: mvn test (inside generated-app)",
                     files);
         } catch (Exception e) {
-            return AgentResult.fail("Functional test generation failed: " + e.getMessage());
+            return AgentResult.fail("Functional Tester failed: " + e.getMessage());
         }
     }
 }

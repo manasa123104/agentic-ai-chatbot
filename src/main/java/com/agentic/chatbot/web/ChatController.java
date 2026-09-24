@@ -5,6 +5,7 @@ import com.agentic.chatbot.llm.LlmClient;
 import com.agentic.chatbot.model.ChatHistoryEntry;
 import com.agentic.chatbot.model.PipelineRequest;
 import com.agentic.chatbot.model.PipelineResponse;
+import com.agentic.chatbot.service.BotModelTrainingService;
 import com.agentic.chatbot.service.ChatHistoryService;
 import com.agentic.chatbot.service.SiteEditService;
 import jakarta.servlet.http.HttpSession;
@@ -22,25 +23,35 @@ public class ChatController {
     private final LlmClient llmClient;
     private final ChatHistoryService historyService;
     private final SiteEditService siteEditService;
+    private final BotModelTrainingService trainingService;
 
     public ChatController(
             PipelineOrchestrator orchestrator,
             LlmClient llmClient,
             ChatHistoryService historyService,
-            SiteEditService siteEditService) {
+            SiteEditService siteEditService,
+            BotModelTrainingService trainingService) {
         this.orchestrator = orchestrator;
         this.llmClient = llmClient;
         this.historyService = historyService;
         this.siteEditService = siteEditService;
+        this.trainingService = trainingService;
     }
+
+    private static final String DEFAULT_SYSTEM_PROMPT =
+            "Include both Business Analyst user stories and Java website code "
+                    + "(Spring Boot controllers + Thymeleaf templates). "
+                    + "Build a multi-page site from the user story. Match topic images. Keep the brand name clean. "
+                    + "Also produce unit tests and functional testing.";
 
     @GetMapping("/")
     public String index(Model model) {
         if (!model.containsAttribute("request")) {
-            model.addAttribute("request", new PipelineRequest());
+            PipelineRequest request = new PipelineRequest();
+            request.setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+            model.addAttribute("request", request);
         }
-        model.addAttribute("llmReady", llmClient.isAvailable());
-        model.addAttribute("history", historyService.list());
+        enrich(model);
         return "index";
     }
 
@@ -79,8 +90,7 @@ public class ChatController {
 
         model.addAttribute("request", request);
         model.addAttribute("response", response);
-        model.addAttribute("llmReady", llmClient.isAvailable());
-        model.addAttribute("history", historyService.list());
+        enrich(model);
         return "index";
     }
 
@@ -94,12 +104,17 @@ public class ChatController {
         }
         model.addAttribute("request", request);
         model.addAttribute("response", response);
-        model.addAttribute("llmReady", llmClient.isAvailable());
-        model.addAttribute("history", historyService.list());
+        enrich(model);
         if (response instanceof PipelineResponse pr && pr.getPreviewUrl() != null) {
             model.addAttribute("previewUrl", pr.getPreviewUrl());
         }
         return "index";
+    }
+
+    private void enrich(Model model) {
+        model.addAttribute("llmReady", llmClient.isAvailable());
+        model.addAttribute("history", historyService.list());
+        model.addAttribute("modelStatus", trainingService.status());
     }
 
     private String resolveBaseStory(HttpSession session) {

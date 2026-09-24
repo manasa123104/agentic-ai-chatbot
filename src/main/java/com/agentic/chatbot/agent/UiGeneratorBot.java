@@ -17,19 +17,21 @@ public class UiGeneratorBot implements AgentBot {
 
     @Override
     public String name() {
-        return "Bot 1 - UI / Webpage Screen Generator";
+        return "Bot 2 - Java Developer";
     }
 
     @Override
     public AgentResult run(AgentContext context) {
         try {
-            List<Path> files = screenCodeGenerator.generate(context.getUserStory(), context.getProjectDir());
+            // Prefer BA-refined story; generators still key off original topic keywords in the prompt.
+            String forDev = context.getUserStory();
+            List<Path> files = screenCodeGenerator.generate(forDev, context.getProjectDir());
             files.forEach(context::addGeneratedFile);
             return AgentResult.ok(
-                    "Created Java web screens (controller + Thymeleaf) from the user story. Files: " + files.size(),
+                    "Generated Java website code (Spring Boot controllers + Thymeleaf templates). Files: " + files.size(),
                     files);
         } catch (Exception e) {
-            return AgentResult.fail("UI generation failed: " + e.getMessage());
+            return AgentResult.fail("Java Developer bot failed: " + e.getMessage());
         }
     }
 }

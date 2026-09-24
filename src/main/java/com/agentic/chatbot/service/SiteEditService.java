@@ -140,8 +140,9 @@ public class SiteEditService {
 
             response.setSuccess(true);
             response.setPreviewUrl(preview);
+            response.setCodeUrl("/code");
             response.setOutputDirectory(outputDir.toString());
-            response.setMessage("Applied your edit." + note + " Preview: " + preview);
+            response.setMessage("Applied your edit." + note + " Preview: " + preview + " · Code: /code");
             response.setSteps(steps);
             return response;
         } catch (Exception e) {

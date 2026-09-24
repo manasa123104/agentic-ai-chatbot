@@ -3,20 +3,32 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Agentic Chat</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <title>BOT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
 </head>
 <body class="chat-app">
 <aside class="chat-rail">
     <div class="rail-brand">
-        <span class="rail-mark">A</span>
+        <span class="rail-mark">B</span>
         <div>
-            <strong>Agentic</strong>
-            <small>AI chatbot</small>
+            <strong>BOT</strong>
+            <small>Prompt → train → ship</small>
         </div>
     </div>
-    <button type="button" class="new-chat" id="newChat">+ New chat</button>
+    <button type="button" class="new-chat" id="newChat">+ New prompt</button>
+
+    <div class="bot-pipeline" aria-label="Five BOT agents">
+        <span class="pipe-label">5 agents</span>
+        <ol>
+            <li><em>1</em> Business Analyst</li>
+            <li><em>2</em> Java Developer</li>
+            <li><em>3</em> Java Unit Tester</li>
+            <li><em>4</em> Functional Testing</li>
+            <li><em>5</em> Developer Tester</li>
+        </ol>
+    </div>
+
     <div class="history-head">
         <span>Previous results</span>
         <button type="button" class="history-clear" id="clearHistory" title="Clear all history">Clear</button>
@@ -40,13 +52,17 @@
         </th:block>
         <p class="history-empty" id="historyEmpty"
            th:style="${history != null and !history.isEmpty()} ? 'display:none' : ''">
-            No previous results yet. Run a story and it will appear here.
+            No previous results yet. Send a prompt and BOT will train on it.
         </p>
     </div>
     <nav class="rail-links">
+        <a href="/code">User stories + Java code</a>
         <a href="/edit">Edit generated site</a>
     </nav>
-    <div class="rail-foot" th:text="${llmReady} ? 'LLM connected' : 'Offline mode'">Offline mode</div>
+    <div class="rail-foot">
+        <span th:text="${modelStatus != null ? modelStatus['label'] : 'Untrained BOT model'}">Untrained BOT model</span>
+        <span th:text="${llmReady} ? ' · LLM on' : ' · Offline templates'"> · Offline</span>
+    </div>
 </aside>
 
 <div class="chat-shell">
@@ -54,24 +70,26 @@
         <div class="chat-title">
             <span class="dot online"></span>
             <div>
-                <strong>Agentic bots</strong>
-                <small>UI · Unit testing · Functional testing</small>
+                <strong>BOT</strong>
+                <small>BA · Java Dev · Unit · Functional · Dev Tester</small>
             </div>
         </div>
-        <a class="avatar" href="/">A</a>
+        <a class="avatar" href="/">B</a>
     </header>
 
     <main class="chat-thread" id="thread" aria-live="polite">
         <div class="msg bot" id="welcomeMsg">
-            <div class="avatar-sm">A</div>
+            <div class="avatar-sm">B</div>
             <div class="bubble">
-                <p>Hi — I’m your Agentic chatbot.</p>
-                <p>Generate a website first, then type edit instructions in this chat (uses your previous site). Example: <em>change the color to blue</em> or <em>use travel images and Poppins font</em>.</p>
+                <p>Hi — I’m <strong>BOT</strong>.</p>
+                <p>Send a prompt and the 5 agents run: <strong>Business Analyst</strong> (user stories) → <strong>Java Developer</strong> (website Java code) → <strong>Java Unit Tester</strong> → <strong>Functional Testing</strong> → <strong>Developer Tester</strong>.</p>
+                <p class="muted-note">Results include both the <strong>user story</strong> and the <strong>generated Java code</strong> for the website you requested. Open <em>User stories + Java code</em> after a run.</p>
                 <div class="suggestions">
-                    <button type="button" class="chip" data-story="As a restaurant owner, I want a full multi-page website called OliveGrove with warm orange colors and Playfair font so guests can see the menu, pricing, and reserve a table.">Restaurant site</button>
-                    <button type="button" class="chip" data-story="As a traveler, I want a multi-page travel website called SkyTrail Travels with blue colors and Poppins font so people can browse destinations, packages, and contact us.">Travel site</button>
+                    <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant site</button>
+                    <button type="button" class="chip" data-story="Generate Java website code for a travel company called SkyTrail Travels: Spring Boot controllers, Thymeleaf pages (home, destinations, packages, contact), blue colors, Poppins font, and travel-themed images.">Java travel site</button>
+                    <button type="button" class="chip" data-story="Generate Java code for a music academy website called Harmony Notes (Spring Boot + Thymeleaf). Include piano, guitar, and vocals pages with music-themed images and a contact form.">Java music site</button>
+                    <button type="button" class="chip" data-story="As a Java developer prompt: build a wedding planning website called EverAfter with florals, venues, and photography pages. Generate the Java Spring Boot website code and matching wedding images.">Java wedding site</button>
                     <button type="button" class="chip" data-story="Change the website color to blue and use Poppins font">Edit: blue + Poppins</button>
-                    <button type="button" class="chip" data-story="Edit the website to use restaurant images and orange colors">Edit: restaurant look</button>
                 </div>
             </div>
         </div>
@@ -81,16 +99,24 @@
         <form id="chatForm" th:action="@{/run}" method="post" th:object="${request}">
             <input type="hidden" name="runUnitTests" value="true"/>
             <input type="hidden" name="runFunctionalTests" value="true"/>
+            <div class="system-prompt-wrap">
+                <button type="button" class="system-toggle" id="systemToggle" aria-expanded="false">
+                    System prompt <span>(optional · widens BOT model)</span>
+                </button>
+                <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
+                          placeholder="Always generate Java website code (Spring Boot controllers + Thymeleaf templates). Match topic images. Keep brand name clean…"
+                          th:field="*{systemPrompt}"></textarea>
+            </div>
             <div class="composer-box">
                 <textarea id="userStory" name="userStory" rows="1"
-                          placeholder="Generate a site… or edit: change color to blue, use travel images…"></textarea>
+                          placeholder="Example: Generate Java code for a music academy website called Harmony Notes…"></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send">
                     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
                     </svg>
                 </button>
             </div>
-            <p class="hint">Press Enter to send · After a site is generated, type edit instructions in this same chat</p>
+            <p class="hint">Enter to send · System prompt is dynamic and trains with each run</p>
         </form>
     </footer>
 </div>
@@ -100,10 +126,18 @@
   var thread = document.getElementById('thread');
   var form = document.getElementById('chatForm');
   var input = document.getElementById('userStory');
+  var systemPrompt = document.getElementById('systemPrompt');
+  var systemToggle = document.getElementById('systemToggle');
   var sendBtn = document.getElementById('sendBtn');
   var historyList = document.getElementById('historyList');
   var historyEmpty = document.getElementById('historyEmpty');
   var activeHistoryId = null;
+
+  systemToggle.addEventListener('click', function () {
+    var open = document.body.classList.toggle('system-open');
+    systemToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) systemPrompt.focus();
+  });
 
   function el(html) {
     var t = document.createElement('template');
@@ -125,14 +159,14 @@
 
   function addBot(htmlInner) {
     thread.appendChild(el(
-      '<div class="msg bot"><div class="avatar-sm">A</div><div class="bubble">' + htmlInner + '</div></div>'
+      '<div class="msg bot"><div class="avatar-sm">B</div><div class="bubble">' + htmlInner + '</div></div>'
     ));
     thread.scrollTop = thread.scrollHeight;
   }
 
   function addTyping() {
     var node = el(
-      '<div class="msg bot typing" id="typing"><div class="avatar-sm">A</div><div class="bubble"><span></span><span></span><span></span></div></div>'
+      '<div class="msg bot typing" id="typing"><div class="avatar-sm">B</div><div class="bubble"><span></span><span></span><span></span></div></div>'
     );
     thread.appendChild(node);
     thread.scrollTop = thread.scrollHeight;
@@ -169,14 +203,27 @@
     var steps = (data.steps || []).map(function (s) {
       return '<li><strong>' + escapeHtml(s.botName) + '</strong> — ' + escapeHtml(s.summary) + '</li>';
     }).join('');
+    var fileList = (data.generatedCodeFiles || []).slice(0, 8).map(function (f) {
+      return '<li><code>' + escapeHtml(f) + '</code></li>';
+    }).join('');
+    var storyBlock = data.refinedUserStory
+      ? '<details class="story-details" open><summary>User story (Business Analyst)</summary><pre class="story-snip">' +
+        escapeHtml(String(data.refinedUserStory).slice(0, 1800)) +
+        (String(data.refinedUserStory).length > 1800 ? '…' : '') +
+        '</pre></details>'
+      : '';
+    var filesBlock = fileList
+      ? '<p class="muted-note" style="margin:.65rem 0 .25rem">Generated code files</p><ul class="step-list">' + fileList + '</ul>'
+      : '';
     var preview = data.previewUrl
       ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
+        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + Java code</a>' +
         '<a class="btn ghost" href="/edit">Edit site</a></p>'
-      : '';
+      : '<p class="actions"><a class="btn ghost" href="/code">User stories + Java code</a></p>';
     var label = fromHistory
       ? '<p>Saved result from your history.</p>'
-      : '<p>Done — your page is ready. Saved under Previous results.</p>';
-    addBot(label + '<ul class="step-list">' + steps + '</ul>' + preview);
+      : '<p>Done — user story + website Java code are ready.</p>';
+    addBot(label + '<ul class="step-list">' + steps + '</ul>' + storyBlock + filesBlock + preview);
   }
 
   function setActiveHistory(id) {
@@ -248,7 +295,7 @@
       setActiveHistory(item.id);
       thread.innerHTML = '';
       thread.appendChild(el(
-        '<div class="msg bot"><div class="avatar-sm">A</div><div class="bubble">' +
+        '<div class="msg bot"><div class="avatar-sm">B</div><div class="bubble">' +
           '<p>Showing a saved result. Click <strong>Edit</strong> in the sidebar or below to change the site.</p>' +
         '</div></div>'
       ));
@@ -277,7 +324,7 @@
     autoSize();
     sendBtn.disabled = true;
     addTyping();
-    addBot('<p>Working on it — generating a site or applying your edit to the previous website…</p>');
+    addBot('<p>BOT pipeline starting — BA → Java Dev → Unit → Functional → Train…</p>');
 
     try {
       var res = await fetch('/api/pipeline', {
@@ -285,6 +332,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userStory: story,
+          systemPrompt: (systemPrompt.value || '').trim(),
           runUnitTests: true,
           runFunctionalTests: true
         })
@@ -298,8 +346,9 @@
       await loadHistory();
       renderResultBubble(data, false);
 
+      // Stay in chat so you can open View Java code; site still one click away
       if (data.success && data.previewUrl) {
-        setTimeout(function () { window.location.href = data.previewUrl; }, 900);
+        /* no auto-redirect — user chooses website or code */
       }
     } catch (e) {
       removeTyping();
@@ -351,7 +400,6 @@
     }
   });
 
-  // Bind server-rendered history items
   historyList.querySelectorAll('.history-item').forEach(function (btn) {
     bindHistoryItem(btn, btn.getAttribute('data-id'));
   });

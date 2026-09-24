@@ -158,6 +158,7 @@ public class GeneratedSiteController {
 
         String banner = """
                 <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;gap:.5rem;font:13px Roboto,Arial,sans-serif">
+                  <a href="/code" style="background:#0f6b4c;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">User stories + code</a>
                   <a href="/edit/%s" style="background:#1a73e8;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">Edit site</a>
                   <a href="/" style="background:#fff;color:#1a73e8;border:1px solid #dadce0;padding:.45rem .75rem;border-radius:999px;text-decoration:none">New story</a>
                 </div>

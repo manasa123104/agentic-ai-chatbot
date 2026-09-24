@@ -1,5 +1,4 @@
-# Start the Agentic AI Chatbot web UI
-# http://localhost:8080
+# Start BOT on http://localhost:8080
 
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
@@ -20,7 +19,7 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
     throw "mvn not found. Install Maven and add it to PATH."
 }
 
-Write-Host "Starting Agentic AI Chatbot on http://localhost:8080 ..." -ForegroundColor Cyan
+Write-Host "Starting BOT on http://localhost:8080 ..." -ForegroundColor Cyan
 if ($env:OPENAI_API_KEY) {
     Write-Host "OPENAI_API_KEY detected — LLM mode enabled." -ForegroundColor Green
 } else {

@@ -17,7 +17,7 @@ public class UnitTestBot implements AgentBot {
 
     @Override
     public String name() {
-        return "Bot 2 - Unit Testing";
+        return "Bot 3 - Java Unit Tester";
     }
 
     @Override
@@ -26,11 +26,11 @@ public class UnitTestBot implements AgentBot {
             List<Path> files = unitTestGenerator.generate(context.getUserStory(), context.getProjectDir());
             files.forEach(context::addGeneratedFile);
             return AgentResult.ok(
-                    "Generated JUnit 5 unit tests for controllers/services. Files: " + files.size()
+                    "Generated JUnit 5 unit tests for Java controllers/services. Files: " + files.size()
                             + ". Run: mvn test (inside generated-app)",
                     files);
         } catch (Exception e) {
-            return AgentResult.fail("Unit test generation failed: " + e.getMessage());
+            return AgentResult.fail("Java Unit Tester failed: " + e.getMessage());
         }
     }
 }
