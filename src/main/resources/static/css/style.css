@@ -581,6 +581,44 @@ body.system-open .system-prompt { display: block; }
   color: var(--text);
 }
 
+.msg.user .bubble p { white-space: pre-wrap; }
+
+.convert-snippet {
+  position: relative;
+  margin: .6rem 0 .4rem;
+  background: #0f1720;
+  border-radius: 10px;
+}
+.convert-snippet pre {
+  margin: 0;
+  padding: .85rem 1rem;
+  max-height: 360px;
+  overflow: auto;
+  color: #e6edf3;
+  font: 400 12.5px/1.5 Consolas, "Cascadia Mono", monospace;
+}
+.convert-copy {
+  position: absolute;
+  top: .45rem;
+  right: .45rem;
+  padding: .2rem .6rem;
+  border: 1px solid #3b4652;
+  border-radius: 6px;
+  background: #1b2530;
+  color: #e6edf3;
+  font: 600 11px Sora, sans-serif;
+  cursor: pointer;
+}
+.convert-copy:hover { background: #26323f; }
+.convert-run {
+  margin: 0 0 .4rem;
+  padding: .45rem .7rem;
+  background: #f3f5f7;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  font: 400 12px Consolas, monospace;
+}
+
 @media (max-width: 900px) {
   body.chat-app { grid-template-columns: 1fr; }
   .chat-rail { display: none; }

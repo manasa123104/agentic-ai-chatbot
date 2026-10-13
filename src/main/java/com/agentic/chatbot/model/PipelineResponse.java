@@ -16,6 +16,8 @@ public class PipelineResponse {
     /** Relative paths of generated Java / key source files. */
     private List<String> generatedCodeFiles = new ArrayList<>();
     private List<BotStepLog> steps = new ArrayList<>();
+    /** Set when the chat message was a code-conversion request instead of a website story. */
+    private ConversionResponse conversion;
 
     public boolean isSuccess() {
         return success;
@@ -95,5 +97,13 @@ public class PipelineResponse {
 
     public void setSteps(List<BotStepLog> steps) {
         this.steps = steps;
+    }
+
+    public ConversionResponse getConversion() {
+        return conversion;
+    }
+
+    public void setConversion(ConversionResponse conversion) {
+        this.conversion = conversion;
     }
 }

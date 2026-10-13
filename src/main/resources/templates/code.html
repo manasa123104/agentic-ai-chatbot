@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
+    <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
 </head>
 <body class="code-app">
 <header class="code-top">
@@ -21,8 +22,28 @@
         <a class="btn ghost" href="/">Back to BOT</a>
         <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
         <a class="btn ghost" href="/edit">Edit site</a>
+        <a class="btn ghost" href="/convert">Code converter</a>
     </nav>
 </header>
+
+<section class="workflow-diagram code-workflow" aria-label="BOT workflow diagram">
+    <h3>Workflow</h3>
+    <div class="workflow-flow">
+        <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+        <div class="wf-arrow" aria-hidden="true">→</div>
+        <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+        <div class="wf-arrow" aria-hidden="true">→</div>
+        <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+        <div class="wf-arrow" aria-hidden="true">→</div>
+        <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>End-to-end tests</span></div>
+        <div class="wf-arrow" aria-hidden="true">→</div>
+        <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify + train</span></div>
+    </div>
+    <div class="wf-io">
+        <span class="io-chip">Input: prompt</span>
+        <span class="io-chip out">Output: user stories + Java code</span>
+    </div>
+</section>
 
 <section class="story-banner" th:if="${hasUserStory}">
     <div class="story-banner-inner">

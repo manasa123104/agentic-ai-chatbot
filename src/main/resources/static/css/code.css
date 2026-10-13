@@ -175,6 +175,10 @@ body.code-app {
   padding: .85rem 1.25rem 0;
 }
 
+.code-workflow {
+  margin: .85rem 1.25rem 0;
+}
+
 .story-banner-inner {
   max-width: 100%;
   background: #fff;

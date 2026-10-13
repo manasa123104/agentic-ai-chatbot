@@ -20,10 +20,19 @@ if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "Starting BOT on http://localhost:8080 ..." -ForegroundColor Cyan
+Write-Host "Code converter: http://localhost:8080/convert" -ForegroundColor Cyan
 if ($env:OPENAI_API_KEY) {
     Write-Host "OPENAI_API_KEY detected — LLM mode enabled." -ForegroundColor Green
+} elseif ($env:OPENAI_BASE_URL -match "localhost|127\.0\.0\.1") {
+    Write-Host "Local LLM endpoint $env:OPENAI_BASE_URL — LLM mode enabled." -ForegroundColor Green
 } else {
-    Write-Host "No OPENAI_API_KEY — offline Java template mode." -ForegroundColor Yellow
+    Write-Host "No OPENAI_API_KEY — offline Java template mode for websites." -ForegroundColor Yellow
+}
+try {
+    Invoke-RestMethod "http://localhost:11434/api/tags" -TimeoutSec 2 | Out-Null
+    Write-Host "Ollama detected — the code converter will use your local coding model for any code." -ForegroundColor Green
+} catch {
+    Write-Host "Ollama not running — the code converter handles built-in samples only (start Ollama to convert any code)." -ForegroundColor Yellow
 }
 
 mvn spring-boot:run

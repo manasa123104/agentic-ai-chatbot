@@ -75,6 +75,7 @@ public class ChatHistoryService {
             entry.setOutputDirectory(response.getOutputDirectory());
             List<BotStepLog> steps = response.getSteps();
             entry.setSteps(steps != null ? new ArrayList<>(steps) : new ArrayList<>());
+            entry.setConversion(response.getConversion());
         }
         entries.add(0, entry);
         trimToMax();

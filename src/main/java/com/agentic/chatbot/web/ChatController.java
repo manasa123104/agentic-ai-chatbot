@@ -127,7 +127,8 @@ public class ChatController {
             return s;
         }
         for (ChatHistoryEntry entry : historyService.list()) {
-            if (entry.getUserStory() != null && !siteEditService.looksLikeEdit(entry.getUserStory())) {
+            if (entry.getConversion() == null && entry.getUserStory() != null
+                    && !siteEditService.looksLikeEdit(entry.getUserStory())) {
                 return entry.getUserStory();
             }
         }

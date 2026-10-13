@@ -42,7 +42,22 @@ public class OpenAiLlmClient implements LlmClient {
 
     @Override
     public boolean isAvailable() {
-        return enabled && !apiKey.isBlank();
+        return enabled && (!apiKey.isBlank() || isLocalEndpoint());
+    }
+
+    /** Local OpenAI-compatible servers (Ollama, LM Studio) do not need an API key. */
+    private boolean isLocalEndpoint() {
+        try {
+            String host = URI.create(baseUrl).getHost();
+            return "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public String describe() {
+        return model;
     }
 
     @Override
@@ -62,13 +77,15 @@ public class OpenAiLlmClient implements LlmClient {
             user.put("content", userPrompt);
             body.put("temperature", 0.2);
 
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/chat/completions"))
                     .timeout(Duration.ofMinutes(2))
-                    .header("Authorization", "Bearer " + apiKey)
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
+            if (!apiKey.isBlank()) {
+                builder.header("Authorization", "Bearer " + apiKey);
+            }
+            HttpRequest request = builder.build();
 
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {

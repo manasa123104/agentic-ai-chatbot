@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>BOT · Code converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/code.css}"/>
+    <link rel="stylesheet" th:href="@{/css/convert.css}"/>
+</head>
+<body class="code-app">
+<header class="code-top">
+    <div class="code-brand">
+        <a class="rail-mark" href="/">B</a>
+        <div>
+            <strong>Code converter</strong>
+            <small th:text="'Convert code between ' + ${#lists.size(languages)} + ' languages · ' + ${#lists.size(samples)} + ' sample programs in each'">Convert code between languages</small>
+        </div>
+    </div>
+    <nav class="code-actions">
+        <a class="btn ghost" href="/">Back to BOT</a>
+        <a class="btn ghost" href="/code">User stories + Java code</a>
+    </nav>
+</header>
+
+<main class="convert-main">
+    <section class="convert-status" th:classappend="${llmReady} ? ' on' : ' off'">
+        <span class="dot"></span>
+        <p th:if="${llmReady}"><strong>AI model connected: <span th:text="${llmName}">model</span>.</strong> Paste any code and convert it to any of the languages below. Built-in samples convert instantly; a local model can take a minute or two for longer code.</p>
+        <p th:unless="${llmReady}"><strong>Offline mode.</strong> The built-in samples convert instantly between every language. To convert your own code, start Ollama with a coding model (<code>ollama pull qwen2.5-coder:7b</code>) and BOT picks it up automatically, or set <code>OPENAI_API_KEY</code> and restart BOT.</p>
+    </section>
+
+    <section class="convert-card">
+        <div class="convert-controls">
+            <label class="lang-pick">
+                <span>From</span>
+                <select id="sourceLang">
+                    <option value="auto">Auto-detect</option>
+                    <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}">Java</option>
+                </select>
+            </label>
+            <button type="button" class="swap" id="swapBtn" title="Swap languages" aria-label="Swap languages">&#8644;</button>
+            <label class="lang-pick">
+                <span>To</span>
+                <select id="targetLang">
+                    <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}"
+                            th:selected="${l.id() == 'python'}">Python</option>
+                </select>
+            </label>
+            <div class="sample-loader">
+                <span>Load sample</span>
+                <button type="button" class="chip" th:each="s : ${samples}" th:attr="data-sample=${s.id()}" th:text="${s.title()}">Hello World</button>
+            </div>
+        </div>
+
+        <div class="convert-panes">
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title">Source code</span>
+                    <span class="badge subtle" id="detectedBadge" hidden></span>
+                    <button type="button" class="link-btn" id="clearBtn">Clear</button>
+                </div>
+                <textarea id="sourceCode" spellcheck="false" autocomplete="off"
+                          placeholder="Paste code here, or load a sample above. Press Ctrl+Enter to convert."></textarea>
+            </div>
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title">Converted code</span>
+                    <span class="badge" id="modeBadge" hidden></span>
+                    <button type="button" class="link-btn" id="copyBtn" disabled>Copy</button>
+                    <button type="button" class="link-btn" id="downloadBtn" disabled>Download</button>
+                </div>
+                <pre class="output" id="output"><code id="outputCode" class="placeholder">Converted code will appear here.</code></pre>
+            </div>
+        </div>
+
+        <div class="convert-actions">
+            <input type="text" id="instructions" maxlength="500"
+                   placeholder="Optional instructions for the LLM, e.g. &quot;use a class&quot; or &quot;add comments&quot;"/>
+            <button type="button" class="btn convert-btn" id="convertBtn">Convert</button>
+        </div>
+        <p class="convert-message" id="message" role="status" aria-live="polite"></p>
+
+        <div class="convert-details" id="details" hidden>
+            <div>
+                <p class="pipe-label">What the code does</p>
+                <pre class="explanation" id="explanation"></pre>
+            </div>
+            <div>
+                <p class="pipe-label">Run it</p>
+                <code class="run-cmd" id="runCommand"></code>
+                <p class="saved" id="savedFile"></p>
+            </div>
+        </div>
+    </section>
+
+    <section class="convert-card gallery">
+        <h2>Sample programs in every language</h2>
+        <p class="gallery-lead">Each program does exactly the same thing in every language, so you can compare syntax side by side. Pick a program and a language, then use it as the converter's source.</p>
+        <div class="tab-row" id="sampleTabs" role="tablist">
+            <button type="button" class="tab" th:each="s : ${samples}" th:attr="data-sample=${s.id()}" th:text="${s.title()}">Hello World</button>
+        </div>
+        <p class="sample-desc" id="sampleDesc"></p>
+        <div class="tab-row lang-row" id="langTabs" role="tablist">
+            <button type="button" class="tab small" th:each="l : ${languages}" th:attr="data-lang=${l.id()}" th:text="${l.name()}">Java</button>
+        </div>
+        <div class="pane gallery-pane">
+            <div class="pane-head">
+                <span class="pane-title" id="galleryLabel"></span>
+                <button type="button" class="link-btn" id="galleryCopyBtn">Copy</button>
+                <button type="button" class="link-btn strong" id="useSampleBtn">Use as source &uarr;</button>
+            </div>
+            <pre class="output"><code id="galleryCode"></code></pre>
+            <p class="saved" id="galleryRun"></p>
+        </div>
+    </section>
+</main>
+
+<script th:inline="javascript">
+  const LANGUAGES = /*[[${languages}]]*/ [];
+  const SAMPLES = /*[[${samples}]]*/ [];
+
+  const $ = (id) => document.getElementById(id);
+  const sourceLang = $('sourceLang');
+  const targetLang = $('targetLang');
+  const sourceCode = $('sourceCode');
+  let lastResult = null;
+  let gallerySample = SAMPLES.length ? SAMPLES[0].id : null;
+  let galleryLang = 'java';
+
+  const langById = (id) => LANGUAGES.find((l) => l.id === id);
+  const sampleById = (id) => SAMPLES.find((s) => s.id === id);
+
+  function pickOtherTarget(sourceId) {
+    if (targetLang.value === sourceId) {
+      targetLang.value = sourceId === 'python' ? 'java' : 'python';
+    }
+  }
+
+  function setSource(languageId, code) {
+    sourceLang.value = languageId;
+    sourceCode.value = code;
+    pickOtherTarget(languageId);
+    $('detectedBadge').hidden = true;
+  }
+
+  function loadSample(sampleId) {
+    const sample = sampleById(sampleId);
+    if (!sample) return;
+    let lang = sourceLang.value;
+    if (lang === 'auto' || !sample.code[lang]) lang = 'java';
+    setSource(lang, sample.code[lang]);
+    sourceCode.focus();
+  }
+
+  function setMessage(text, kind) {
+    const el = $('message');
+    el.textContent = text || '';
+    el.className = 'convert-message' + (kind ? ' ' + kind : '');
+  }
+
+  function renderResult(data) {
+    lastResult = data.success ? data : null;
+    const out = $('outputCode');
+    $('copyBtn').disabled = !data.success;
+    $('downloadBtn').disabled = !data.success;
+    if (!data.success) {
+      out.textContent = 'Converted code will appear here.';
+      out.className = 'placeholder';
+      $('modeBadge').hidden = true;
+      $('details').hidden = true;
+      setMessage(data.message || 'Conversion failed.', 'error');
+      return;
+    }
+    out.textContent = data.convertedCode;
+    out.className = '';
+    const badge = $('modeBadge');
+    badge.hidden = false;
+    badge.textContent = { 'sample-library': 'Sample library', llm: 'LLM', passthrough: 'Unchanged' }[data.mode] || data.mode;
+    badge.className = 'badge ' + data.mode;
+    if (sourceLang.value === 'auto' && data.sourceLanguage) {
+      const detected = $('detectedBadge');
+      detected.hidden = false;
+      detected.textContent = 'Detected: ' + data.sourceLanguage;
+    }
+    $('details').hidden = false;
+    $('explanation').textContent = data.explanation || '';
+    $('runCommand').textContent = data.runCommand || 'See the target language toolchain docs.';
+    $('savedFile').textContent = data.outputFile ? 'Saved to generated-app/' + data.outputFile : '';
+    setMessage(data.message, 'ok');
+  }
+
+  async function convert() {
+    const code = sourceCode.value;
+    if (!code.trim()) {
+      setMessage('Paste some code to convert, or load one of the samples.', 'error');
+      return;
+    }
+    const btn = $('convertBtn');
+    btn.disabled = true;
+    btn.textContent = 'Converting…';
+    setMessage('Converting to ' + targetLang.options[targetLang.selectedIndex].text + '…', '');
+    try {
+      const res = await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceLanguage: sourceLang.value,
+          targetLanguage: targetLang.value,
+          code: code,
+          instructions: $('instructions').value
+        })
+      });
+      renderResult(await res.json());
+    } catch (e) {
+      renderResult({ success: false, message: 'Could not reach BOT: ' + e.message });
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Convert';
+    }
+  }
+
+  function copyText(text, button) {
+    navigator.clipboard.writeText(text).then(() => {
+      const label = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = label; }, 1200);
+    });
+  }
+
+  function renderGallery() {
+    document.querySelectorAll('#sampleTabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.sample === gallerySample));
+    document.querySelectorAll('#langTabs .tab').forEach((t) => t.classList.toggle('active', t.dataset.lang === galleryLang));
+    const sample = sampleById(gallerySample);
+    const lang = langById(galleryLang);
+    if (!sample || !lang) return;
+    $('sampleDesc').textContent = sample.description;
+    $('galleryLabel').textContent = sample.title + ' · ' + lang.name;
+    $('galleryCode').textContent = sample.code[galleryLang] || '// Not available';
+    $('galleryRun').textContent = 'Run: ' + lang.runCommand;
+  }
+
+  document.querySelectorAll('.sample-loader .chip').forEach((chip) =>
+    chip.addEventListener('click', () => loadSample(chip.dataset.sample)));
+
+  document.querySelectorAll('#sampleTabs .tab').forEach((tab) =>
+    tab.addEventListener('click', () => { gallerySample = tab.dataset.sample; renderGallery(); }));
+
+  document.querySelectorAll('#langTabs .tab').forEach((tab) =>
+    tab.addEventListener('click', () => { galleryLang = tab.dataset.lang; renderGallery(); }));
+
+  $('useSampleBtn').addEventListener('click', () => {
+    const sample = sampleById(gallerySample);
+    setSource(galleryLang, sample.code[galleryLang]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    sourceCode.focus();
+  });
+
+  $('galleryCopyBtn').addEventListener('click', (e) => copyText($('galleryCode').textContent, e.target));
+  $('copyBtn').addEventListener('click', (e) => lastResult && copyText(lastResult.convertedCode, e.target));
+
+  $('downloadBtn').addEventListener('click', () => {
+    if (!lastResult) return;
+    const lang = langById(lastResult.targetLanguageId);
+    const blob = new Blob([lastResult.convertedCode + '\n'], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'converted.' + (lang ? lang.extension : 'txt');
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+
+  $('swapBtn').addEventListener('click', () => {
+    const from = sourceLang.value === 'auto' && lastResult ? lastResult.sourceLanguageId : sourceLang.value;
+    const to = targetLang.value;
+    if (from === 'auto' || !langById(from)) return;
+    sourceLang.value = to;
+    targetLang.value = from;
+    if (lastResult) {
+      sourceCode.value = lastResult.convertedCode;
+      renderResult({ success: false, message: '' });
+      setMessage('Swapped. Press Convert to translate back to ' + langById(from).name + '.', '');
+    }
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    sourceCode.value = '';
+    $('detectedBadge').hidden = true;
+    sourceCode.focus();
+  });
+
+  $('convertBtn').addEventListener('click', convert);
+
+  sourceCode.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      convert();
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = sourceCode.selectionStart;
+      sourceCode.setRangeText('    ', start, sourceCode.selectionEnd, 'end');
+    }
+  });
+
+  renderGallery();
+</script>
+</body>
+</html>

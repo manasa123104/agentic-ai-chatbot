@@ -63,6 +63,29 @@ public class ModelTrainerBot implements AgentBot {
             Map<String, String> status = trainingService.record(
                     context.getUserStory(), story, context.getSystemPrompt());
 
+            Path workflow = project.resolve("WORKFLOW.md");
+            String workflowMd = """
+                    # BOT workflow
+
+                    ```mermaid
+                    flowchart LR
+                      P[End-user prompt] --> BA[1 Business Analyst\\nUser stories]
+                      BA --> JD[2 Java Developer\\nWebsite Java code]
+                      JD --> UT[3 Java Unit Tester]
+                      UT --> FT[4 Functional Testing]
+                      FT --> DT[5 Developer Tester\\nVerify + train]
+                      DT --> OUT[User stories + Java code]
+                    ```
+
+                    1. **Business Analyst** — refine prompt into user stories  
+                    2. **Java Developer** — generate Spring Boot + Thymeleaf website code  
+                    3. **Java Unit Tester** — JUnit 5 tests  
+                    4. **Functional Testing** — MockMvc end-to-end tests  
+                    5. **Developer Tester** — verify story + code, train BOT model  
+                    """;
+            Files.writeString(workflow, workflowMd.stripIndent(), StandardCharsets.UTF_8);
+            context.addGeneratedFile(workflow);
+
             Path modelFile = project.resolve("BOT_MODEL.json");
             Map<String, Object> snapshot = new LinkedHashMap<>();
             snapshot.put("name", "BOT");
@@ -88,6 +111,7 @@ public class ModelTrainerBot implements AgentBot {
                     + status.get("label") + ".";
             List<Path> outs = new ArrayList<>();
             outs.add(userStoryFile);
+            outs.add(workflow);
             outs.add(modelFile);
             return AgentResult.ok(summary, outs);
         } catch (Exception e) {

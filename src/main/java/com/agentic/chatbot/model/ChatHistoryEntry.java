@@ -26,6 +26,7 @@ public class ChatHistoryEntry {
     private String redirectPath;
     private String outputDirectory;
     private List<BotStepLog> steps = new ArrayList<>();
+    private ConversionResponse conversion;
 
     public String getId() {
         return id;
@@ -103,5 +104,13 @@ public class ChatHistoryEntry {
 
     public void setSteps(List<BotStepLog> steps) {
         this.steps = steps != null ? steps : new ArrayList<>();
+    }
+
+    public ConversionResponse getConversion() {
+        return conversion;
+    }
+
+    public void setConversion(ConversionResponse conversion) {
+        this.conversion = conversion;
     }
 }

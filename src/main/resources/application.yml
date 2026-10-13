@@ -20,6 +20,13 @@ agentic:
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     model: ${OPENAI_MODEL:gpt-4o-mini}
     enabled: ${LLM_ENABLED:true}
+  converter:
+    ollama:
+      enabled: ${CONVERTER_OLLAMA_ENABLED:true}
+      url: ${OLLAMA_URL:http://localhost:11434}
+      # Blank picks the largest installed coding model automatically (e.g. qwen2.5-coder:7b)
+      model: ${CONVERTER_MODEL:}
+      timeout-minutes: ${CONVERTER_TIMEOUT_MINUTES:15}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}

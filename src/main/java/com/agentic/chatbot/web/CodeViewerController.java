@@ -93,6 +93,7 @@ public class CodeViewerController {
                         return name.endsWith(".java") || name.endsWith(".html")
                                 || name.endsWith(".css") || name.equals("pom.xml")
                                 || name.equals("user_story.md") || name.equals("bot_model.json")
+                                || name.equals("workflow.md")
                                 || name.equals("site_meta.json") || name.equals("site_style.json");
                     })
                     .filter(p -> {

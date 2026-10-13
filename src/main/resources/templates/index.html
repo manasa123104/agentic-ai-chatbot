@@ -6,6 +6,7 @@
     <title>BOT</title>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
 </head>
 <body class="chat-app">
 <aside class="chat-rail">
@@ -18,15 +19,23 @@
     </div>
     <button type="button" class="new-chat" id="newChat">+ New prompt</button>
 
-    <div class="bot-pipeline" aria-label="Five BOT agents">
-        <span class="pipe-label">5 agents</span>
-        <ol>
-            <li><em>1</em> Business Analyst</li>
-            <li><em>2</em> Java Developer</li>
-            <li><em>3</em> Java Unit Tester</li>
-            <li><em>4</em> Functional Testing</li>
-            <li><em>5</em> Developer Tester</li>
-        </ol>
+    <div class="bot-pipeline workflow-rail" aria-label="BOT workflow diagram">
+        <span class="pipe-label">Workflow</span>
+        <div class="workflow-flow">
+            <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+            <div class="wf-arrow" aria-hidden="true">↓</div>
+            <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+            <div class="wf-arrow" aria-hidden="true">↓</div>
+            <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+            <div class="wf-arrow" aria-hidden="true">↓</div>
+            <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>MockMvc E2E</span></div>
+            <div class="wf-arrow" aria-hidden="true">↓</div>
+            <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify + train</span></div>
+        </div>
+        <div class="wf-io">
+            <span class="io-chip">In: prompt</span>
+            <span class="io-chip out">Out: story + code</span>
+        </div>
     </div>
 
     <div class="history-head">
@@ -57,6 +66,7 @@
     </div>
     <nav class="rail-links">
         <a href="/code">User stories + Java code</a>
+        <a href="/convert">Code converter</a>
         <a href="/edit">Edit generated site</a>
     </nav>
     <div class="rail-foot">
@@ -82,14 +92,48 @@
             <div class="avatar-sm">B</div>
             <div class="bubble">
                 <p>Hi — I’m <strong>BOT</strong>.</p>
-                <p>Send a prompt and the 5 agents run: <strong>Business Analyst</strong> (user stories) → <strong>Java Developer</strong> (website Java code) → <strong>Java Unit Tester</strong> → <strong>Functional Testing</strong> → <strong>Developer Tester</strong>.</p>
-                <p class="muted-note">Results include both the <strong>user story</strong> and the <strong>generated Java code</strong> for the website you requested. Open <em>User stories + Java code</em> after a run.</p>
+                <p>Send a prompt and the 5 agents run end-to-end. Results include both the <strong>user story</strong> and the <strong>generated Java code</strong> for the website you requested.</p>
+                <div class="workflow-diagram" aria-label="BOT workflow diagram">
+                    <h3>Workflow</h3>
+                    <div class="workflow-flow">
+                        <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+                        <div class="wf-arrow" aria-hidden="true">→</div>
+                        <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+                        <div class="wf-arrow" aria-hidden="true">→</div>
+                        <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+                        <div class="wf-arrow" aria-hidden="true">→</div>
+                        <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>End-to-end tests</span></div>
+                        <div class="wf-arrow" aria-hidden="true">→</div>
+                        <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify story + code</span></div>
+                    </div>
+                    <div class="wf-io">
+                        <span class="io-chip">Input: end-user prompt</span>
+                        <span class="io-chip out">Output: user stories + Java website code</span>
+                    </div>
+                </div>
+                <p class="muted-note">Open <em>User stories + Java code</em> after a run, or try an example below.</p>
                 <div class="suggestions">
                     <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant site</button>
                     <button type="button" class="chip" data-story="Generate Java website code for a travel company called SkyTrail Travels: Spring Boot controllers, Thymeleaf pages (home, destinations, packages, contact), blue colors, Poppins font, and travel-themed images.">Java travel site</button>
                     <button type="button" class="chip" data-story="Generate Java code for a music academy website called Harmony Notes (Spring Boot + Thymeleaf). Include piano, guitar, and vocals pages with music-themed images and a contact form.">Java music site</button>
                     <button type="button" class="chip" data-story="As a Java developer prompt: build a wedding planning website called EverAfter with florals, venues, and photography pages. Generate the Java Spring Boot website code and matching wedding images.">Java wedding site</button>
                     <button type="button" class="chip" data-story="Change the website color to blue and use Poppins font">Edit: blue + Poppins</button>
+                </div>
+                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), or ask for a sample.</p>
+                <div class="suggestions">
+                    <button type="button" class="chip" data-story="Convert this Python code to Java:
+def factorial(n: int) -&gt; int:
+    if n &lt;= 1:
+        return 1
+    return n * factorial(n - 1)
+
+
+if __name__ == &quot;__main__&quot;:
+    n = 10
+    print(f&quot;{n}! = {factorial(n)}&quot;)">Python → Java</button>
+                    <button type="button" class="chip" data-story="Show FizzBuzz in COBOL">FizzBuzz in COBOL</button>
+                    <button type="button" class="chip" data-story="Translate binary search from Java to Rust">Binary search → Rust</button>
+                    <button type="button" class="chip" data-story="Show Hello World in PL/SQL">Hello World in PL/SQL</button>
                 </div>
             </div>
         </div>
@@ -195,7 +239,41 @@
     return text.slice(0, n - 1) + '…';
   }
 
+  function renderConversionBubble(c, fromHistory) {
+    if (!c.success) {
+      addBot('<p>I could not convert that code: ' + escapeHtml(c.message || 'Unknown error') + '</p>' +
+        '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>');
+      return;
+    }
+    var title = escapeHtml(c.sourceLanguage || 'Code') + ' → ' + escapeHtml(c.targetLanguage || '');
+    var run = c.runCommand
+      ? '<p class="muted-note" style="margin:.5rem 0 .25rem">Run it</p><pre class="convert-run"><code>' + escapeHtml(c.runCommand) + '</code></pre>'
+      : '';
+    var saved = c.outputFile
+      ? '<p class="muted-note">Saved to <code>generated-app/' + escapeHtml(c.outputFile) + '</code></p>'
+      : '';
+    addBot(
+      '<p>' + (fromHistory ? 'Saved conversion: ' : '') + '<strong>' + title + '</strong> — ' + escapeHtml(c.message || '') + '</p>' +
+      '<div class="convert-snippet"><button type="button" class="convert-copy">Copy</button>' +
+        '<pre><code>' + escapeHtml(c.convertedCode || '') + '</code></pre></div>' +
+      (c.explanation ? '<details class="story-details"><summary>Explanation</summary><pre class="story-snip">' + escapeHtml(c.explanation) + '</pre></details>' : '') +
+      run + saved +
+      '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>'
+    );
+    var copyBtn = thread.lastChild.querySelector('.convert-copy');
+    copyBtn.addEventListener('click', function () {
+      navigator.clipboard.writeText(c.convertedCode || '').then(function () {
+        copyBtn.textContent = 'Copied';
+        setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
+      });
+    });
+  }
+
   function renderResultBubble(data, fromHistory) {
+    if (data.conversion) {
+      renderConversionBubble(data.conversion, fromHistory);
+      return;
+    }
     if (!data.success) {
       addBot('<p>I hit a problem: ' + escapeHtml(data.message || 'Unknown error') + '</p>');
       return;
@@ -324,7 +402,11 @@
     autoSize();
     sendBtn.disabled = true;
     addTyping();
-    addBot('<p>BOT pipeline starting — BA → Java Dev → Unit → Functional → Train…</p>');
+    if (/^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite|show|give me)\b[^\n]*\b(?:to|into|in)\s/i.test(story)) {
+      addBot('<p>Code Converter is translating your code… (a local AI model can take a minute or two)</p>');
+    } else {
+      addBot('<p>BOT pipeline starting — BA → Java Dev → Unit → Functional → Train…</p>');
+    }
 
     try {
       var res = await fetch('/api/pipeline', {
