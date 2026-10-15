@@ -1,6 +1,7 @@
 package com.agentic.chatbot.service;
 
 import com.agentic.chatbot.model.CodeSample;
+import com.agentic.chatbot.model.LanguageCatalog;
 import com.agentic.chatbot.model.ProgrammingLanguage;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -12,9 +13,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Hand-written reference programs (Hello World, Factorial, Binary Search, FizzBuzz) in every
@@ -24,39 +25,8 @@ import java.util.Optional;
 @Service
 public class CodeSampleLibrary {
 
-    private static final List<ProgrammingLanguage> LANGUAGES = List.of(
-            new ProgrammingLanguage("java", "Java", "java",
-                    "java Program.java", List.of("jdk")),
-            new ProgrammingLanguage("python", "Python", "py",
-                    "python program.py", List.of("py", "python3", "python 3")),
-            new ProgrammingLanguage("javascript", "JavaScript", "js",
-                    "node program.js", List.of("js", "node", "node.js", "nodejs")),
-            new ProgrammingLanguage("typescript", "TypeScript", "ts",
-                    "npx tsx program.ts", List.of("ts")),
-            new ProgrammingLanguage("csharp", "C#", "cs",
-                    "dotnet run (inside a console project)", List.of("c#", "cs", "c sharp", ".net", "dotnet")),
-            new ProgrammingLanguage("cpp", "C++", "cpp",
-                    "g++ -std=c++17 program.cpp -o program && ./program", List.of("c++", "cplusplus")),
-            new ProgrammingLanguage("c", "C", "c",
-                    "gcc program.c -o program && ./program", List.of("ansi c", "c99")),
-            new ProgrammingLanguage("go", "Go", "go",
-                    "go run program.go", List.of("golang")),
-            new ProgrammingLanguage("rust", "Rust", "rs",
-                    "rustc program.rs && ./program", List.of("rs")),
-            new ProgrammingLanguage("kotlin", "Kotlin", "kt",
-                    "kotlinc program.kt -include-runtime -d program.jar && java -jar program.jar", List.of("kt")),
-            new ProgrammingLanguage("swift", "Swift", "swift",
-                    "swift program.swift", List.of()),
-            new ProgrammingLanguage("php", "PHP", "php",
-                    "php program.php", List.of()),
-            new ProgrammingLanguage("ruby", "Ruby", "rb",
-                    "ruby program.rb", List.of("rb")),
-            new ProgrammingLanguage("plsql", "PL/SQL (Oracle SQL)", "sql",
-                    "Run in SQL*Plus or SQL Developer: @program.sql",
-                    List.of("pl/sql", "sql", "oracle", "oracle pl/sql", "oracle sql")),
-            new ProgrammingLanguage("cobol", "COBOL (Mainframe)", "cbl",
-                    "cobc -x program.cbl && ./program (GnuCOBOL) or compile with IBM Enterprise COBOL on z/OS",
-                    List.of("cbl", "mainframe", "ibm mainframe", "ibm z/os", "z/os")));
+    /** Languages with sample files; the rest of {@link LanguageCatalog} is converted by the AI model only. */
+    private static final List<ProgrammingLanguage> LANGUAGES = LanguageCatalog.sampleLanguages();
 
     private static final List<String[]> SAMPLE_INFO = List.of(
             new String[] {"hello-world", "Hello World",
@@ -85,29 +55,33 @@ public class CodeSampleLibrary {
         this.samples = List.copyOf(loaded);
     }
 
+    /** The languages that have sample programs (offline conversion). */
     public List<ProgrammingLanguage> languages() {
         return LANGUAGES;
+    }
+
+    /** Languages converted by the AI model only. */
+    public List<ProgrammingLanguage> moreLanguages() {
+        return LanguageCatalog.moreLanguages();
+    }
+
+    /** Sample languages first, then the AI-only ones. */
+    public List<ProgrammingLanguage> allLanguages() {
+        return LanguageCatalog.allLanguages();
     }
 
     public List<CodeSample> samples() {
         return samples;
     }
 
-    /** Resolves a language by id, display name, file extension, or alias (case-insensitive). */
+    /** Resolves any catalog language by id, display name, alias or file extension (case-insensitive). */
     public Optional<ProgrammingLanguage> language(String value) {
-        if (value == null || value.isBlank()) {
-            return Optional.empty();
-        }
-        String key = value.trim().toLowerCase(Locale.ROOT);
-        for (ProgrammingLanguage language : LANGUAGES) {
-            if (language.id().equals(key)
-                    || language.name().toLowerCase(Locale.ROOT).equals(key)
-                    || language.extension().equals(key)
-                    || language.aliases().contains(key)) {
-                return Optional.of(language);
-            }
-        }
-        return Optional.empty();
+        return LanguageCatalog.find(value).map(LanguageCatalog.Entry::language);
+    }
+
+    /** Language of a source file from its extension; {@code content} settles ambiguous ones such as {@code .m}. */
+    public Optional<ProgrammingLanguage> languageOfFile(String fileName, Supplier<String> content) {
+        return LanguageCatalog.forFile(fileName, content).map(LanguageCatalog.Entry::language);
     }
 
     /**

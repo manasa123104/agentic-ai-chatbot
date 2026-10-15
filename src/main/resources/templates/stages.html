@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>BOT · Stage bots</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/code.css}"/>
+    <link rel="stylesheet" th:href="@{/css/convert.css}"/>
+    <link rel="stylesheet" th:href="@{/css/stages.css}"/>
+</head>
+<body class="code-app">
+<header class="code-top">
+    <div class="code-brand">
+        <a class="rail-mark" href="/">B</a>
+        <div>
+            <strong>Stage bots</strong>
+            <small>Business Analyst → Developer → Tester → Deploy → Trainer · any language, any domain · run one stage or chain them all</small>
+        </div>
+    </div>
+    <nav class="code-actions">
+        <a class="btn ghost" href="/">Back to BOT</a>
+        <a class="btn ghost" href="/convert">Code converter</a>
+        <a class="btn ghost" href="/code">User stories + Java code</a>
+    </nav>
+</header>
+
+<main class="convert-main stages-main">
+    <section class="convert-status" th:classappend="${llmReady} ? ' on' : ' off'">
+        <span class="dot"></span>
+        <p th:if="${llmReady}"><strong>AI model connected: <span th:text="${llmName}">model</span>.</strong>
+            Each stage uses a domain and language persona prompt plus your approved training examples. A small local model can take a minute or more per stage.</p>
+        <p th:unless="${llmReady}"><strong>Offline mode.</strong> Built-in templates cover code and unit tests in Java, Python, JavaScript,
+            TypeScript, C#, Go and Kotlin for any domain (with dedicated banking fund-transfer and logistics shipment-tracking samples),
+            Selenium/Playwright tests, and deployment files for every language.
+            Start Ollama or set <code>OPENAI_API_KEY</code> for AI-generated output and for code in any other language.</p>
+    </section>
+
+    <section class="convert-card stage-setup">
+        <div class="setup-row">
+            <label class="field slim domain-field"><span th:text="'Domain (' + ${domainCount} + ' + your own)'">Domain</span>
+                <select id="domain">
+                    <optgroup th:each="g : ${domainGroups}" th:label="${g.group}">
+                        <option th:each="d : ${g.domains}" th:value="${d.label}" th:text="${d.label}"
+                                th:selected="${d.label == 'Banking'}">Banking</option>
+                    </optgroup>
+                    <option value="other">Other (type your own)</option>
+                </select>
+            </label>
+            <label class="field slim" id="otherDomainField" hidden><span>Other domain</span>
+                <input type="text" id="domainName" placeholder="e.g. Veterinary clinics" maxlength="60" autocomplete="off"/></label>
+            <label class="field slim"><span th:text="'Language (' + ${#lists.size(languages)} + ' + your own)'">Language</span>
+                <select id="language">
+                    <optgroup label="Offline samples + AI model">
+                        <option th:each="l : ${sampleLanguages}" th:value="${l.id}"
+                                th:text="${l.label} + (${l.offline} == 'true' ? ' · offline templates' : '')"
+                                th:attr="data-unit=${l.unit},data-automation=${l.automation},data-ext=${l.ext},data-label=${l.label}">Java</option>
+                    </optgroup>
+                    <optgroup label="More languages (AI model)">
+                        <option th:each="l : ${moreLanguages}" th:value="${l.id}" th:text="${l.label}"
+                                th:attr="data-unit=${l.unit},data-automation=${l.automation},data-ext=${l.ext},data-label=${l.label}">Scala</option>
+                    </optgroup>
+                    <option value="other" th:attr="data-unit=${otherLanguage.unit},data-automation=${otherLanguage.automation}">Other (type your own)</option>
+                </select>
+            </label>
+            <label class="field slim" id="otherLanguageField" hidden><span>Other language</span>
+                <input type="text" id="languageName" placeholder="e.g. Mojo, Gleam, Hack" maxlength="40"/></label>
+            <label class="field slim"><span>Automation tests</span>
+                <select id="automation">
+                    <option value="">Same as language</option>
+                    <option th:each="a : ${automations}" th:value="${a.id}" th:text="${a.label}">Selenium</option>
+                </select>
+            </label>
+            <div class="setup-group grow">
+                <span class="setup-label">Sample requirements</span>
+                <div class="tab-row" id="samples"></div>
+            </div>
+        </div>
+        <div class="setup-row">
+            <label class="check"><input type="checkbox" id="useModel" th:checked="${llmReady}" th:disabled="${!llmReady}"/>
+                Use the AI model<span th:unless="${llmReady}"> (not connected)</span></label>
+            <label class="field slim wide-url"><span>App base URL for UI tests</span>
+                <input type="text" id="baseUrl" value="http://localhost:8080"/></label>
+            <label class="field tiny"><span>App port</span>
+                <input type="number" id="port" value="8080" min="1" max="65535"/></label>
+            <label class="check"><input type="checkbox" id="k8s" checked/> Kubernetes YAML</label>
+            <label class="check"><input type="checkbox" id="compose" checked/> docker-compose</label>
+            <label class="check" title="Runs docker build in the run folder if Docker is installed and running">
+                <input type="checkbox" id="buildLocally"/> Build image locally</label>
+            <div class="setup-buttons">
+                <button type="button" class="btn ghost small" id="newRunBtn" title="Start a new run folder">New run</button>
+                <a class="btn ghost small disabled" id="runZipBtn" href="#">&#11015; Whole run (ZIP)</a>
+                <button type="button" class="btn convert-btn" id="runAllBtn">Run all stages</button>
+            </div>
+        </div>
+        <div class="pipeline-strip" id="pipeline">
+            <span class="pipe-step" th:each="s, it : ${stageList}" th:attr="data-stage=${s.id}">
+                <b th:text="${it.count}">1</b><span th:text="${s.title}">Stage</span>
+            </span>
+        </div>
+        <p class="run-info" id="runInfo">No run yet. Run any stage on its own, or press Run all stages.</p>
+        <p class="run-timer-row"><span id="totalTimer"></span></p>
+    </section>
+
+    <section class="convert-card stage-card" th:each="s, it : ${workStages}" th:attr="data-stage=${s.id}">
+        <div class="stage-head">
+            <span class="stage-num" th:text="${it.count}">1</span>
+            <div class="stage-title">
+                <strong th:text="${s.title}">Stage</strong>
+                <small class="persona"></small>
+            </div>
+            <span class="badge stage-mode" hidden></span>
+            <span class="stage-time"></span>
+        </div>
+        <div class="convert-panes">
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title input-title">Input</span>
+                    <button type="button" class="link-btn clear-btn">Clear</button>
+                </div>
+                <textarea class="stage-io stage-input" spellcheck="false"></textarea>
+            </div>
+            <div class="pane" th:if="${s.id != 'tester'}">
+                <div class="pane-head">
+                    <span class="pane-title" th:text="'Output · ' + ${s.produces}">Output</span>
+                    <button type="button" class="link-btn copy-btn" disabled>Copy</button>
+                </div>
+                <textarea class="stage-io stage-output" spellcheck="false"
+                          placeholder="Output appears here. You can correct it before sending it on or approving it for training."></textarea>
+            </div>
+            <div class="pane" th:if="${s.id == 'tester'}">
+                <div class="pane-head">
+                    <div class="out-tabs" role="tablist">
+                        <button type="button" class="out-tab active" data-tab="unit">Unit tests <em class="tab-count"></em></button>
+                        <button type="button" class="out-tab" data-tab="automation">Automation tests <em class="tab-count"></em></button>
+                    </div>
+                    <span class="tester-part">
+                        <select class="part-select" title="Which tests to write">
+                            <option value="both">Unit + automation</option>
+                            <option value="unit">Unit only</option>
+                            <option value="automation">Automation only</option>
+                        </select>
+                    </span>
+                    <button type="button" class="link-btn copy-btn" disabled>Copy</button>
+                </div>
+                <textarea class="stage-io stage-output tab-out" data-tab="unit" spellcheck="false"
+                          placeholder="Unit tests appear here (JUnit 5, pytest, Jest, ... depending on the language)."></textarea>
+                <textarea class="stage-io tab-out" data-tab="automation" spellcheck="false" hidden
+                          placeholder="UI automation tests appear here (Selenium or Playwright)."></textarea>
+            </div>
+        </div>
+        <p class="convert-message stage-message" role="status" aria-live="polite"></p>
+        <p class="run-timer-row"><span class="stage-timer"></span></p>
+        <ul class="stage-notes" hidden></ul>
+        <div class="stage-actions">
+            <button type="button" class="btn convert-btn run-btn">Run</button>
+            <button type="button" class="btn ghost small next-btn" disabled>Send to next stage &rarr;</button>
+            <span class="spacer"></span>
+            <select class="file-select" disabled><option>No files yet</option></select>
+            <button type="button" class="btn ghost small file-btn" disabled>&#11015; File</button>
+            <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
+        </div>
+        <div class="train-row">
+            <input type="text" class="feedback" maxlength="1000"
+                   placeholder="Optional feedback for the bot, e.g. &quot;always add an AML screening story&quot;"/>
+            <button type="button" class="btn small approve-btn" disabled>&#10004; Approve for training</button>
+            <span class="train-count"></span>
+        </div>
+    </section>
+
+    <section class="convert-card stage-card trainer-card" data-stage="trainer">
+        <div class="stage-head">
+            <span class="stage-num" th:text="${#lists.size(stageList)}">5</span>
+            <div class="stage-title">
+                <strong>Trainer</strong>
+                <small class="persona">Reviews the run, saves approved (and corrected) outputs to data/bot-training.json as few-shot examples for future runs</small>
+            </div>
+            <span class="badge stage-mode" hidden></span>
+            <span class="stage-time"></span>
+        </div>
+        <div class="convert-panes">
+            <div class="pane trainer-pane">
+                <div class="pane-head"><span class="pane-title">Save this run as training</span></div>
+                <div class="trainer-body">
+                    <label class="field"><span>Run id (blank = current run)</span>
+                        <input type="text" class="stage-input" id="trainerRun" placeholder="e.g. 20261015-101500-a1b2c3"/></label>
+                    <div class="save-list">
+                        <label class="check" th:each="s : ${workStages}">
+                            <input type="checkbox" class="save-stage" th:value="${s.id}" checked/>
+                            <span th:text="${s.title}">Stage</span> <em class="save-state"></em></label>
+                    </div>
+                    <input type="text" class="feedback" id="trainerFeedback" maxlength="1000"
+                           placeholder="Optional feedback saved with every example of this run"/>
+                    <p class="hint">Corrections you typed into a stage's output box are saved as they are. Nothing is saved until you press Save.</p>
+                    <div class="stage-actions">
+                        <button type="button" class="btn convert-btn run-btn">Review run</button>
+                        <button type="button" class="btn small approve-btn" id="saveRunBtn">&#10004; Save this run as training</button>
+                    </div>
+                </div>
+            </div>
+            <div class="pane">
+                <div class="pane-head">
+                    <span class="pane-title">Output · Training report</span>
+                    <button type="button" class="link-btn copy-btn" disabled>Copy</button>
+                </div>
+                <textarea class="stage-io stage-output" spellcheck="false" readonly
+                          placeholder="The run summary and what BOT has learned appear here."></textarea>
+            </div>
+        </div>
+        <p class="convert-message stage-message" role="status" aria-live="polite"></p>
+        <p class="run-timer-row"><span class="stage-timer"></span></p>
+        <ul class="stage-notes" hidden></ul>
+        <div class="stage-actions">
+            <span class="spacer"></span>
+            <select class="file-select" disabled><option>No files yet</option></select>
+            <button type="button" class="btn ghost small file-btn" disabled>&#11015; File</button>
+            <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
+        </div>
+
+        <div class="trainer-stats">
+            <h3>Approved examples</h3>
+            <div class="stats-grid" id="statsGrid"></div>
+        </div>
+        <div class="trainer-examples">
+            <div class="examples-head">
+                <h3>Training examples</h3>
+                <select id="exampleStage">
+                    <option value="">All stages</option>
+                    <option th:each="s : ${workStages}" th:value="${s.id}" th:text="${s.title}">Stage</option>
+                </select>
+                <input type="text" id="exampleDomain" placeholder="Domain key, e.g. banking or healthcare:python"/>
+                <button type="button" class="btn ghost small" id="refreshExamples">Refresh</button>
+            </div>
+            <div class="example-list" id="exampleList"><p class="hint">Loading…</p></div>
+        </div>
+    </section>
+</main>
+
+<script th:src="@{/js/runtimer.js}"></script>
+<script th:inline="javascript">
+  const STAGE_LIST = /*[[${stageList}]]*/ [];
+  let stats = /*[[${trainingStats}]]*/ {};
+  const STAGES = STAGE_LIST.map((s) => s.id);
+  const WORK = STAGES.filter((s) => s !== 'trainer');
+  const TITLES = Object.fromEntries(STAGE_LIST.map((s) => [s.id, s.title]));
+  const DOMAIN_GROUPS = /*[[${domainGroups}]]*/ [];
+  const SAMPLES = Object.fromEntries(DOMAIN_GROUPS.flatMap((g) => g.domains).map((d) => [d.label, d.samples]));
+  const REQUIREMENTS = Object.fromEntries(DOMAIN_GROUPS.flatMap((g) => g.domains).map((d) => [d.label, d.requirement]));
+  const GENERIC_REQUIREMENT = /*[[${genericRequirement}]]*/ 'Service request approval ({domain})';
+  let lastSample = null; // the starter requirement we put in the Business Analyst box (null until we do)
+  const GENERIC_SAMPLES = ['Service request approval', 'Customer onboarding', 'Report generation request'];
+  const INPUTS = {
+    'ba': ['Requirement', 'Describe what the business needs, e.g. "fund transfer between accounts".'],
+    'developer': ['User stories', 'Paste user stories, or run the Business Analyst stage and press "Send to next stage".'],
+    'tester': ['Code (+ stories)', 'Paste code to unit-test (several files can be separated by === FILE: path === lines). Automation tests use the run\'s user stories, or stories pasted here.'],
+    'deploy': ['Code to deploy', 'Paste the code (or run the Developer stage). Deploy writes a Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML and DEPLOY.md.']
+  };
+  const MODES = { llm: 'AI model', template: 'Offline template', trained: 'From training', trainer: 'Training report' };
+  const AUTOMATION_ROOT = /^(selenium-|playwright-)/;
+
+  const $ = (id) => document.getElementById(id);
+  const card = (stage) => document.querySelector('.stage-card[data-stage="' + stage + '"]');
+  const q = (stage, sel) => card(stage).querySelector(sel);
+  let runId = null;
+  let busy = false;
+  const results = {};
+
+  function domainText() {
+    if ($('domain').value !== 'other') return $('domain').value;
+    return $('domainName').value.trim() || 'Banking';
+  }
+  function domainKey() {
+    const v = domainText().toLowerCase();
+    if (v === 'bank' || v.startsWith('banking')) return 'banking';
+    if (v.startsWith('logist') || v.includes('shipping') || v.includes('supply chain')) return 'logistics';
+    return v.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'banking';
+  }
+  function language() { return $('language').value; }
+  function languageLabel() {
+    if (language() === 'other') return $('languageName').value.trim() || 'the requested language';
+    return $('language').selectedOptions[0].dataset.label;
+  }
+  function trainingKey(stage) {
+    return stage === 'ba' || language() === 'java' ? domainKey() : domainKey() + ':' + language();
+  }
+  function automationLabel() {
+    const sel = $('automation');
+    if (sel.value) return sel.selectedOptions[0].textContent;
+    const def = $('language').selectedOptions[0].dataset.automation;
+    const opt = [...sel.options].find((o) => o.value === def);
+    return opt ? opt.textContent : 'Selenium';
+  }
+
+  function personas() {
+    const d = domainText();
+    const lang = languageLabel();
+    const unit = $('language').selectedOptions[0].dataset.unit || 'its standard unit-test framework';
+    return {
+      'ba': 'Senior Business Analyst, ' + d + ' domain · user stories with Given/When/Then',
+      'developer': 'Senior ' + lang + ' developer, ' + d + ' domain · commented ' + lang + ' code',
+      'tester': 'Tester · unit tests with ' + unit + ' + automation with ' + automationLabel(),
+      'deploy': 'DevOps · Dockerfile, build scripts, GitHub Actions CI/CD, Kubernetes for ' + lang
+    };
+  }
+
+  function refreshPersonas() {
+    const p = personas();
+    WORK.forEach((s) => { q(s, '.persona').textContent = p[s]; });
+    $('otherLanguageField').hidden = language() !== 'other';
+    $('otherDomainField').hidden = $('domain').value !== 'other';
+    renderStats();
+  }
+
+  function requirementFor(domain) {
+    return REQUIREMENTS[domain] || GENERIC_REQUIREMENT.split('{domain}').join(domain);
+  }
+
+  /**
+   * Puts the domain's starter requirement into the Business Analyst box. Without `force` it only does so when the
+   * box is empty or still holds the previous untouched starter text, so anything the user typed is never lost.
+   * With `force` (the "Load sample" button) it asks first if the user has edited the text.
+   */
+  function loadDomainRequirement(force) {
+    const box = q('ba', '.stage-input');
+    const text = requirementFor(domainText());
+    const untouched = box.value.trim() === '' || box.value === lastSample;
+    if (!untouched) {
+      if (!force || !confirm('Replace the text in the Business Analyst box with the ' + domainText() + ' sample?')) return;
+    }
+    box.value = text;
+    lastSample = text;
+  }
+
+  function renderSamples() {
+    const list = SAMPLES[domainText()] || GENERIC_SAMPLES;
+    const box = $('samples');
+    box.innerHTML = '';
+    list.forEach((text) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = text;
+      b.addEventListener('click', () => { q('ba', '.stage-input').value = text; lastSample = text; q('ba', '.stage-input').focus(); });
+      box.appendChild(b);
+    });
+    const load = document.createElement('button');
+    load.type = 'button';
+    load.className = 'chip';
+    load.textContent = 'Load sample for ' + domainText();
+    load.title = 'Fill the Business Analyst box with a full sample requirement for this domain (you can edit it)';
+    load.addEventListener('click', () => { loadDomainRequirement(true); q('ba', '.stage-input').focus(); });
+    box.appendChild(load);
+  }
+
+  function options(stage) {
+    const o = {
+      offline: String(!$('useModel').checked),
+      language: language(),
+      baseUrl: $('baseUrl').value.trim(),
+      port: $('port').value,
+      kubernetes: String($('k8s').checked),
+      compose: String($('compose').checked),
+      buildLocally: String($('buildLocally').checked)
+    };
+    if (language() === 'other') o.languageName = $('languageName').value.trim();
+    if ($('automation').value) o.automation = $('automation').value;
+    if (stage === 'tester') o.testerPart = q('tester', '.part-select').value;
+    return o;
+  }
+
+  function getOut(stage) {
+    if (stage !== 'tester') return q(stage, '.stage-output').value;
+    return [...card('tester').querySelectorAll('.tab-out')].map((t) => t.value.trim()).filter(Boolean).join('\n\n');
+  }
+
+  function setOut(stage, data) {
+    if (stage !== 'tester') {
+      q(stage, '.stage-output').value = data.output || '';
+      return;
+    }
+    const files = data.files || [];
+    const shown = new Set((data.output || '').split('\n').filter((l) => l.startsWith('=== FILE: ')).map((l) => l.slice(10, -4)));
+    const bundle = (list) => list.map((f) => '=== FILE: ' + f.path + ' ===\n' + f.content.trimEnd()).join('\n\n');
+    const visible = files.filter((f) => shown.has(f.path));
+    const unit = visible.filter((f) => !AUTOMATION_ROOT.test(f.path));
+    const auto = visible.filter((f) => AUTOMATION_ROOT.test(f.path));
+    card('tester').querySelector('.tab-out[data-tab="unit"]').value = bundle(unit);
+    card('tester').querySelector('.tab-out[data-tab="automation"]').value = bundle(auto);
+    const counts = card('tester').querySelectorAll('.tab-count');
+    counts[0].textContent = unit.length ? '(' + unit.length + ')' : '';
+    counts[1].textContent = auto.length ? '(' + auto.length + ')' : '';
+    showTab(unit.length || !auto.length ? 'unit' : 'automation');
+  }
+
+  function showTab(tab) {
+    card('tester').querySelectorAll('.out-tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    card('tester').querySelectorAll('.tab-out').forEach((t) => { t.hidden = t.dataset.tab !== tab; });
+  }
+
+  function setMessage(stage, text, kind) {
+    const el = q(stage, '.stage-message');
+    el.textContent = text || '';
+    el.className = 'convert-message stage-message' + (kind ? ' ' + kind : '');
+  }
+
+  function setStep(stage, state) {
+    const step = document.querySelector('.pipe-step[data-stage="' + stage + '"]');
+    if (step) step.className = 'pipe-step' + (state ? ' ' + state : '');
+  }
+
+  const stageMs = {};
+  const stageStart = {};
+
+  function stepTimeEl(stage) {
+    const step = document.querySelector('.pipe-step[data-stage="' + stage + '"]');
+    if (!step) return null;
+    let t = step.querySelector('.step-time');
+    if (!t) { t = document.createElement('em'); t.className = 'step-time'; step.appendChild(t); }
+    return t;
+  }
+
+  function updateTotal() {
+    const el = $('totalTimer');
+    const running = Object.keys(stageStart);
+    let ms = Object.values(stageMs).reduce((a, b) => a + b, 0);
+    running.forEach((s) => { ms += Date.now() - stageStart[s]; });
+    if (!ms && !running.length) { el.className = ''; el.textContent = ''; return; }
+    el.className = 'run-timer ' + (running.length ? 'running' : 'done');
+    el.textContent = running.length ? 'Total \u00b7 Running\u2026 ' + RunTimer.clock(ms) : 'Total time ' + RunTimer.format(ms);
+  }
+
+  /** Starts the live timer for a stage; call the returned function with true/false when it ends. */
+  function beginTimer(stage) {
+    const started = Date.now();
+    stageStart[stage] = started;
+    const rt = RunTimer.start(q(stage, '.stage-timer'), { startedAt: started });
+    const paint = () => {
+      const t = stepTimeEl(stage);
+      if (t) t.textContent = RunTimer.clock(Date.now() - started);
+      updateTotal();
+    };
+    paint();
+    const tick = setInterval(paint, 1000);
+    return (ok) => {
+      clearInterval(tick);
+      delete stageStart[stage];
+      const ms = rt.stop(ok ? 'Done in' : 'Failed after', !ok);
+      stageMs[stage] = ms;
+      const t = stepTimeEl(stage);
+      if (t) t.textContent = RunTimer.format(ms);
+      updateTotal();
+    };
+  }
+
+  function resetTimes() {
+    Object.keys(stageMs).forEach((k) => delete stageMs[k]);
+    document.querySelectorAll('.step-time, .stage-timer').forEach((e) => { e.textContent = ''; });
+    updateTotal();
+  }
+
+  function setRun(id) {
+    if (!id) resetTimes();
+    runId = id;
+    const zip = $('runZipBtn');
+    zip.href = id ? '/api/stages/runs/' + id + '/zip' : '#';
+    zip.classList.toggle('disabled', !id);
+    $('trainerRun').placeholder = id || 'e.g. 20261015-101500-a1b2c3';
+    $('runInfo').textContent = id
+      ? 'Run ' + id + ' · files saved in generated-app/stages/' + id + '/ · later stages add to this run until you press New run.'
+      : 'No run yet. Run any stage on its own, or press Run all stages.';
+  }
+
+  function render(stage, data) {
+    results[stage] = data;
+    setOut(stage, data);
+    const badge = q(stage, '.stage-mode');
+    badge.hidden = false;
+    badge.textContent = MODES[data.mode] || data.mode;
+    badge.className = 'badge stage-mode ' + data.mode;
+    q(stage, '.stage-time').textContent = (data.elapsedMs / 1000).toFixed(1) + ' s';
+    const notes = q(stage, '.stage-notes');
+    notes.innerHTML = '';
+    (data.notes || []).forEach((n) => {
+      const li = document.createElement('li');
+      li.textContent = n;
+      if (/^(Compile|Syntax) check: \d+ error/.test(n) || /failed|skipped|need|Start Ollama/i.test(n)) li.className = 'warn';
+      notes.appendChild(li);
+    });
+    notes.hidden = !(data.notes || []).length;
+    const select = q(stage, '.file-select');
+    select.innerHTML = '';
+    (data.files || []).forEach((f) => {
+      const o = document.createElement('option');
+      o.value = f.path;
+      o.textContent = f.path;
+      select.appendChild(o);
+    });
+    const hasFiles = (data.files || []).length > 0;
+    select.disabled = !hasFiles;
+    q(stage, '.file-btn').disabled = !hasFiles;
+    q(stage, '.zip-btn').disabled = !hasFiles;
+    q(stage, '.copy-btn').disabled = false;
+    const approve = q(stage, '.approve-btn');
+    if (approve && stage !== 'trainer') approve.disabled = false;
+    const next = q(stage, '.next-btn');
+    if (next) next.disabled = false;
+    if (stage !== 'trainer') {
+      setMessage(stage, (data.files || []).length + ' file(s) generated by the ' + data.stageTitle
+        + ' (' + (MODES[data.mode] || data.mode).toLowerCase() + ').', 'ok');
+    }
+  }
+
+  const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+
+  async function post(url, body) {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body), signal: abort.signal });
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('BOT did not answer within ' + REQUEST_TIMEOUT_MS / 60000 + ' minutes; try again or run offline.');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'The request failed.');
+    return data;
+  }
+
+  async function runStage(stage) {
+    if (stage === 'trainer') return runTrainer(false);
+    const input = q(stage, '.stage-input').value;
+    if (!input.trim()) {
+      setMessage(stage, INPUTS[stage][1], 'error');
+      return null;
+    }
+    const btn = q(stage, '.run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running… 0s';
+    const started = Date.now();
+    const ticker = setInterval(() => {
+      btn.textContent = 'Running… ' + Math.floor((Date.now() - started) / 1000) + 's';
+    }, 1000);
+    setStep(stage, 'running');
+    const endTimer = beginTimer(stage);
+    let ok = false;
+    setMessage(stage, $('useModel').checked
+      ? 'Running with the AI model… a small local model can take a minute or more.'
+      : 'Running offline…', '');
+    try {
+      const data = await post('/api/stages/' + stage, { domain: domainText(), input, options: options(stage), runId });
+      setRun(data.runId);
+      render(stage, data);
+      setStep(stage, 'done');
+      ok = true;
+      return data;
+    } catch (e) {
+      setMessage(stage, e.message.startsWith('Failed to fetch') ? 'Could not reach BOT: ' + e.message : e.message, 'error');
+      setStep(stage, 'failed');
+      return null;
+    } finally {
+      endTimer(ok);
+      clearInterval(ticker);
+      btn.disabled = false;
+      btn.textContent = 'Run';
+    }
+  }
+
+  async function runTrainer(save) {
+    const stage = 'trainer';
+    const typed = $('trainerRun').value.trim();
+    const id = typed || runId;
+    const btn = save ? $('saveRunBtn') : q(stage, '.run-btn');
+    btn.disabled = true;
+    setStep(stage, 'running');
+    const endTimer = beginTimer(stage);
+    let ok = false;
+    try {
+      const wanted = [...document.querySelectorAll('.save-stage:checked')].map((c) => c.value);
+      const data = await post('/api/stages/trainer', {
+        domain: domainText(), input: id || '', runId: id || null,
+        options: { language: language(), save: String(save), stages: wanted.join(','), feedback: $('trainerFeedback').value }
+      });
+      if (!runId && data.runId) setRun(data.runId);
+      render(stage, data);
+      setMessage(stage, (data.notes || [])[0] || 'Training report ready.', 'ok');
+      setStep(stage, 'done');
+      ok = true;
+      endTimer(true);
+      stats = await (await fetch('/api/stages/training')).json();
+      renderStats();
+      loadExamples();
+      return data;
+    } catch (e) {
+      setMessage(stage, e.message, 'error');
+      setStep(stage, 'failed');
+      return null;
+    } finally {
+      if (!ok) endTimer(false);
+      btn.disabled = false;
+    }
+  }
+
+  /** Saves each ticked stage's current (possibly corrected) output; falls back to the run files on the server. */
+  async function saveRun() {
+    const wanted = [...document.querySelectorAll('.save-stage:checked')].map((c) => c.value);
+    const fromCards = wanted.filter((s) => getOut(s).trim());
+    const feedback = $('trainerFeedback').value;
+    if (!fromCards.length) {
+      if (!($('trainerRun').value.trim() || runId)) {
+        setMessage('trainer', 'Run the stages first (or enter a run id), then save.', 'error');
+        return;
+      }
+      await runTrainer(true);
+      return;
+    }
+    const btn = $('saveRunBtn');
+    btn.disabled = true;
+    let saved = 0;
+    try {
+      for (const s of fromCards) {
+        const label = document.querySelector('.save-stage[value="' + s + '"]').parentElement.querySelector('.save-state');
+        try {
+          await post('/api/stages/' + s + '/approve', {
+            domain: domainText(), language: language(), input: q(s, '.stage-input').value,
+            output: getOut(s), feedback: feedback || q(s, '.feedback').value, runId
+          });
+          label.textContent = 'saved';
+          saved++;
+        } catch (e) {
+          label.textContent = e.message;
+        }
+      }
+    } finally {
+      btn.disabled = false;
+    }
+    await runTrainer(false);
+    setMessage('trainer', 'Saved ' + saved + ' of ' + fromCards.length + ' stage output(s) as training examples.', saved ? 'ok' : 'error');
+  }
+
+  /** The next stage's input: the (possibly corrected) output; Deploy gets the Developer's code. */
+  function handOff(stage) {
+    const i = STAGES.indexOf(stage);
+    const next = STAGES[i + 1];
+    if (!next) return null;
+    if (next === 'trainer') {
+      $('trainerRun').value = runId || '';
+      return next;
+    }
+    let value = getOut(stage);
+    if (next === 'deploy') {
+      value = q('developer', '.stage-output').value.trim()
+        || (results[stage] && results[stage].nextInput)
+        || q('tester', '.stage-input').value;
+    }
+    q(next, '.stage-input').value = value;
+    return next;
+  }
+
+  async function runAll() {
+    if (busy) return;
+    if (!q('ba', '.stage-input').value.trim()) {
+      setMessage('ba', 'Enter a requirement or pick a sample above, then press Run all stages.', 'error');
+      q('ba', '.stage-input').focus();
+      return;
+    }
+    busy = true;
+    const btn = $('runAllBtn');
+    btn.disabled = true;
+    setRun(null);
+    $('trainerRun').value = '';
+    document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
+    STAGES.forEach((s) => setStep(s, ''));
+    try {
+      for (const stage of STAGES) {
+        btn.textContent = 'Running ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + '…';
+        card(stage).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const data = await runStage(stage);
+        if (!data) break;
+        handOff(stage);
+      }
+    } finally {
+      busy = false;
+      btn.disabled = false;
+      btn.textContent = 'Run all stages';
+    }
+  }
+
+  async function approve(stage) {
+    const btn = q(stage, '.approve-btn');
+    btn.disabled = true;
+    try {
+      const data = await post('/api/stages/' + stage + '/approve', {
+        domain: domainText(), language: language(), input: q(stage, '.stage-input').value, output: getOut(stage),
+        feedback: q(stage, '.feedback').value, runId
+      });
+      stats = data.stats;
+      renderStats();
+      loadExamples();
+      q(stage, '.feedback').value = '';
+      setMessage(stage, 'Saved as a training example (' + data.examples + ' approved for this stage in ' + data.domain + ')'
+        + (data.savedFiles ? '; your corrections were also saved to the run files.' : '.'), 'ok');
+    } catch (e) {
+      setMessage(stage, e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function count(stage, key) {
+    const s = stats.stages || {};
+    let n = (s[stage] || {})[key] || 0;
+    if (stage === 'tester') n += ((s['unit-test'] || {})[key] || 0) + ((s['functional-test'] || {})[key] || 0);
+    return n;
+  }
+
+  function renderStats() {
+    const grid = $('statsGrid');
+    grid.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'stats-row head';
+    head.innerHTML = '<span>Stage</span><span>This domain / language</span><span>All domains</span>';
+    grid.appendChild(head);
+    WORK.forEach((s) => {
+      const all = Object.values((stats.stages || {})[s] || {}).reduce((a, b) => a + b, 0)
+        + (s === 'tester' ? ['unit-test', 'functional-test'].map((k) => Object.values((stats.stages || {})[k] || {})
+          .reduce((a, b) => a + b, 0)).reduce((a, b) => a + b, 0) : 0);
+      const row = document.createElement('div');
+      row.className = 'stats-row';
+      [TITLES[s], count(s, trainingKey(s)), all].forEach((v) => {
+        const cell = document.createElement('span');
+        cell.textContent = v;
+        row.appendChild(cell);
+      });
+      grid.appendChild(row);
+      const n = count(s, trainingKey(s));
+      q(s, '.train-count').textContent = n
+        ? n + ' approved example' + (n === 1 ? '' : 's') + ' for ' + trainingKey(s)
+        : 'Not trained yet for ' + trainingKey(s);
+    });
+    const total = document.createElement('p');
+    total.className = 'stats-total';
+    total.textContent = (stats.total || 0) + ' approved example(s) in total, stored in data/bot-training.json.';
+    grid.appendChild(total);
+  }
+
+  async function loadExamples() {
+    const list = $('exampleList');
+    const params = new URLSearchParams({ limit: '50' });
+    if ($('exampleStage').value) params.set('stage', $('exampleStage').value);
+    if ($('exampleDomain').value.trim()) params.set('domain', $('exampleDomain').value.trim());
+    try {
+      const items = await (await fetch('/api/stages/training/examples?' + params)).json();
+      list.innerHTML = '';
+      if (!items.length) {
+        list.innerHTML = '<p class="hint">No approved examples yet. Approve a stage output, or save a run.</p>';
+        return;
+      }
+      items.forEach((ex) => {
+        const row = document.createElement('div');
+        row.className = 'example-row';
+        const meta = document.createElement('div');
+        meta.className = 'example-meta';
+        meta.textContent = (TITLES[ex.stage] || ex.stage) + ' · ' + ex.domain + ' · ' + (ex.at || '').replace('T', ' ').slice(0, 16);
+        const text = document.createElement('div');
+        text.className = 'example-text';
+        text.textContent = (ex.input || '').split('\n')[0].slice(0, 140) + (ex.feedback ? '  — feedback: ' + ex.feedback : '');
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'btn ghost small';
+        del.textContent = 'Delete';
+        del.addEventListener('click', async () => {
+          if (!confirm('Delete this training example?')) return;
+          const res = await fetch('/api/stages/training/examples/' + encodeURIComponent(ex.id), { method: 'DELETE' });
+          const data = await res.json();
+          if (res.ok) { stats = data.stats; renderStats(); loadExamples(); }
+          else setMessage('trainer', data.error || 'Could not delete.', 'error');
+        });
+        const pre = document.createElement('pre');
+        pre.className = 'example-output';
+        pre.textContent = ex.output || '';
+        pre.hidden = true;
+        text.addEventListener('click', () => { pre.hidden = !pre.hidden; });
+        row.append(meta, text, del, pre);
+        list.appendChild(row);
+      });
+    } catch (e) {
+      list.innerHTML = '<p class="hint">Could not load examples: ' + e.message + '</p>';
+    }
+  }
+
+  function download(url) {
+    if (url) location.href = url;
+  }
+
+  STAGES.forEach((stage) => {
+    if (INPUTS[stage]) {
+      const [title, placeholder] = INPUTS[stage];
+      q(stage, '.input-title').textContent = 'Input · ' + title;
+      q(stage, '.stage-input').placeholder = placeholder;
+      q(stage, '.clear-btn').addEventListener('click', () => { q(stage, '.stage-input').value = ''; });
+      q(stage, '.approve-btn').addEventListener('click', () => approve(stage));
+      card(stage).querySelectorAll('.stage-io:not(.stage-input)').forEach((t) =>
+        t.addEventListener('input', () => { q(stage, '.approve-btn').disabled = false; }));
+      q(stage, '.stage-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runStage(stage); }
+      });
+    }
+    q(stage, '.run-btn').addEventListener('click', () => runStage(stage));
+    q(stage, '.copy-btn').addEventListener('click', (e) => {
+      navigator.clipboard.writeText(getOut(stage)).then(() => {
+        e.target.textContent = 'Copied';
+        setTimeout(() => { e.target.textContent = 'Copy'; }, 1200);
+      });
+    });
+    const next = q(stage, '.next-btn');
+    if (next) {
+      next.addEventListener('click', () => {
+        const target = handOff(stage);
+        if (target) {
+          card(target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setMessage(target, 'Input filled from the previous stage. Edit it if needed, then press Run.', '');
+        }
+      });
+    }
+    q(stage, '.file-btn').addEventListener('click', () => {
+      const path = q(stage, '.file-select').value;
+      const id = (results[stage] && results[stage].runId) || runId;
+      if (id && path) download('/api/stages/runs/' + id + '/file?path=' + encodeURIComponent(path));
+    });
+    q(stage, '.zip-btn').addEventListener('click', () => {
+      const id = (results[stage] && results[stage].runId) || runId;
+      if (id) download('/api/stages/runs/' + id + '/zip?stage=' + stage);
+    });
+  });
+
+  card('tester').querySelectorAll('.out-tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('saveRunBtn').addEventListener('click', saveRun);
+  $('refreshExamples').addEventListener('click', loadExamples);
+  $('exampleStage').addEventListener('change', loadExamples);
+  $('domain').addEventListener('change', () => {
+    renderSamples();
+    loadDomainRequirement(false);
+    refreshPersonas();
+    setRun(null);
+    if ($('domain').value === 'other') $('domainName').focus();
+  });
+  $('domainName').addEventListener('input', () => { renderSamples(); loadDomainRequirement(false); refreshPersonas(); });
+  $('domainName').addEventListener('change', () => setRun(null));
+  ['language', 'automation', 'languageName'].forEach((id) => $(id).addEventListener('input', refreshPersonas));
+  $('language').addEventListener('change', refreshPersonas);
+  $('automation').addEventListener('change', refreshPersonas);
+  $('runAllBtn').addEventListener('click', runAll);
+  $('newRunBtn').addEventListener('click', () => {
+    setRun(null);
+    STAGES.forEach((s) => setStep(s, ''));
+  });
+  $('runZipBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });
+
+  renderSamples();
+  refreshPersonas();
+  loadExamples();
+  loadDomainRequirement(false);
+</script>
+</body>
+</html>

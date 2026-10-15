@@ -17,22 +17,32 @@
 
 .workflow-flow {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: stretch;
-  gap: .35rem .25rem;
+  gap: .35rem .2rem;
   justify-content: flex-start;
 }
 
 .wf-node {
-  flex: 1 1 108px;
-  min-width: 100px;
-  max-width: 140px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 160px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
   background: #fff;
   border: 1px solid var(--line, #c5d4cb);
   border-radius: 12px;
   padding: .55rem .5rem .6rem;
   text-align: center;
   box-shadow: 0 4px 12px rgba(20, 32, 26, .05);
+}
+
+a.wf-node:hover,
+a.wf-node:focus-visible {
+  border-color: #0f6b4c;
+  box-shadow: 0 6px 16px rgba(15, 107, 76, .15);
+  transform: translateY(-1px);
 }
 
 .wf-node .wf-num {
@@ -131,6 +141,11 @@
 .bot-pipeline.workflow-rail .wf-io .io-chip {
   font-size: 10px;
   padding: .25rem .5rem;
+}
+
+@media (max-width: 900px) {
+  .workflow-diagram .workflow-flow { flex-wrap: wrap; justify-content: center; }
+  .workflow-diagram .wf-node { flex: 1 1 120px; max-width: 180px; }
 }
 
 @media (max-width: 640px) {

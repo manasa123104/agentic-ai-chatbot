@@ -15,12 +15,13 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Code converter</strong>
-            <small th:text="'Convert code between ' + ${#lists.size(languages)} + ' languages · ' + ${#lists.size(samples)} + ' sample programs in each'">Convert code between languages</small>
+            <small th:text="'Convert code between ' + ${#lists.size(allLanguages)} + ' languages (or type any other) · ' + ${#lists.size(samples)} + ' sample programs in ' + ${#lists.size(languages)} + ' of them'">Convert code between languages</small>
         </div>
     </div>
     <nav class="code-actions">
         <a class="btn ghost" href="/">Back to BOT</a>
         <a class="btn ghost" href="/code">User stories + Java code</a>
+        <a class="btn ghost" href="/stages">Stage bots</a>
     </nav>
 </header>
 
@@ -32,28 +33,53 @@
     </section>
 
     <section class="convert-card">
+        <div class="mode-tabs" role="tablist">
+            <button type="button" class="mode-tab active" data-mode="paste">Paste code</button>
+            <button type="button" class="mode-tab" data-mode="project">Project / repository</button>
+            <span class="mode-hint" id="modeHint">Convert one snippet or file. Large code is converted in parts automatically.</span>
+        </div>
         <div class="convert-controls">
             <label class="lang-pick">
                 <span>From</span>
                 <select id="sourceLang">
                     <option value="auto">Auto-detect</option>
-                    <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}">Java</option>
+                    <optgroup label="With offline samples">
+                        <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}">Java</option>
+                    </optgroup>
+                    <optgroup label="More languages (AI model)">
+                        <option th:each="l : ${moreLanguages}" th:value="${l.id()}" th:text="${l.name()}">Scala</option>
+                    </optgroup>
+                    <option value="other">Other (type your own)</option>
                 </select>
+                <input type="text" id="sourceOther" class="lang-other" maxlength="60" placeholder="Source language, e.g. Hack" hidden/>
             </label>
             <button type="button" class="swap" id="swapBtn" title="Swap languages" aria-label="Swap languages">&#8644;</button>
             <label class="lang-pick">
                 <span>To</span>
                 <select id="targetLang">
-                    <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}"
-                            th:selected="${l.id() == 'python'}">Python</option>
+                    <optgroup label="With offline samples">
+                        <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}"
+                                th:selected="${l.id() == 'python'}">Python</option>
+                    </optgroup>
+                    <optgroup label="More languages (AI model)">
+                        <option th:each="l : ${moreLanguages}" th:value="${l.id()}" th:text="${l.name()}">Scala</option>
+                    </optgroup>
+                    <option value="other">Other (type your own)</option>
                 </select>
+                <input type="text" id="targetOther" class="lang-other" maxlength="60" placeholder="Target language, e.g. Mojo" hidden/>
             </label>
-            <div class="sample-loader">
+            <div class="sample-loader" id="sampleLoader">
                 <span>Load sample</span>
                 <button type="button" class="chip" th:each="s : ${samples}" th:attr="data-sample=${s.id()}" th:text="${s.title()}">Hello World</button>
             </div>
         </div>
 
+        <div class="convert-options">
+            <label class="check"><input type="checkbox" id="optComments"/> Add comments to the converted code</label>
+            <label class="check"><input type="checkbox" id="optLogic"/> Explain the business logic in plain English</label>
+        </div>
+
+        <div id="pasteMode">
         <div class="convert-panes">
             <div class="pane">
                 <div class="pane-head">
@@ -69,7 +95,7 @@
                     <span class="pane-title">Converted code</span>
                     <span class="badge" id="modeBadge" hidden></span>
                     <button type="button" class="link-btn" id="copyBtn" disabled>Copy</button>
-                    <button type="button" class="link-btn" id="downloadBtn" disabled>Download</button>
+                    <button type="button" class="link-btn dl-btn" id="downloadBtn" disabled>&#11015; Download</button>
                 </div>
                 <pre class="output" id="output"><code id="outputCode" class="placeholder">Converted code will appear here.</code></pre>
             </div>
@@ -77,10 +103,11 @@
 
         <div class="convert-actions">
             <input type="text" id="instructions" maxlength="500"
-                   placeholder="Optional instructions for the LLM, e.g. &quot;use a class&quot; or &quot;add comments&quot;"/>
+                   placeholder="Optional instructions for the AI, e.g. &quot;use a class&quot; or &quot;use streams&quot;"/>
             <button type="button" class="btn convert-btn" id="convertBtn">Convert</button>
         </div>
         <p class="convert-message" id="message" role="status" aria-live="polite"></p>
+        <p class="run-timer-row"><span id="convertTimer"></span></p>
 
         <div class="convert-details" id="details" hidden>
             <div>
@@ -91,6 +118,120 @@
                 <p class="pipe-label">Run it</p>
                 <code class="run-cmd" id="runCommand"></code>
                 <p class="saved" id="savedFile"></p>
+                <button type="button" class="btn small dl-main" id="downloadBtn2">&#11015; Download converted code</button>
+            </div>
+        </div>
+        <div class="business" id="businessBox" hidden>
+            <p class="pipe-label">Business logic in plain English</p>
+            <div class="business-text" id="businessText"></div>
+        </div>
+        </div>
+
+        <div id="projectMode" hidden>
+            <div class="source-kinds" role="tablist">
+                <button type="button" class="chip active" data-kind="git">GitHub / Git link</button>
+                <button type="button" class="chip" data-kind="upload">Upload files, folder or ZIP</button>
+                <button type="button" class="chip" data-kind="local">Folder on this computer</button>
+            </div>
+            <div class="project-form">
+                <div class="kind-fields" data-kind="git">
+                    <label class="field wide"><span>Repository URL</span>
+                        <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo.git"/></label>
+                    <label class="field"><span>Branch (optional)</span>
+                        <input type="text" id="repoBranch" placeholder="main"/></label>
+                </div>
+                <div class="kind-fields" data-kind="upload" hidden>
+                    <label class="field"><span>Files or a ZIP</span>
+                        <input type="file" id="uploadFiles" multiple/></label>
+                    <label class="field"><span>Or a whole folder</span>
+                        <input type="file" id="uploadFolder" webkitdirectory directory multiple/></label>
+                </div>
+                <div class="kind-fields" data-kind="local" hidden>
+                    <label class="field wide"><span>Folder path on the machine running BOT</span>
+                        <input type="text" id="localPath" placeholder="C:\Users\me\projects\my-java-app"/></label>
+                </div>
+                <div class="kind-fields always">
+                    <label class="field"><span>Only this sub-folder (optional)</span>
+                        <input type="text" id="subfolder" placeholder="src/main/java"/></label>
+                    <label class="field wide"><span>Instructions for the AI (optional)</span>
+                        <input type="text" id="projectInstructions" maxlength="500" placeholder="e.g. use dataclasses, keep method names"/></label>
+                    <button type="button" class="btn convert-btn" id="startJobBtn">Convert project</button>
+                </div>
+                <p class="field-help">Every source file in every sub-folder is converted. Files are converted in dependency order, so each file
+                    imports the already-converted modules it uses. Build folders (target, build, node_modules, .git) are skipped and
+                    resources are copied unchanged.</p>
+            </div>
+            <div class="recent-jobs" id="recentJobs" hidden>
+                <span>Previous conversions</span>
+                <select id="recentSelect"></select>
+                <a class="btn ghost small disabled" id="recentZipBtn" href="#">&#11015; Download ZIP</a>
+            </div>
+        </div>
+        <p class="convert-message" id="jobMessage" role="status" aria-live="polite"></p>
+
+        <div class="job-panel" id="jobPanel" hidden>
+            <div class="job-head">
+                <div>
+                    <strong id="jobTitle">Conversion</strong>
+                    <small id="jobMeta"></small>
+                </div>
+                <div class="job-buttons">
+                    <a class="btn ghost small" id="zipBtn" href="#">&#11015; Download all (ZIP)</a>
+                </div>
+            </div>
+            <div class="done-banner" id="doneBanner" hidden>
+                <span>&#10004; Conversion finished</span>
+                <a class="btn small" id="doneZipBtn" href="#">&#11015; Download all converted code (ZIP)</a>
+            </div>
+            <div class="progress"><div class="bar" id="jobBar"></div></div>
+            <p class="job-status" id="jobStatus"></p>
+            <p class="run-timer-row"><span id="jobTimer"></span></p>
+
+            <div class="job-body">
+                <aside class="file-tree">
+                    <div class="tree-head">
+                        <span>Converted files</span>
+                    </div>
+                    <ul id="fileList"></ul>
+                </aside>
+                <div class="file-view">
+                    <div class="pane">
+                        <div class="pane-head">
+                            <span class="pane-title" id="filePath">Select a file</span>
+                            <button type="button" class="view-tab active" data-view="converted">Converted</button>
+                            <button type="button" class="view-tab" data-view="original">Original</button>
+                            <button type="button" class="view-tab" data-view="logic">Business logic</button>
+                        </div>
+                        <textarea id="fileEditor" spellcheck="false" placeholder="Pick a file on the left to open it."></textarea>
+                        <pre class="output" id="fileReadonly" hidden><code id="fileReadonlyCode"></code></pre>
+                        <div class="business-text dark" id="fileLogic" hidden></div>
+                    </div>
+                    <div class="file-actions">
+                        <span class="saved" id="fileNotes"></span>
+                        <button type="button" class="btn ghost small" id="saveFileBtn" disabled>Save changes</button>
+                        <button type="button" class="btn ghost small" id="downloadFileBtn" disabled>&#11015; Download file</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="push-box">
+                <p class="pipe-label">Upload to your code repository</p>
+                <div class="push-fields">
+                    <label class="field wide"><span>Repository URL</span>
+                        <input type="text" id="pushRepo" placeholder="https://github.com/owner/repo.git"/></label>
+                    <label class="field"><span>New branch</span>
+                        <input type="text" id="pushBranch" placeholder="converted/python"/></label>
+                    <label class="field"><span>Based on (optional)</span>
+                        <input type="text" id="pushBase" placeholder="main"/></label>
+                    <label class="field"><span>Folder in repo</span>
+                        <input type="text" id="pushFolder" placeholder="converted/python"/></label>
+                    <label class="field wide"><span>Commit message (optional)</span>
+                        <input type="text" id="pushMessage" placeholder="Convert project to Python"/></label>
+                    <button type="button" class="btn convert-btn" id="pushBtn">Push to branch</button>
+                </div>
+                <p class="field-help">Uses this computer's saved Git login (or GITHUB_TOKEN). A new branch is created so your main branch is not changed;
+                    open the link to review it and raise a pull request.</p>
+                <p class="convert-message" id="pushMessageOut"></p>
             </div>
         </div>
     </section>
@@ -117,14 +258,32 @@
     </section>
 </main>
 
+<script th:src="@{/js/runtimer.js}"></script>
 <script th:inline="javascript">
-  const LANGUAGES = /*[[${languages}]]*/ [];
+  const LANGUAGES = /*[[${allLanguages}]]*/ [];
   const SAMPLES = /*[[${samples}]]*/ [];
 
   const $ = (id) => document.getElementById(id);
   const sourceLang = $('sourceLang');
   const targetLang = $('targetLang');
   const sourceCode = $('sourceCode');
+  const otherInput = (select) => $(select === sourceLang ? 'sourceOther' : 'targetOther');
+
+  /** The language sent to BOT: the selected id, or the typed name for "Other". */
+  function langValue(select) {
+    if (select.value !== 'other') return select.value;
+    const typed = otherInput(select).value.trim();
+    return typed || (select === sourceLang ? 'auto' : '');
+  }
+  function langLabel(select) {
+    return select.value === 'other' ? (otherInput(select).value.trim() || 'the typed language')
+      : select.options[select.selectedIndex].text;
+  }
+  function syncOther() {
+    [sourceLang, targetLang].forEach((s) => { otherInput(s).hidden = s.value !== 'other'; });
+  }
+  sourceLang.addEventListener('change', syncOther);
+  targetLang.addEventListener('change', syncOther);
   let lastResult = null;
   let gallerySample = SAMPLES.length ? SAMPLES[0].id : null;
   let galleryLang = 'java';
@@ -140,6 +299,7 @@
 
   function setSource(languageId, code) {
     sourceLang.value = languageId;
+    syncOther();
     sourceCode.value = code;
     pickOtherTarget(languageId);
     $('detectedBadge').hidden = true;
@@ -188,8 +348,55 @@
     $('explanation').textContent = data.explanation || '';
     $('runCommand').textContent = data.runCommand || 'See the target language toolchain docs.';
     $('savedFile').textContent = data.outputFile ? 'Saved to generated-app/' + data.outputFile : '';
+    $('businessBox').hidden = !data.businessLogic;
+    if (data.businessLogic) renderLogic($('businessText'), data.businessLogic);
     setMessage(data.message, 'ok');
   }
+
+  const LOGIC_HEADING = /^(?:#+\s*)?\**\s*(Whole project|Summary|Business rules|Inputs and outputs|Validations and edge cases|Edge cases and errors|Dependencies)\s*\**\s*:?\s*\**\s*(.*)$/i;
+
+  function renderLogic(el, text) {
+    el.innerHTML = '';
+    let list = null;
+    (text || '').split('\n').forEach((raw) => {
+      const line = raw.replace(/\*\*/g, '').trim();
+      if (!line) { list = null; return; }
+      const heading = line.match(LOGIC_HEADING);
+      if (heading) {
+        const h = document.createElement('h4');
+        h.textContent = heading[1];
+        el.appendChild(h);
+        list = null;
+        if (heading[2]) {
+          const p = document.createElement('p');
+          p.textContent = heading[2];
+          el.appendChild(p);
+        }
+        return;
+      }
+      const item = line.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
+      if (item) {
+        if (!list) { list = document.createElement('ul'); el.appendChild(list); }
+        const li = document.createElement('li');
+        li.textContent = item[1];
+        list.appendChild(li);
+        return;
+      }
+      if (line.startsWith('#')) {
+        const h = document.createElement('h4');
+        h.textContent = line.replace(/^#+\s*/, '');
+        el.appendChild(h);
+        list = null;
+        return;
+      }
+      const p = document.createElement('p');
+      p.textContent = line;
+      el.appendChild(p);
+      list = null;
+    });
+  }
+
+  const LARGE_PASTE = 15000;
 
   async function convert() {
     const code = sourceCode.value;
@@ -197,25 +404,45 @@
       setMessage('Paste some code to convert, or load one of the samples.', 'error');
       return;
     }
+    if (!langValue(targetLang)) {
+      setMessage('Type the target language next to "Other".', 'error');
+      $('targetOther').focus();
+      return;
+    }
+    if (code.length > LARGE_PASTE) {
+      setMessage('Large code (' + code.length.toLocaleString() + ' characters): converting it in parts as a background job below…', '');
+      const form = jobForm('text');
+      form.append('code', code);
+      form.append('instructions', $('instructions').value);
+      startJob(form);
+      return;
+    }
     const btn = $('convertBtn');
     btn.disabled = true;
     btn.textContent = 'Converting…';
-    setMessage('Converting to ' + targetLang.options[targetLang.selectedIndex].text + '…', '');
+    setMessage('Converting to ' + langLabel(targetLang) + '…', '');
+    const convRt = RunTimer.start('convertTimer');
+    let convOk = false;
     try {
       const res = await fetch('/api/convert', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sourceLanguage: sourceLang.value,
-          targetLanguage: targetLang.value,
+          sourceLanguage: langValue(sourceLang),
+          targetLanguage: langValue(targetLang),
           code: code,
-          instructions: $('instructions').value
+          instructions: $('instructions').value,
+          addComments: $('optComments').checked,
+          explainLogic: $('optLogic').checked
         })
       });
-      renderResult(await res.json());
+      const convData = await res.json();
+      convOk = !!convData.success;
+      renderResult(convData);
     } catch (e) {
-      renderResult({ success: false, message: 'Could not reach BOT: ' + e.message });
+      renderResult({ success: false, message: netError(e) });
     } finally {
+      convRt.stop(convOk ? 'Done in' : 'Failed after', !convOk);
       btn.disabled = false;
       btn.textContent = 'Convert';
     }
@@ -260,23 +487,28 @@
   $('galleryCopyBtn').addEventListener('click', (e) => copyText($('galleryCode').textContent, e.target));
   $('copyBtn').addEventListener('click', (e) => lastResult && copyText(lastResult.convertedCode, e.target));
 
-  $('downloadBtn').addEventListener('click', () => {
+  function downloadResult() {
     if (!lastResult) return;
     const lang = langById(lastResult.targetLanguageId);
     const blob = new Blob([lastResult.convertedCode + '\n'], { type: 'text/plain' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'converted.' + (lang ? lang.extension : 'txt');
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(link.href);
-  });
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+  $('downloadBtn').addEventListener('click', downloadResult);
+  $('downloadBtn2').addEventListener('click', downloadResult);
 
   $('swapBtn').addEventListener('click', () => {
     const from = sourceLang.value === 'auto' && lastResult ? lastResult.sourceLanguageId : sourceLang.value;
     const to = targetLang.value;
-    if (from === 'auto' || !langById(from)) return;
+    if (from === 'auto' || !langById(from) || !langById(to)) return;
     sourceLang.value = to;
     targetLang.value = from;
+    syncOther();
     if (lastResult) {
       sourceCode.value = lastResult.convertedCode;
       renderResult({ success: false, message: '' });
@@ -302,6 +534,430 @@
       sourceCode.setRangeText('    ', start, sourceCode.selectionEnd, 'end');
     }
   });
+
+  // ---- Project / repository mode -------------------------------------------------------------
+  let sourceKind = 'git';
+  let currentJob = null;
+  let pollTimer = null;
+  let currentFile = null;
+  let fileDirty = false;
+  const jobUrl = (suffix) => '/api/convert/jobs/' + currentJob.id + (suffix || '');
+
+  function setMode(mode) {
+    document.querySelectorAll('.mode-tab').forEach((t) => t.classList.toggle('active', t.dataset.mode === mode));
+    $('pasteMode').hidden = mode !== 'paste';
+    $('projectMode').hidden = mode !== 'project';
+    $('sampleLoader').hidden = mode !== 'paste';
+    $('modeHint').textContent = mode === 'paste'
+      ? 'Convert one snippet or file. Large code is converted in parts automatically.'
+      : 'Convert a whole codebase: every file in every folder, with imports linked between the converted files.';
+    if (mode === 'project') loadRecent();
+  }
+
+  function setSourceKind(kind) {
+    sourceKind = kind;
+    document.querySelectorAll('.source-kinds .chip').forEach((c) => c.classList.toggle('active', c.dataset.kind === kind));
+    document.querySelectorAll('.kind-fields[data-kind]').forEach((f) => { f.hidden = f.dataset.kind !== kind; });
+  }
+
+  function setJobMessage(text, kind) {
+    const el = $('jobMessage');
+    el.textContent = text || '';
+    el.className = 'convert-message' + (kind ? ' ' + kind : '');
+  }
+
+  function jobForm(inputType) {
+    const form = new FormData();
+    form.append('inputType', inputType);
+    form.append('sourceLanguage', langValue(sourceLang));
+    form.append('targetLanguage', langValue(targetLang));
+    form.append('addComments', $('optComments').checked);
+    form.append('explainLogic', $('optLogic').checked);
+    return form;
+  }
+
+  /** A fetch() that fails before any response arrives means the server is down or restarting. */
+  function netError(e) {
+    if (e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(String(e && e.message))) {
+      return 'BOT server is not running/restarting \u2013 retry in a moment.';
+    }
+    return 'Unexpected reply from BOT: ' + (e && e.message ? e.message : e);
+  }
+
+  /** Mirrors the server check: a github.com URL must be owner/repository, not an organisation or user page. */
+  function repoUrlProblem(url) {
+    const m = /^https:\/\/(?:www\.)?github\.com(?:\/([^?#]*))?(?:[?#].*)?$/i.exec(url);
+    if (!m) return null;
+    const parts = (m[1] || '').split('/').filter(Boolean);
+    if (parts.length === 0) {
+      return 'This is the GitHub home page \u2013 use a repository URL such as https://github.com/spring-guides/gs-gradle';
+    }
+    if (parts.length === 1) {
+      return 'This is a GitHub organisation or user page (' + parts[0] + ') \u2013 use a repository URL such as https://github.com/'
+        + parts[0] + '/gs-gradle (owner/repository).';
+    }
+    if (parts.length > 2) {
+      return 'This looks like a page inside a repository \u2013 use the repository URL https://github.com/' + parts[0] + '/'
+        + parts[1].replace(/\.git$/, '') + ' and put the branch and sub-folder in their own boxes.';
+    }
+    return null;
+  }
+
+  function startProject() {
+    const form = jobForm(sourceKind);
+    form.append('subfolder', $('subfolder').value.trim());
+    form.append('instructions', $('projectInstructions').value);
+    if (sourceKind === 'git') {
+      const url = $('repoUrl').value.trim();
+      if (!url) { setJobMessage('Paste the repository link, e.g. https://github.com/owner/repo.git', 'error'); return; }
+      const urlProblem = repoUrlProblem(url);
+      if (urlProblem) { setJobMessage(urlProblem, 'error'); return; }
+      form.append('repoUrl', url);
+      form.append('branch', $('repoBranch').value.trim());
+    } else if (sourceKind === 'local') {
+      const path = $('localPath').value.trim();
+      if (!path) { setJobMessage('Enter the folder path.', 'error'); return; }
+      form.append('localPath', path);
+    } else {
+      const files = [...$('uploadFiles').files, ...$('uploadFolder').files];
+      if (!files.length) { setJobMessage('Choose files, a folder or a ZIP to upload.', 'error'); return; }
+      files.forEach((f) => form.append('files', f, f.webkitRelativePath || f.name));
+    }
+    startJob(form);
+  }
+
+  async function startJob(form) {
+    const btn = $('startJobBtn');
+    btn.disabled = true;
+    setJobMessage('Starting the conversion…', '');
+    try {
+      const res = await fetch('/api/convert/jobs', { method: 'POST', body: form });
+      const data = await res.json().catch(() => ({ error: 'BOT answered with an error (HTTP ' + res.status + ').' }));
+      if (!res.ok) {
+        setJobMessage(data.error || data.message || 'Could not start the conversion.', 'error');
+        return;
+      }
+      setJobMessage('', '');
+      openJob(data);
+    } catch (e) {
+      setJobMessage(netError(e), 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function openJob(job) {
+    currentJob = job;
+    currentFile = null;
+    fileDirty = false;
+    $('jobPanel').hidden = false;
+    $('fileEditor').value = '';
+    $('filePath').textContent = 'Select a file';
+    $('fileNotes').textContent = '';
+    $('saveFileBtn').disabled = true;
+    $('downloadFileBtn').disabled = true;
+    $('pushMessageOut').textContent = '';
+    $('pushRepo').value = /^(https:|git@)/.test(job.sourceLabel) ? job.sourceLabel.replace(/ \(.*\)$/, '') : $('pushRepo').value;
+    renderJob(job);
+    loadTree();
+    $('jobPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    clearInterval(pollTimer);
+    if (job.status === 'QUEUED' || job.status === 'RUNNING') pollTimer = setInterval(poll, 2000);
+  }
+
+  async function poll() {
+    if (!currentJob) return;
+    try {
+      const res = await fetch(jobUrl());
+      if (!res.ok) return;
+      const job = await res.json();
+      const changed = job.doneFiles !== currentJob.doneFiles || job.status !== currentJob.status;
+      currentJob = job;
+      renderJob(job);
+      if (changed) loadTree();
+      if (job.status === 'DONE' || job.status === 'FAILED') {
+        clearInterval(pollTimer);
+        loadRecent();
+      }
+    } catch (e) { /* keep polling */ }
+  }
+
+  function renderJob(job) {
+    $('jobTitle').textContent = job.sourceLabel + (job.sourceFolder ? ' / ' + job.sourceFolder : '') + '  →  ' + job.targetLanguage;
+    $('jobMeta').textContent = [job.model, job.addComments ? 'comments added' : null,
+      job.explainLogic ? 'business logic explained' : null, 'job ' + job.id].filter(Boolean).join(' · ');
+    const done = job.status === 'DONE';
+    const pct = done ? 100 : job.totalFiles ? Math.max(3, Math.round(100 * job.doneFiles / job.totalFiles)) : 3;
+    $('jobBar').style.width = pct + '%';
+    $('jobBar').className = 'bar ' + job.status.toLowerCase();
+    let status = job.message || '';
+    if (job.status === 'RUNNING' && job.totalFiles) {
+      status = job.doneFiles + ' of ' + job.totalFiles + ' files done' + (job.currentFile ? ' · converting ' + job.currentFile : '');
+    }
+    $('jobStatus').textContent = status;
+    $('jobStatus').className = 'job-status ' + job.status.toLowerCase();
+    $('zipBtn').href = done ? jobUrl('/zip') : '#';
+    $('zipBtn').classList.toggle('disabled', !done);
+    $('doneBanner').hidden = !done;
+    $('doneZipBtn').href = done ? jobUrl('/zip') : '#';
+    $('pushBtn').disabled = !done;
+    const lang = job.targetLanguageId;
+    $('pushBranch').placeholder = 'converted/' + lang;
+    $('pushFolder').placeholder = 'converted/' + lang;
+    $('pushMessage').placeholder = 'Convert ' + job.sourceLabel + ' to ' + job.targetLanguage;
+    if (job.pushes && job.pushes.length) showPush(job.pushes[job.pushes.length - 1], true);
+    renderJobTimer(job);
+  }
+
+  function jobElapsed(job) {
+    if (!job || !job.startedAt) return NaN;
+    if (job.finishedAt) return job.durationMs > 0 ? job.durationMs : RunTimer.between(job.startedAt, job.finishedAt);
+    return RunTimer.between(job.startedAt);
+  }
+
+  function renderJobTimer(job) {
+    const el = $('jobTimer');
+    const running = job.status === 'RUNNING' || job.status === 'QUEUED';
+    el.className = 'run-timer ' + (running ? 'running' : job.status === 'FAILED' ? 'done failed' : 'done');
+    if (job.status === 'QUEUED' && !job.startedAt) { el.textContent = 'Queued\u2026'; return; }
+    const ms = jobElapsed(job);
+    if (isNaN(ms)) { el.textContent = ''; return; }
+    el.textContent = running ? 'Running\u2026 ' + RunTimer.clock(ms)
+      : (job.status === 'FAILED' ? 'Failed after ' : 'Done in ') + RunTimer.format(ms);
+  }
+
+  setInterval(() => {
+    if (currentJob && (currentJob.status === 'RUNNING' || currentJob.status === 'QUEUED')) renderJobTimer(currentJob);
+  }, 1000);
+
+  const fileInfo = (path) => currentJob && (currentJob.files || []).find((f) => f.targetPath === path);
+
+  async function loadTree() {
+    if (!currentJob) return;
+    const list = $('fileList');
+    let paths = [];
+    try {
+      const res = await fetch(jobUrl('/files?side=output'));
+      if (res.ok) paths = await res.json();
+    } catch (e) { /* ignore */ }
+    const failed = (currentJob.files || []).filter((f) => f.status === 'failed' && !paths.includes(f.targetPath));
+    list.innerHTML = '';
+    if (!paths.length && !failed.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = currentJob.status === 'FAILED' ? 'No files were produced.' : 'Files appear here as they are converted…';
+      list.appendChild(li);
+      return;
+    }
+    let lastDir = null;
+    const addFile = (path, cls, onClick) => {
+      const slash = path.lastIndexOf('/');
+      const dir = slash < 0 ? '' : path.substring(0, slash);
+      if (dir !== lastDir) {
+        if (dir) {
+          const d = document.createElement('li');
+          d.className = 'dir';
+          d.textContent = dir + '/';
+          list.appendChild(d);
+        }
+        lastDir = dir;
+      }
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'file ' + cls + (path === currentFile ? ' active' : '') + (dir ? ' nested' : '');
+      b.textContent = path.substring(slash + 1);
+      const fi = fileInfo(path) || (currentJob.files || []).find((f) => f.targetPath === path);
+      if (fi && fi.durationMs > 0) {
+        const tm = document.createElement('span');
+        tm.className = 'file-time';
+        tm.textContent = RunTimer.format(fi.durationMs);
+        b.appendChild(tm);
+      }
+      b.title = path + (fi && fi.durationMs > 0 ? ' - converted in ' + RunTimer.format(fi.durationMs) : '');
+      b.dataset.path = path;
+      b.addEventListener('click', onClick);
+      li.appendChild(b);
+      list.appendChild(li);
+    };
+    paths.forEach((p) => {
+      const info = fileInfo(p);
+      const cls = info ? info.status : (/\.md$/.test(p) ? 'report' : 'other');
+      addFile(p, cls, () => openFile(p));
+    });
+    failed.forEach((f) => addFile(f.targetPath, 'failed', () => showFailed(f)));
+  }
+
+  function markActive(path) {
+    document.querySelectorAll('#fileList .file').forEach((b) => b.classList.toggle('active', b.dataset.path === path));
+  }
+
+  function showFailed(info) {
+    currentFile = null;
+    markActive(info.targetPath);
+    $('filePath').textContent = info.targetPath;
+    $('fileNotes').textContent = 'Not converted: ' + (info.error || 'unknown error') + ' (source ' + info.sourcePath + ')';
+    $('fileEditor').value = '';
+    $('saveFileBtn').disabled = true;
+    $('downloadFileBtn').disabled = true;
+  }
+
+  async function openFile(path) {
+    if (fileDirty && !confirm('Discard your unsaved changes to ' + currentFile + '?')) return;
+    currentFile = path;
+    fileDirty = false;
+    markActive(path);
+    $('filePath').textContent = path;
+    const res = await fetch(jobUrl('/file?side=output&path=' + encodeURIComponent(path)));
+    const data = await res.json();
+    $('fileEditor').value = res.ok ? data.content : (data.error || 'Could not open the file.');
+    const info = fileInfo(path);
+    const how = info ? { llm: 'converted by AI', 'sample-library': 'from the sample library', copied: 'copied unchanged' }[info.mode] || info.mode : null;
+    $('fileNotes').textContent = info
+      ? 'From ' + info.sourcePath + ' · ' + how + (info.parts > 1 ? ' · large file, converted in ' + info.parts + ' parts' : '')
+      : (path.endsWith('.md') ? 'Report written by BOT' : 'Copied or generated project file');
+    $('saveFileBtn').disabled = currentJob.status === 'RUNNING';
+    $('downloadFileBtn').disabled = false;
+    showView('converted');
+  }
+
+  async function showView(view) {
+    document.querySelectorAll('.view-tab').forEach((t) => t.classList.toggle('active', t.dataset.view === view));
+    $('fileEditor').hidden = view !== 'converted';
+    $('fileReadonly').hidden = view !== 'original';
+    $('fileLogic').hidden = view !== 'logic';
+    if (!currentFile) return;
+    const info = fileInfo(currentFile);
+    if (view === 'original') {
+      const code = $('fileReadonlyCode');
+      const sourcePath = info ? info.sourcePath : currentFile;
+      const res = await fetch(jobUrl('/file?side=source&path=' + encodeURIComponent(sourcePath)));
+      const data = await res.json();
+      code.textContent = res.ok ? data.content : 'There is no original for this file: BOT generated it.';
+    } else if (view === 'logic') {
+      const parts = [];
+      if (info && info.businessLogic) parts.push(info.businessLogic);
+      if (currentJob.projectSummary && (!info || currentJob.files.length > 1)) parts.push('Whole project:\n' + currentJob.projectSummary);
+      renderLogic($('fileLogic'), parts.join('\n\n') || (currentJob.explainLogic
+        ? 'No plain-English description for this file.'
+        : 'Tick "Explain the business logic in plain English" before converting to get a description of every file.'));
+    }
+  }
+
+  async function saveFile() {
+    if (!currentFile) return;
+    const btn = $('saveFileBtn');
+    btn.disabled = true;
+    try {
+      const res = await fetch(jobUrl('/file?path=' + encodeURIComponent(currentFile)), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: $('fileEditor').value })
+      });
+      const data = await res.json();
+      fileDirty = !res.ok;
+      $('fileNotes').textContent = res.ok ? 'Saved ' + currentFile : (data.error || 'Could not save.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function showPush(record, fromHistory) {
+    const out = $('pushMessageOut');
+    out.className = 'convert-message ok';
+    out.innerHTML = '';
+    out.append((fromHistory ? 'Last pushed' : 'Pushed') + ' to branch ' + record.branch + ' (commit ' + (record.commit || '').substring(0, 7) + '). ');
+    const add = (href, label) => {
+      if (!href) return;
+      const a = document.createElement('a');
+      a.href = href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = label;
+      out.append(a, ' ');
+    };
+    add(record.branchUrl, 'Open the branch on GitHub');
+    add(record.compareUrl, 'Create a pull request');
+    if (!record.branchUrl) out.append('Repository: ' + record.repoUrl);
+  }
+
+  async function push() {
+    const repoUrl = $('pushRepo').value.trim();
+    if (!repoUrl) {
+      $('pushMessageOut').className = 'convert-message error';
+      $('pushMessageOut').textContent = 'Enter the repository URL to push to.';
+      return;
+    }
+    const folder = $('pushFolder').value.trim();
+    const body = {
+      repoUrl,
+      branch: $('pushBranch').value.trim() || $('pushBranch').placeholder,
+      baseBranch: $('pushBase').value.trim(),
+      folder: folder === '/' ? '' : (folder || $('pushFolder').placeholder),
+      commitMessage: $('pushMessage').value.trim()
+    };
+    const btn = $('pushBtn');
+    btn.disabled = true;
+    btn.textContent = 'Pushing…';
+    $('pushMessageOut').className = 'convert-message';
+    $('pushMessageOut').textContent = 'Cloning the repository, committing the converted files and pushing branch ' + body.branch + '…';
+    try {
+      const res = await fetch(jobUrl('/push'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $('pushMessageOut').className = 'convert-message error';
+        $('pushMessageOut').textContent = data.error || 'Push failed.';
+        return;
+      }
+      showPush(data, false);
+    } catch (e) {
+      $('pushMessageOut').className = 'convert-message error';
+      $('pushMessageOut').textContent = netError(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Push to branch';
+    }
+  }
+
+  async function loadRecent() {
+    try {
+      const res = await fetch('/api/convert/jobs');
+      const jobs = await res.json();
+      $('recentJobs').hidden = !jobs.length;
+      const select = $('recentSelect');
+      select.innerHTML = '<option value="">Open a previous conversion…</option>';
+      jobs.slice(0, 30).forEach((j) => {
+        const o = document.createElement('option');
+        o.value = j.id;
+        o.textContent = j.createdAt.replace('T', ' ').substring(0, 16) + ' · ' + j.sourceLabel + ' → ' + j.targetLanguage + ' (' + j.status.toLowerCase() +
+          (isNaN(jobElapsed(j)) ? '' : ', ' + (j.finishedAt ? '' : 'running ') + RunTimer.format(jobElapsed(j))) + ')';
+        select.appendChild(o);
+      });
+      const zip = $('recentZipBtn');
+      zip.href = '#';
+      zip.classList.add('disabled');
+      select.onchange = () => {
+        const job = jobs.find((j) => j.id === select.value);
+        const ready = !!job && job.status === 'DONE';
+        zip.href = ready ? '/api/convert/jobs/' + job.id + '/zip' : '#';
+        zip.classList.toggle('disabled', !ready);
+        if (job) openJob(job);
+      };
+    } catch (e) { /* ignore */ }
+  }
+
+  document.querySelectorAll('.mode-tab').forEach((t) => t.addEventListener('click', () => setMode(t.dataset.mode)));
+  document.querySelectorAll('.source-kinds .chip').forEach((c) => c.addEventListener('click', () => setSourceKind(c.dataset.kind)));
+  document.querySelectorAll('.view-tab').forEach((t) => t.addEventListener('click', () => showView(t.dataset.view)));
+  $('startJobBtn').addEventListener('click', startProject);
+  $('saveFileBtn').addEventListener('click', saveFile);
+  $('downloadFileBtn').addEventListener('click', () => {
+    if (currentFile) location.href = jobUrl('/download?side=output&path=' + encodeURIComponent(currentFile));
+  });
+  $('fileEditor').addEventListener('input', () => { fileDirty = true; });
+  $('fileEditor').addEventListener('keydown', (e) => {
+    if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveFile(); }
+  });
+  $('zipBtn').addEventListener('click', (e) => { if ($('zipBtn').classList.contains('disabled')) e.preventDefault(); });
+  $('pushBtn').addEventListener('click', push);
 
   renderGallery();
 </script>

@@ -30,7 +30,12 @@ public class CodeViewerController {
     @GetMapping("/code")
     public String code(
             @RequestParam(value = "file", required = false) String file,
-            Model model) throws Exception {
+            Model model,
+            jakarta.servlet.http.HttpSession session) throws Exception {
+        Object last = session.getAttribute("lastPipelineResponse");
+        if (last instanceof com.agentic.chatbot.model.PipelineResponse pr && pr.getDurationMs() != null) {
+            model.addAttribute("lastRunMs", pr.getDurationMs());
+        }
         Path root = styleService.outputDir().toAbsolutePath().normalize();
         List<String> files = listSourceFiles(root);
         model.addAttribute("files", files);

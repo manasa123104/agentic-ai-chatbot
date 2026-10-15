@@ -19,6 +19,7 @@
         </div>
     </div>
     <nav class="code-actions">
+        <span class="run-timer done" id="lastRun" th:if="${lastRunMs != null}" th:attr="data-ms=${lastRunMs}"></span>
         <a class="btn ghost" href="/">Back to BOT</a>
         <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
         <a class="btn ghost" href="/edit">Edit site</a>
@@ -27,21 +28,21 @@
 </header>
 
 <section class="workflow-diagram code-workflow" aria-label="BOT workflow diagram">
-    <h3>Workflow</h3>
+    <h3>Workflow · 5 stages</h3>
     <div class="workflow-flow">
-        <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+        <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories, any domain</span></a>
         <div class="wf-arrow" aria-hidden="true">→</div>
-        <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+        <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Code in any language</span></a>
         <div class="wf-arrow" aria-hidden="true">→</div>
-        <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + Selenium/Playwright</span></a>
         <div class="wf-arrow" aria-hidden="true">→</div>
-        <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>End-to-end tests</span></div>
+        <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker, CI/CD, Kubernetes</span></a>
         <div class="wf-arrow" aria-hidden="true">→</div>
-        <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify + train</span></div>
+        <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approved outputs</span></a>
     </div>
     <div class="wf-io">
-        <span class="io-chip">Input: prompt</span>
-        <span class="io-chip out">Output: user stories + Java code</span>
+        <span class="io-chip">Input: end-user prompt + domain + language</span>
+        <span class="io-chip out">Output: user stories, code, tests, deploy files</span>
     </div>
 </section>
 
@@ -74,9 +75,17 @@
 <main class="code-empty" th:unless="${hasCode}">
     <div class="bubble">
         <h1>No user story or website code yet</h1>
-        <p>Ask BOT to create a website. Agents will produce a Business Analyst user story and Java Developer website code (Spring Boot + Thymeleaf).</p>
-        <p class="actions"><a class="btn" href="/">Create a website with BOT</a></p>
+        <p>Ask BOT to create a website. Agents will produce a Business Analyst user story and Developer website code (Spring Boot + Thymeleaf).</p>
+        <p class="actions"><a class="btn" href="/">Create a website with BOT</a>
+            <a class="btn ghost" href="/stages">Open the 5-stage pipeline</a></p>
     </div>
 </main>
+<script th:src="@{/js/runtimer.js}"></script>
+<script>
+  (function () {
+    var el = document.getElementById('lastRun');
+    if (el) el.textContent = 'Generated in ' + RunTimer.format(Number(el.getAttribute('data-ms')));
+  })();
+</script>
 </body>
 </html>

@@ -610,6 +610,17 @@ body.system-open .system-prompt { display: block; }
   cursor: pointer;
 }
 .convert-copy:hover { background: #26323f; }
+.convert-tools {
+  position: absolute;
+  top: .45rem;
+  right: .45rem;
+  display: flex;
+  gap: .35rem;
+}
+.convert-tools .convert-copy { position: static; }
+.convert-tools + pre { padding-top: 2.2rem; }
+.convert-copy.convert-download { background: #1f8a5b; border-color: #1f8a5b; color: #fff; }
+.convert-copy.convert-download:hover { background: #22a06b; }
 .convert-run {
   margin: 0 0 .4rem;
   padding: .45rem .7rem;
@@ -623,3 +634,25 @@ body.system-open .system-prompt { display: block; }
   body.chat-app { grid-template-columns: 1fr; }
   .chat-rail { display: none; }
 }
+
+/* Run timer (shared, see js/runtimer.js) */
+.run-timer {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .12rem .6rem;
+  font-variant-numeric: tabular-nums;
+}
+.run-timer:empty { display: none; }
+.run-timer.running { color: var(--accent); border-color: var(--accent); }
+.run-timer.done { color: var(--accent); background: #e3f1e8; }
+.run-timer.failed { color: #9b2c2c; background: #fbeaea; border-color: #e3b5b5; }
+.run-timer-row { margin: .35rem 0 0; min-height: 0; }
+.run-timer-row:has(.run-timer:empty), .run-timer-row:empty { margin: 0; }
+.pipe-step .step-time { font-style: normal; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: .72rem; margin-left: .45rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pipe-step.running .step-time { color: var(--accent); }

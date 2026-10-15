@@ -47,6 +47,16 @@ public class OllamaLlmClient implements LlmClient {
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return send(systemPrompt, userPrompt, timeout, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public String complete(String systemPrompt, String userPrompt, Duration callTimeout, int maxTokens) {
+        Duration limit = callTimeout.compareTo(timeout) < 0 ? callTimeout : timeout;
+        return send(systemPrompt, userPrompt, limit, Math.max(64, maxTokens));
+    }
+
+    private String send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) {
         try {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
@@ -56,7 +66,9 @@ public class OllamaLlmClient implements LlmClient {
             messages.addObject().put("role", "user").put("content", userPrompt);
             ObjectNode options = body.putObject("options");
             options.put("temperature", 0.2);
-            options.put("num_ctx", contextSize(systemPrompt.length() + userPrompt.length()));
+            int promptChars = systemPrompt.length() + userPrompt.length();
+            options.put("num_ctx", contextSize(promptChars));
+            options.put("num_predict", Math.min(maxTokens, answerLimit(promptChars)));
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/api/chat"))
@@ -72,7 +84,7 @@ public class OllamaLlmClient implements LlmClient {
             return root.path("message").path("content").asText("");
         } catch (HttpTimeoutException e) {
             throw new IllegalStateException("the local model " + model + " did not answer within "
-                    + timeout.toMinutes() + " minutes. Try a shorter snippet or a smaller model.", e);
+                    + timeout.toSeconds() + " seconds. Try a shorter snippet or a smaller model.", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Ollama call was interrupted", e);
@@ -91,5 +103,13 @@ public class OllamaLlmClient implements LlmClient {
             size *= 2;
         }
         return size;
+    }
+
+    /**
+     * Upper bound on answer tokens: about the size of the prompt plus room for comments and notes. Without it a small
+     * model that starts repeating itself keeps generating until the request times out.
+     */
+    static int answerLimit(int promptChars) {
+        return Math.min(MAX_CONTEXT / 2, promptChars / 3 + 1024);
     }
 }

@@ -47,11 +47,13 @@ public class PipelineApiController {
             HttpSession session) {
         request.setRunUnitTests(true);
         request.setRunFunctionalTests(true);
+        long startedMs = System.currentTimeMillis();
 
         String instruction = request.getUserStory() == null ? "" : request.getUserStory().trim();
         Optional<ConversionRequest> conversionRequest = conversionService.fromChatMessage(instruction);
         if (conversionRequest.isPresent()) {
             PipelineResponse response = convert(conversionRequest.get());
+            response.setDurationMs(System.currentTimeMillis() - startedMs);
             response.setHistoryId(historyService.save(instruction, response).getId());
             return ResponseEntity.ok(response);
         }
@@ -70,6 +72,7 @@ public class PipelineApiController {
             session.setAttribute("baseUserStory", instruction);
         }
 
+        response.setDurationMs(System.currentTimeMillis() - startedMs);
         ChatHistoryEntry saved = historyService.save(instruction, response);
         response.setHistoryId(saved.getId());
         session.setAttribute("lastPipelineResponse", response);

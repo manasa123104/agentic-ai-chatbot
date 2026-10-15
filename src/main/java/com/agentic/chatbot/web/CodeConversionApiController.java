@@ -34,9 +34,16 @@ public class CodeConversionApiController {
         return response.success() ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
     }
 
+    /** Every selectable language: the sample languages first, then the AI-only ones. */
     @GetMapping("/languages")
     public List<ProgrammingLanguage> languages() {
-        return sampleLibrary.languages();
+        return sampleLibrary.allLanguages();
+    }
+
+    /** The languages grouped as in the dropdowns: with offline samples, and AI model only. */
+    @GetMapping("/languages/groups")
+    public Map<String, List<ProgrammingLanguage>> languageGroups() {
+        return Map.of("samples", sampleLibrary.languages(), "more", sampleLibrary.moreLanguages());
     }
 
     @GetMapping("/samples")
@@ -50,7 +57,8 @@ public class CodeConversionApiController {
         return Map.of(
                 "llmAvailable", model.isPresent(),
                 "model", model.orElse(""),
-                "languages", sampleLibrary.languages().size(),
+                "languages", sampleLibrary.allLanguages().size(),
+                "sampleLanguages", sampleLibrary.languages().size(),
                 "samples", sampleLibrary.samples().size());
     }
 }

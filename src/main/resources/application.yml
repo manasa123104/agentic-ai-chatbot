@@ -8,8 +8,8 @@ spring:
     cache: false
   servlet:
     multipart:
-      max-file-size: 8MB
-      max-request-size: 10MB
+      max-file-size: 200MB
+      max-request-size: 250MB
 
 agentic:
   output-dir: generated-app
@@ -27,6 +27,20 @@ agentic:
       # Blank picks the largest installed coding model automatically (e.g. qwen2.5-coder:7b)
       model: ${CONVERTER_MODEL:}
       timeout-minutes: ${CONVERTER_TIMEOUT_MINUTES:15}
+    # Large files are split into parts of about this many characters, each converted separately and joined
+    chunk-chars: ${CONVERTER_CHUNK_CHARS:4000}
+    # Project / repository conversion jobs (input, output and job.json for each run)
+    jobs-dir: data/conversion-jobs
+    max-files: ${CONVERTER_MAX_FILES:300}
+    max-file-kb: ${CONVERTER_MAX_FILE_KB:2048}
+    # Allow converting a folder path on the machine running BOT
+    allow-local-paths: ${CONVERTER_ALLOW_LOCAL_PATHS:true}
+  github:
+    # Optional token for cloning private repos and pushing; otherwise Git's own saved credentials are used
+    token: ${GITHUB_TOKEN:}
+  git:
+    author-name: ${BOT_GIT_AUTHOR_NAME:BOT Code Converter}
+    author-email: ${BOT_GIT_AUTHOR_EMAIL:bot-converter@users.noreply.github.com}
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}

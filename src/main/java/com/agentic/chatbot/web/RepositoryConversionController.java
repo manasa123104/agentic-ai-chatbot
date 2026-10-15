@@ -1,0 +1,132 @@
+package com.agentic.chatbot.web;
+
+import com.agentic.chatbot.model.ConversionJob;
+import com.agentic.chatbot.service.RepositoryConversionService;
+import com.agentic.chatbot.service.RepositoryConversionService.Options;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Project / repository conversion: start a job from a Git URL, a folder on this machine, uploaded files or a ZIP,
+ * or large pasted code; follow its progress; open, edit, save and download the converted files; push them to a
+ * Git branch.
+ */
+@RestController
+@RequestMapping("/api/convert/jobs")
+public class RepositoryConversionController {
+
+    private final RepositoryConversionService jobs;
+
+    public RepositoryConversionController(RepositoryConversionService jobs) {
+        this.jobs = jobs;
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ConversionJob start(@RequestParam String inputType,
+                               @RequestParam String targetLanguage,
+                               @RequestParam(defaultValue = "auto") String sourceLanguage,
+                               @RequestParam(required = false) String instructions,
+                               @RequestParam(defaultValue = "false") boolean addComments,
+                               @RequestParam(defaultValue = "false") boolean explainLogic,
+                               @RequestParam(required = false) String repoUrl,
+                               @RequestParam(required = false) String branch,
+                               @RequestParam(required = false) String localPath,
+                               @RequestParam(required = false) String subfolder,
+                               @RequestParam(required = false) String fileName,
+                               @RequestParam(required = false) String code,
+                               @RequestParam(required = false) List<MultipartFile> files) throws IOException {
+        Options options = new Options(sourceLanguage, targetLanguage, instructions, addComments, explainLogic);
+        ConversionJob job = switch (inputType) {
+            case "git" -> jobs.startFromGit(repoUrl, branch, subfolder, options);
+            case "local" -> jobs.startFromLocal(localPath, subfolder, options);
+            case "upload" -> jobs.startFromUploads(files, subfolder, options);
+            case "text" -> jobs.startFromText(fileName, code, options);
+            default -> throw new IllegalArgumentException("inputType must be git, local, upload or text.");
+        };
+        return jobs.snapshot(job);
+    }
+
+    @GetMapping
+    public List<ConversionJob> list() {
+        return jobs.list();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ConversionJob> get(@PathVariable String id) {
+        return jobs.get(id).map(jobs::snapshot).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/files")
+    public List<String> files(@PathVariable String id, @RequestParam(defaultValue = "output") String side) throws IOException {
+        return jobs.listFiles(id, side);
+    }
+
+    @GetMapping("/{id}/file")
+    public Map<String, String> read(@PathVariable String id, @RequestParam String path,
+                                    @RequestParam(defaultValue = "output") String side) throws IOException {
+        return Map.of("path", path, "side", side, "content", jobs.readFile(id, side, path));
+    }
+
+    @PutMapping("/{id}/file")
+    public Map<String, Object> save(@PathVariable String id, @RequestParam String path,
+                                    @RequestBody Map<String, String> body) throws IOException {
+        jobs.saveFile(id, path, body.get("content"));
+        return Map.of("saved", true, "path", path);
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> download(@PathVariable String id, @RequestParam String path,
+                                           @RequestParam(defaultValue = "output") String side) throws IOException {
+        Path file = jobs.resolveFile(id, side, path);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.getFileName().toString(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(Files.readAllBytes(file));
+    }
+
+    @GetMapping("/{id}/zip")
+    public ResponseEntity<StreamingResponseBody> zip(@PathVariable String id) {
+        ConversionJob job = jobs.get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
+        String name = "converted-" + job.getTargetLanguageId() + "-" + id + ".zip";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name).build().toString())
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(out -> jobs.writeZip(id, out));
+    }
+
+    public record PushRequest(String repoUrl, String branch, String baseBranch, String folder, String commitMessage) {
+    }
+
+    @PostMapping("/{id}/push")
+    public ConversionJob.PushRecord push(@PathVariable String id, @RequestBody PushRequest request) throws IOException {
+        return jobs.push(id, request.repoUrl(), request.branch(), request.baseBranch(), request.folder(),
+                request.commitMessage());
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<Map<String, String>> badRequest(RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", String.valueOf(e.getMessage())));
+    }
+}

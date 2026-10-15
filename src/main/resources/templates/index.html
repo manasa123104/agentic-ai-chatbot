@@ -22,19 +22,19 @@
     <div class="bot-pipeline workflow-rail" aria-label="BOT workflow diagram">
         <span class="pipe-label">Workflow</span>
         <div class="workflow-flow">
-            <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+            <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
-            <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+            <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Any language</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
-            <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+            <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + automation</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
-            <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>MockMvc E2E</span></div>
+            <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker · CI/CD · K8s</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
-            <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify + train</span></div>
+            <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approvals</span></a>
         </div>
         <div class="wf-io">
-            <span class="io-chip">In: prompt</span>
-            <span class="io-chip out">Out: story + code</span>
+            <span class="io-chip">In: prompt + domain + language</span>
+            <span class="io-chip out">Out: stories, code, tests, deploy</span>
         </div>
     </div>
 
@@ -66,6 +66,7 @@
     </div>
     <nav class="rail-links">
         <a href="/code">User stories + Java code</a>
+        <a href="/stages">5-stage pipeline: BA → Dev → Test → Deploy → Train</a>
         <a href="/convert">Code converter</a>
         <a href="/edit">Edit generated site</a>
     </nav>
@@ -81,7 +82,7 @@
             <span class="dot online"></span>
             <div>
                 <strong>BOT</strong>
-                <small>BA · Java Dev · Unit · Functional · Dev Tester</small>
+                <small>Business Analyst · Developer · Tester · Deploy · Trainer</small>
             </div>
         </div>
         <a class="avatar" href="/">B</a>
@@ -92,25 +93,29 @@
             <div class="avatar-sm">B</div>
             <div class="bubble">
                 <p>Hi — I’m <strong>BOT</strong>.</p>
-                <p>Send a prompt and the 5 agents run end-to-end. Results include both the <strong>user story</strong> and the <strong>generated Java code</strong> for the website you requested.</p>
-                <div class="workflow-diagram" aria-label="BOT workflow diagram">
-                    <h3>Workflow</h3>
+                <p>Send a prompt and the 5 stages run end-to-end: <strong>Business Analyst → Developer → Tester → Deploy → Trainer</strong>. Pick any domain and any programming language.</p>
+                <div class="workflow-diagram workflow-five" aria-label="BOT 5-stage workflow diagram">
+                    <h3>Workflow · 5 stages</h3>
                     <div class="workflow-flow">
-                        <div class="wf-node"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></div>
+                        <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories, any domain</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
-                        <div class="wf-node"><span class="wf-num">2</span><strong>Java Developer</strong><span>Website Java code</span></div>
+                        <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Code in any language</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
-                        <div class="wf-node"><span class="wf-num">3</span><strong>Java Unit Tester</strong><span>JUnit tests</span></div>
+                        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + Selenium/Playwright</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
-                        <div class="wf-node"><span class="wf-num">4</span><strong>Functional Testing</strong><span>End-to-end tests</span></div>
+                        <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker, CI/CD, Kubernetes</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
-                        <div class="wf-node"><span class="wf-num">5</span><strong>Developer Tester</strong><span>Verify story + code</span></div>
+                        <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approved outputs</span></a>
                     </div>
                     <div class="wf-io">
-                        <span class="io-chip">Input: end-user prompt</span>
-                        <span class="io-chip out">Output: user stories + Java website code</span>
+                        <span class="io-chip">Input: end-user prompt + domain + language</span>
+                        <span class="io-chip out">Output: user stories, code, tests, deploy files</span>
                     </div>
                 </div>
+                <p class="actions">
+                    <a class="btn" href="/stages">Open the 5-stage pipeline</a>
+                    <a class="btn ghost" href="/code">Open User stories + Java code</a>
+                </p>
                 <p class="muted-note">Open <em>User stories + Java code</em> after a run, or try an example below.</p>
                 <div class="suggestions">
                     <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant site</button>
@@ -165,6 +170,7 @@ if __name__ == &quot;__main__&quot;:
     </footer>
 </div>
 
+<script th:src="@{/js/runtimer.js}"></script>
 <script th:inline="javascript">
 (function () {
   var thread = document.getElementById('thread');
@@ -239,6 +245,21 @@ if __name__ == &quot;__main__&quot;:
     return text.slice(0, n - 1) + '…';
   }
 
+  var CONVERT_EXT = { java: 'java', python: 'py', javascript: 'js', typescript: 'ts', csharp: 'cs', cpp: 'cpp',
+    c: 'c', go: 'go', rust: 'rs', kotlin: 'kt', ruby: 'rb', php: 'php', swift: 'swift', scala: 'scala', cobol: 'cbl' };
+
+  function downloadConverted(c) {
+    var fromFile = /\.([A-Za-z0-9]+)$/.exec(c.outputFile || '');
+    var ext = fromFile ? fromFile[1] : (CONVERT_EXT[c.targetLanguageId] || 'txt');
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([(c.convertedCode || '') + '\n'], { type: 'text/plain' }));
+    link.download = 'converted.' + ext;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+  }
+
   function renderConversionBubble(c, fromHistory) {
     if (!c.success) {
       addBot('<p>I could not convert that code: ' + escapeHtml(c.message || 'Unknown error') + '</p>' +
@@ -254,19 +275,41 @@ if __name__ == &quot;__main__&quot;:
       : '';
     addBot(
       '<p>' + (fromHistory ? 'Saved conversion: ' : '') + '<strong>' + title + '</strong> — ' + escapeHtml(c.message || '') + '</p>' +
-      '<div class="convert-snippet"><button type="button" class="convert-copy">Copy</button>' +
+      '<div class="convert-snippet"><div class="convert-tools">' +
+        '<button type="button" class="convert-copy convert-download">&#11015; Download</button>' +
+        '<button type="button" class="convert-copy">Copy</button></div>' +
         '<pre><code>' + escapeHtml(c.convertedCode || '') + '</code></pre></div>' +
       (c.explanation ? '<details class="story-details"><summary>Explanation</summary><pre class="story-snip">' + escapeHtml(c.explanation) + '</pre></details>' : '') +
       run + saved +
       '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>'
     );
-    var copyBtn = thread.lastChild.querySelector('.convert-copy');
+    thread.lastChild.querySelector('.convert-download').addEventListener('click', function () {
+      downloadConverted(c);
+    });
+    var copyBtn = thread.lastChild.querySelector('.convert-copy:not(.convert-download)');
     copyBtn.addEventListener('click', function () {
       navigator.clipboard.writeText(c.convertedCode || '').then(function () {
         copyBtn.textContent = 'Copied';
         setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
       });
     });
+  }
+
+  var STAGE_LABELS = {
+    'business analyst': 'Business Analyst',
+    'unit tester': 'Tester · unit tests',
+    'functional test': 'Tester · functional tests',
+    'developer tester': 'Trainer',
+    'java developer': 'Developer'
+  };
+
+  function stageLabel(botName) {
+    var name = String(botName || '');
+    var lower = name.toLowerCase();
+    for (var key in STAGE_LABELS) {
+      if (lower.indexOf(key) !== -1) return STAGE_LABELS[key];
+    }
+    return name.replace(/^Bot \d+\s*-\s*/, '');
   }
 
   function renderResultBubble(data, fromHistory) {
@@ -279,7 +322,8 @@ if __name__ == &quot;__main__&quot;:
       return;
     }
     var steps = (data.steps || []).map(function (s) {
-      return '<li><strong>' + escapeHtml(s.botName) + '</strong> — ' + escapeHtml(s.summary) + '</li>';
+      return '<li><strong>' + escapeHtml(stageLabel(s.botName)) + '</strong> — ' + escapeHtml(s.summary) +
+        (s.durationMs > 0 ? ' <span class="run-timer done">' + RunTimer.format(s.durationMs) + '</span>' : '') + '</li>';
     }).join('');
     var fileList = (data.generatedCodeFiles || []).slice(0, 8).map(function (f) {
       return '<li><code>' + escapeHtml(f) + '</code></li>';
@@ -402,11 +446,18 @@ if __name__ == &quot;__main__&quot;:
     autoSize();
     sendBtn.disabled = true;
     addTyping();
+    var pipeStart = Date.now();
     if (/^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite|show|give me)\b[^\n]*\b(?:to|into|in)\s/i.test(story)) {
       addBot('<p>Code Converter is translating your code… (a local AI model can take a minute or two)</p>');
     } else {
-      addBot('<p>BOT pipeline starting — BA → Java Dev → Unit → Functional → Train…</p>');
+      addBot('<p>BOT pipeline starting — Business Analyst → Developer → Tester → Trainer…</p>');
     }
+    var liveTimer = document.createElement('p');
+    liveTimer.style.margin = '.4rem 0 0';
+    var liveBadge = document.createElement('span');
+    liveTimer.appendChild(liveBadge);
+    thread.lastChild.querySelector('.bubble').appendChild(liveTimer);
+    var rt = RunTimer.start(liveBadge, { startedAt: pipeStart });
 
     try {
       var res = await fetch('/api/pipeline', {
@@ -421,12 +472,20 @@ if __name__ == &quot;__main__&quot;:
       });
       var data = await res.json();
       removeTyping();
+      rt.stop(data && data.success === false ? 'Failed after' : 'Done in', data && data.success === false);
 
       if (data.historyId) {
         setActiveHistory(data.historyId);
       }
       await loadHistory();
       renderResultBubble(data, false);
+      var lastBubble = thread.lastChild && thread.lastChild.querySelector('.bubble');
+      if (lastBubble) {
+        var total = document.createElement('p');
+        total.style.margin = '.6rem 0 0';
+        total.innerHTML = RunTimer.badge(data.durationMs != null ? data.durationMs : Date.now() - pipeStart, 'Total time:');
+        lastBubble.appendChild(total);
+      }
 
       // Stay in chat so you can open View Java code; site still one click away
       if (data.success && data.previewUrl) {
@@ -434,6 +493,7 @@ if __name__ == &quot;__main__&quot;:
       }
     } catch (e) {
       removeTyping();
+      rt.stop('Failed after', true);
       addBot('<p>Network error. Please try again.</p>');
     } finally {
       sendBtn.disabled = false;

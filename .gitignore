@@ -11,9 +11,16 @@ generated-app/**
 .env
 *.log
 .DS_Store
-data/
+# runtime data (chat history, conversion jobs); only the approved training examples are versioned
+data/*
+!data/bot-training.json
+data/conversion-jobs/
 
 
 generated-app/uploads/
 *.jar
-
+generated-app/stages/
+generated-app/conversions/
+__pycache__/
+*.pyc
+*.tmp
