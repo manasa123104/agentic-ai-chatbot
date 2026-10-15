@@ -1,5 +1,11 @@
 # BOT: Agentic AI Chatbot
 
+**Try BOT live:** https://bot-code-converter.onrender.com (converter: /convert, 5 stages: /stages)
+
+> The first load after idle takes about 1 minute (Render free tier wakes up), and the AI runs on the Google Gemini free tier, so very heavy use can show *Free AI quota reached - try again later*.
+
+![Scan to open BOT live](docs/bot-live-qr.png)
+
 BOT is a Spring Boot / Java 17 app that runs a **5-stage AI development pipeline** (Business Analyst, Developer, Tester, Deploy, Trainer) for any domain and any language, and includes a **repo-scale code converter**. It runs on a local Ollama model or any OpenAI compatible API.
 
 ## Workflow

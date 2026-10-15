@@ -26,7 +26,7 @@ agentic:
     gemini:
       api-key: ${GEMINI_API_KEY:}
       base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
-      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
   converter:
     ollama:
       enabled: ${CONVERTER_OLLAMA_ENABLED:true}

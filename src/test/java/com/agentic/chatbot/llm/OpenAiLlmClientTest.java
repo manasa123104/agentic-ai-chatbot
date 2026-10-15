@@ -87,6 +87,29 @@ class OpenAiLlmClientTest {
     }
 
     @Test
+    void retiredGeminiModelFallsBackToANewerOne() throws Exception {
+        var models = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            String req = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            models.add(req.contains("gemini-2.5-flash\"") ? "old" : "new");
+            boolean old = req.contains("gemini-2.5-flash\"");
+            byte[] out = (old ? "{\"error\":\"not found\"}" : "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(old ? 404 : 200, out.length);
+            exchange.getResponseBody().write(out);
+            exchange.close();
+        });
+        server.start();
+        String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/v1beta/openai";
+        OpenAiLlmClient client = gemini("g-key", url);
+        assertEquals("ok", client.complete("s", "u"));
+        assertEquals("Gemini (gemini-3.5-flash-lite)", client.describe());
+        assertEquals("ok", client.complete("s", "u"));
+        assertEquals(java.util.List.of("old", "new", "new"), models);
+    }
+
+    @Test
     void otherHttpErrorsAreReported() throws Exception {
         String url = fakeGemini(500, "{}", new AtomicReference<>(), new AtomicReference<>(), new AtomicReference<>());
         IllegalStateException e = assertThrows(IllegalStateException.class,

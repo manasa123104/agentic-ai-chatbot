@@ -22,11 +22,15 @@ public class OpenAiLlmClient implements LlmClient {
     private static final Logger log = LoggerFactory.getLogger(OpenAiLlmClient.class);
 
     public static final String GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+    /** Tried in order when Google answers 404 for the configured model (retired, or closed to new projects). */
+    static final java.util.List<String> GEMINI_FALLBACK_MODELS = java.util.List.of(
+            "gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite");
     public static final String QUOTA_MESSAGE = "Free AI quota reached – try again later";
 
     private final String apiKey;
     private final String baseUrl;
-    private final String model;
+    private volatile String model;
+    private final boolean gemini;
     private final String label;
     private final boolean cloud;
     private final boolean enabled;
@@ -49,6 +53,7 @@ public class OpenAiLlmClient implements LlmClient {
             @Value("${agentic.llm.gemini.base-url:" + GEMINI_BASE_URL + "}") String geminiBaseUrl,
             @Value("${agentic.llm.gemini.model:gemini-2.5-flash}") String geminiModel) {
         boolean gemini = geminiKey != null && !geminiKey.isBlank();
+        this.gemini = gemini;
         this.apiKey = (gemini ? geminiKey : apiKey == null ? "" : apiKey).trim();
         String url = gemini ? geminiBaseUrl : baseUrl;
         this.baseUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
@@ -80,7 +85,7 @@ public class OpenAiLlmClient implements LlmClient {
 
     @Override
     public String describe() {
-        return label;
+        return gemini ? "Gemini (" + model + ")" : label;
     }
 
     @Override
@@ -94,35 +99,30 @@ public class OpenAiLlmClient implements LlmClient {
             throw new IllegalStateException("LLM is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY, or use offline template mode.");
         }
         try {
-            ObjectNode body = mapper.createObjectNode();
-            body.put("model", model);
-            ArrayNode messages = body.putArray("messages");
-            ObjectNode sys = messages.addObject();
-            sys.put("role", "system");
-            sys.put("content", systemPrompt);
-            ObjectNode user = messages.addObject();
-            user.put("role", "user");
-            user.put("content", userPrompt);
-            body.put("temperature", 0.2);
-
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/chat/completions"))
-                    .timeout(Duration.ofMinutes(2))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
-            if (!apiKey.isBlank()) {
-                builder.header("Authorization", "Bearer " + apiKey);
+            HttpResponse<String> response = send(model, systemPrompt, userPrompt);
+            if (response.statusCode() == 404 && gemini) {
+                log.error("Gemini model {} returned 404: {}", model, response.body());
+                for (String candidate : GEMINI_FALLBACK_MODELS) {
+                    if (candidate.equals(model)) {
+                        continue;
+                    }
+                    HttpResponse<String> retry = send(candidate, systemPrompt, userPrompt);
+                    if (retry.statusCode() != 404) {
+                        log.warn("Switching Gemini model {} -> {}", model, candidate);
+                        model = candidate;
+                        response = retry;
+                        break;
+                    }
+                }
             }
-            HttpRequest request = builder.build();
-
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 429) {
                 log.warn("LLM quota/rate limit (HTTP 429): {}", response.body());
                 throw new QuotaExceededException();
             }
             if (response.statusCode() >= 400) {
                 log.error("LLM HTTP {}: {}", response.statusCode(), response.body());
-                throw new IllegalStateException("LLM request failed with HTTP " + response.statusCode());
+                throw new IllegalStateException("LLM request failed with HTTP " + response.statusCode() + ": "
+                        + shorten(response.body()));
             }
             JsonNode root = mapper.readTree(response.body());
             return root.path("choices").path(0).path("message").path("content").asText("");
@@ -134,6 +134,35 @@ public class OpenAiLlmClient implements LlmClient {
         } catch (Exception e) {
             throw new IllegalStateException("LLM call failed: " + e.getMessage(), e);
         }
+    }
+
+
+    private HttpResponse<String> send(String useModel, String systemPrompt, String userPrompt) throws Exception {
+        ObjectNode body = mapper.createObjectNode();
+        body.put("model", useModel);
+        ArrayNode messages = body.putArray("messages");
+        ObjectNode sys = messages.addObject();
+        sys.put("role", "system");
+        sys.put("content", systemPrompt);
+        ObjectNode user = messages.addObject();
+        user.put("role", "user");
+        user.put("content", userPrompt);
+        body.put("temperature", 0.2);
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/chat/completions"))
+                .timeout(Duration.ofMinutes(2))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
+        if (!apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+        return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String shorten(String s) {
+        String t = s == null ? "" : s.replaceAll("\\s+", " ").trim();
+        return t.length() > 200 ? t.substring(0, 200) : t;
     }
 
     /** Thrown on HTTP 429 so the UI can show a friendly message instead of raw API output. */

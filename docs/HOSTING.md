@@ -32,9 +32,9 @@ Step by step (no coding needed):
    `https://<name>.onrender.com` (for example `https://bot-code-converter.onrender.com`; add `/convert` for the converter).
    Every later push to GitHub redeploys automatically.
 
-The page banner then reads **"AI model connected: Gemini (gemini-2.5-flash)"**.
+The page banner then reads **"AI model connected: Gemini (gemini-3.5-flash-lite)"**.
 
-How the model is chosen (first match wins): `GEMINI_API_KEY` -> Gemini (`GEMINI_MODEL`, default `gemini-2.5-flash`, through Google's
+How the model is chosen (first match wins): `GEMINI_API_KEY` -> Gemini (`GEMINI_MODEL`, default `gemini-3.5-flash-lite`, through Google's
 OpenAI-compatible endpoint `https://generativelanguage.googleapis.com/v1beta/openai/`) -> `OPENAI_API_KEY` (OpenAI,
 `OPENAI_MODEL`) -> a reachable local Ollama -> built-in samples only. The converter, the stage bots and the chat all use the
 selected model. With a cloud model, large files are split into bigger parts (about 12,000 characters) than with a small local model.
