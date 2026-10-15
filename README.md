@@ -1,4 +1,4 @@
-# BOT: Agentic AI Chatbot (Java)
+# BOT: Agentic AI Chatbot
 
 BOT is a Spring Boot / Java 17 app that runs a **5-stage AI development pipeline** (Business Analyst, Developer, Tester, Deploy, Trainer) for any domain and any language, and includes a **repo-scale code converter**. It runs on a local Ollama model or any OpenAI compatible API.
 
