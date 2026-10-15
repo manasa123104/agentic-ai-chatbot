@@ -7,9 +7,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
+    <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="chat-app">
-<aside class="chat-rail">
+<aside class="chat-rail" id="chatRail">
     <div class="rail-brand">
         <span class="rail-mark">B</span>
         <div>
@@ -78,6 +79,7 @@
 
 <div class="chat-shell">
     <header class="chat-top">
+        <button type="button" class="rail-toggle" id="railToggle" aria-expanded="false" aria-controls="chatRail">&#9776; Menu</button>
         <div class="chat-title">
             <span class="dot online"></span>
             <div>
@@ -245,6 +247,24 @@ if __name__ == &quot;__main__&quot;:
     return text.slice(0, n - 1) + '…';
   }
 
+  /** Clipboard copy that also works where the async clipboard API is missing or blocked. */
+  function copyText(text) {
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      return ok;
+    }
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return Promise.resolve(fallback());
+    return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallback(); });
+  }
+
   var CONVERT_EXT = { java: 'java', python: 'py', javascript: 'js', typescript: 'ts', csharp: 'cs', cpp: 'cpp',
     c: 'c', go: 'go', rust: 'rs', kotlin: 'kt', ruby: 'rb', php: 'php', swift: 'swift', scala: 'scala', cobol: 'cbl' };
 
@@ -288,8 +308,8 @@ if __name__ == &quot;__main__&quot;:
     });
     var copyBtn = thread.lastChild.querySelector('.convert-copy:not(.convert-download)');
     copyBtn.addEventListener('click', function () {
-      navigator.clipboard.writeText(c.convertedCode || '').then(function () {
-        copyBtn.textContent = 'Copied';
+      copyText(c.convertedCode || '').then(function (ok) {
+        copyBtn.textContent = ok ? 'Copied' : 'Copy failed';
         setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
       });
     });
@@ -410,6 +430,7 @@ if __name__ == &quot;__main__&quot;:
   }
 
   async function openHistory(id) {
+    if (running) return; // do not replace the conversation while a run is in progress
     try {
       var res = await fetch('/api/history/' + encodeURIComponent(id));
       if (!res.ok) return;
@@ -440,7 +461,14 @@ if __name__ == &quot;__main__&quot;:
     }
   }
 
+  var running = false;
+  var PENDING_KEY = 'bot.chat.pending';
+
   async function runPipeline(story) {
+    if (running) return; // one run at a time: Enter, a suggestion chip or a double click cannot start a second one
+    running = true;
+    document.body.classList.add('is-running');
+    try { localStorage.setItem(PENDING_KEY, story); } catch (e) { /* ignore */ }
     addUser(story);
     input.value = '';
     autoSize();
@@ -470,7 +498,13 @@ if __name__ == &quot;__main__&quot;:
           runFunctionalTests: true
         })
       });
-      var data = await res.json();
+      var data = await res.json().catch(function () { return null; });
+      if (!data) {
+        removeTyping();
+        rt.stop('Failed after', true);
+        addBot('<p>BOT answered with an error (HTTP ' + res.status + '). Please try again in a moment.</p>');
+        return;
+      }
       removeTyping();
       rt.stop(data && data.success === false ? 'Failed after' : 'Done in', data && data.success === false);
 
@@ -496,6 +530,9 @@ if __name__ == &quot;__main__&quot;:
       rt.stop('Failed after', true);
       addBot('<p>Network error. Please try again.</p>');
     } finally {
+      running = false;
+      document.body.classList.remove('is-running');
+      try { localStorage.removeItem(PENDING_KEY); } catch (e) { /* ignore */ }
       sendBtn.disabled = false;
       input.focus();
     }
@@ -527,6 +564,13 @@ if __name__ == &quot;__main__&quot;:
     });
   });
 
+  var railToggle = document.getElementById('railToggle');
+  railToggle.addEventListener('click', function () {
+    var open = document.body.classList.toggle('rail-open');
+    railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    railToggle.innerHTML = open ? '&#10005; Close' : '&#9776; Menu';
+  });
+
   document.getElementById('newChat').addEventListener('click', function () {
     window.location.href = '/';
   });
@@ -547,6 +591,18 @@ if __name__ == &quot;__main__&quot;:
   });
 
   loadHistory();
+
+  // A refresh while a run was in progress: the server may still have finished it, so point to the history.
+  try {
+    var interrupted = localStorage.getItem(PENDING_KEY);
+    if (interrupted) {
+      localStorage.removeItem(PENDING_KEY);
+      addBot('<p>The page was refreshed while a run was in progress. BOT may have finished it \u2013 check <strong>Previous results</strong> on the left. ' +
+        'Your prompt is back in the box below if you want to send it again.</p>');
+      input.value = interrupted;
+      autoSize();
+    }
+  } catch (e) { /* ignore */ }
   input.focus();
 })();
 </script>

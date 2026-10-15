@@ -1,0 +1,167 @@
+/*
+ * Mobile / small-screen layer, loaded last on every page.
+ * - pinch-zoom is never disabled (the viewport meta has no maximum-scale / user-scalable=no)
+ * - no sideways page scroll: wide content (code, tables, file trees) scrolls inside its own box
+ * - panels and the sidebar stack under 768px, buttons wrap and are at least 40px tall, inputs are 16px
+ * Works the same inside an iframe (e.g. a WordPress page) because it only depends on the frame width.
+ */
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-wrap: break-word; }
+img, svg, video, canvas { max-width: 100%; height: auto; }
+pre { max-width: 100%; overflow: auto; }
+table { max-width: 100%; }
+
+/* Grid items may shrink below their content, so wide code never stretches the page. */
+.convert-main, .stages-main { grid-template-columns: minmax(0, 1fr); }
+.convert-card, .stage-card, .convert-status, .pane, .file-view, .file-tree, .job-body > *, .code-pane,
+.code-layout > *, .chat-shell, .bubble, .msg, .trainer-body, .setup-group { min-width: 0; }
+@media (min-width: 901px) {
+  .convert-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .job-body { grid-template-columns: minmax(180px, 290px) minmax(0, 1fr); }
+  .convert-details { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+}
+
+/* Long URLs, paths, ids and messages wrap instead of widening the page. */
+.convert-message, .job-status, .saved, .run-info, .stage-message, .field-help, .job-head strong, .job-head small,
+.stage-title small, .code-brand small, .mode-hint, .persona, .example-meta, .stage-notes li, .story-pre,
+.explanation, .run-cmd, .business-text, .push-box a, .convert-status p, .history-text {
+  overflow-wrap: anywhere;
+}
+.convert-main code, .stage-card code { overflow-wrap: anywhere; }
+
+/* Code areas and the file tree scroll inside their own box. */
+.output, .story-snip, .convert-snippet pre, .convert-run, .example-output, .code-pane pre, .story-pre { max-width: 100%; overflow: auto; }
+.file-tree ul { overflow: auto; }
+.code-files { max-width: 100%; }
+.pane textarea, .stage-io, #sourceCode, #fileEditor { max-width: 100%; width: 100%; }
+
+/* the menu button only exists on small screens */
+.rail-toggle {
+  display: none;
+  align-items: center;
+  gap: .4rem;
+  min-height: 40px;
+  padding: .4rem .8rem;
+  border-radius: 12px;
+  border: 1px solid var(--line, #c5d4cb);
+  background: #fff;
+  color: var(--accent, #0f6b4c);
+  font: 600 13px Sora, sans-serif;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  /* ---------- tap targets: at least 40px ---------- */
+  .btn, button, .chip, .tab, .mode-tab, .out-tab, .view-tab, .link-btn, .swap, .file-link, .rail-links a,
+  .history-clear, .system-toggle, .history-edit, .pipe-step {
+    min-height: 40px;
+  }
+  .btn, a.btn, .btn.small, .btn.ghost { display: inline-flex; align-items: center; justify-content: center; padding-top: .5rem; padding-bottom: .5rem; }
+  .chip, .tab, .tab.small, .view-tab, .out-tab { padding-top: .45rem; padding-bottom: .45rem; }
+  .link-btn { min-width: 44px; padding: .45rem .6rem; }
+  .history-del { min-width: 40px; min-height: 40px; display: grid; place-items: center; opacity: 1; }
+  .check { min-height: 40px; }
+  .check input { width: 22px; height: 22px; }
+  .send { width: 46px; height: 46px; }
+  .swap { min-height: 44px; }
+
+  /* ---------- forms: fit the screen, 16px so iOS does not zoom ---------- */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]),
+  select, textarea, .part-select, .file-select {
+    font-size: 16px !important;
+    min-height: 40px;
+  }
+  select, .field select, .field input, .lang-pick select, .lang-pick .lang-other, .recent-jobs select,
+  .file-select, .part-select, .examples-head select, .examples-head input, .train-row .feedback,
+  .convert-actions input, .trainer-body .feedback {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .field, .field.wide, .field.slim, .field.tiny, .field.domain-field, .field.wide-url, .lang-pick,
+  .setup-group.grow { flex: 1 1 100%; width: 100%; max-width: 100%; }
+  .field input[type="file"] { width: 100%; }
+  .tester-part { margin-left: 0; }
+
+  /* ---------- stacking ---------- */
+  .convert-main { padding: .75rem .75rem 2rem; gap: .75rem; }
+  .convert-card { padding: .8rem .8rem 1rem; border-radius: 14px; }
+  .convert-panes, .convert-details, .job-body, .code-layout, .editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .job-body { min-height: 0; }
+  .file-tree ul { max-height: 240px; }
+  .pane-head { flex-wrap: wrap; row-gap: .25rem; }
+  #sourceCode, .output, #fileEditor, #fileReadonly, .business-text.dark { min-height: 240px; max-height: 70vh; }
+  .stage-io { min-height: 220px; max-height: 70vh; }
+  .stage-card .convert-panes { gap: .75rem; }
+
+  /* ---------- buttons and rows wrap onto new lines ---------- */
+  .code-top { padding: .7rem .75rem; }
+  .code-actions, .setup-buttons, .stage-actions, .train-row, .convert-actions, .job-head, .job-buttons,
+  .file-actions, .done-banner, .recent-jobs, .push-fields, .examples-head, .convert-options, .mode-tabs,
+  .source-kinds, .sample-loader, .convert-controls, .setup-row, .kind-fields, .out-tabs {
+    flex-wrap: wrap;
+  }
+  .code-actions { width: 100%; }
+  .code-actions .btn { flex: 1 1 auto; }
+  .setup-buttons { margin-left: 0; width: 100%; }
+  .setup-buttons .btn, .stage-actions .btn, .convert-actions .btn, .job-buttons .btn { flex: 1 1 auto; }
+  .stage-actions .spacer { display: none; }
+  .convert-actions { flex-direction: column; align-items: stretch; }
+  .convert-actions .btn { width: 100%; }
+  .convert-btn { padding-left: 1rem; padding-right: 1rem; }
+  .done-banner { flex-direction: column; align-items: stretch; text-align: center; }
+  .recent-jobs { flex-direction: column; align-items: stretch; }
+  .recent-jobs .btn { white-space: normal; }
+  .file-actions { flex-wrap: wrap; }
+  .file-actions .saved { flex: 1 1 100%; margin: 0; }
+  .file-actions .btn { flex: 1 1 auto; }
+  .mode-hint { margin-left: 0; flex: 1 1 100%; }
+  .mode-tab { flex: 1 1 auto; }
+  .swap { width: 100%; transform: none; }
+  .sample-loader { margin-left: 0; }
+  .sample-loader > span { flex: 1 1 100%; }
+  .stage-head { flex-wrap: wrap; }
+  .stage-title { flex: 1 1 60%; min-width: 0; }
+  .stats-grid { max-width: 100%; }
+  .stats-row { grid-template-columns: 1.4fr 1fr 1fr; font-size: .82rem; }
+  .example-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .example-meta { grid-column: 1 / -1; }
+  .example-text { white-space: normal; }
+  .push-box { padding: .75rem; }
+
+  /* ---------- workflow cards wrap ---------- */
+  .workflow-flow { flex-wrap: wrap; }
+  .workflow-flow .wf-node { min-width: 0; }
+
+  /* ---------- /code ---------- */
+  .code-layout { min-height: 0; }
+  .code-files { max-height: 200px; border-right: 0; border-bottom: 1px solid #1c3228; }
+  .code-pane { padding: .75rem; }
+  .story-banner-inner { padding-left: .75rem; padding-right: .75rem; }
+
+  /* ---------- chat (/): the sidebar becomes a collapsible panel at the top ---------- */
+  body.chat-app { grid-template-columns: minmax(0, 1fr); }
+  .rail-toggle { display: inline-flex; }
+  .chat-rail { display: none; }
+  body.rail-open .chat-rail { display: flex; max-height: 78vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid #1c3228; }
+  .chat-top { padding: .6rem .75rem; gap: .5rem; flex-wrap: wrap; }
+  .chat-title { min-width: 0; flex: 1 1 auto; }
+  .chat-title small { display: block; overflow-wrap: anywhere; }
+  .chat-thread { padding: .9rem .75rem .75rem; }
+  .chat-composer { padding: .4rem .75rem .9rem; }
+  .bubble { max-width: 100%; }
+  .msg.user .bubble, .msg.bot .bubble { max-width: 100%; }
+  .suggestions { gap: .4rem; }
+  .composer-box { padding: .45rem .45rem .45rem .8rem; }
+  .composer-box textarea { font-size: 16px; }
+  .system-prompt { font-size: 16px; }
+  .history-item { min-height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .code-brand small, .chat-title small { font-size: .72rem; }
+  .convert-card { padding: .7rem .65rem .9rem; }
+  .btn { white-space: normal; text-align: center; }
+  .stats-row { grid-template-columns: 1.2fr 1fr .8fr; }
+}
