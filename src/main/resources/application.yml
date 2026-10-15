@@ -12,6 +12,8 @@ spring:
       max-request-size: 250MB
 
 agentic:
+  # true behind a hosting proxy (Hugging Face Space): every request counts as a remote visitor
+  public-mode: ${PUBLIC_MODE:false}
   output-dir: generated-app
   history-file: data/chat-history.json
   training-file: data/bot-training.json
@@ -20,6 +22,11 @@ agentic:
     base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
     model: ${OPENAI_MODEL:gpt-4o-mini}
     enabled: ${LLM_ENABLED:true}
+    # Free Google Gemini through its OpenAI-compatible endpoint; used first when GEMINI_API_KEY is set
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
   converter:
     ollama:
       enabled: ${CONVERTER_OLLAMA_ENABLED:true}

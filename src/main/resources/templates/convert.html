@@ -128,6 +128,7 @@
         </div>
 
         <div id="projectMode" hidden>
+            <p class="field-help public-notice" id="publicModeNotice" th:if="${publicMode}" th:text="${publicModeNotice}"></p>
             <div class="source-kinds" role="tablist">
                 <button type="button" class="chip active" data-kind="git">GitHub / Git link</button>
                 <button type="button" class="chip" data-kind="upload">Upload files, folder or ZIP</button>
@@ -177,6 +178,7 @@
                 </div>
                 <div class="job-buttons">
                     <a class="btn ghost small" id="zipBtn" href="#">&#11015; Download all (ZIP)</a>
+                    <button type="button" class="btn ghost small" id="closeJobBtn" title="Close this conversion and start a new one">Close / new conversion</button>
                 </div>
             </div>
             <div class="done-banner" id="doneBanner" hidden>
@@ -304,6 +306,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     sourceCode.value = code;
     pickOtherTarget(languageId);
     $('detectedBadge').hidden = true;
+    saveSoon();
   }
 
   function loadSample(sampleId) {
@@ -400,6 +403,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   const LARGE_PASTE = 15000;
 
   async function convert() {
+    if ($('convertBtn').disabled) return; // a conversion is already running (Ctrl+Enter must not start a second one)
     const code = sourceCode.value;
     if (!code.trim()) {
       setMessage('Paste some code to convert, or load one of the samples.', 'error');
@@ -449,12 +453,25 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     }
   }
 
-  function copyText(text, button) {
-    navigator.clipboard.writeText(text).then(() => {
-      const label = button.textContent;
-      button.textContent = 'Copied';
-      setTimeout(() => { button.textContent = label; }, 1200);
-    });
+  async function copyText(text, button) {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch (e) {
+      const ta = document.createElement('textarea'); // fallback for pages without the async clipboard API
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove();
+    }
+    const label = button.dataset.label || button.textContent;
+    button.dataset.label = label;
+    button.textContent = ok ? 'Copied' : 'Copy failed';
+    setTimeout(() => { button.textContent = label; }, 1200);
   }
 
   function renderGallery() {
@@ -506,21 +523,40 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   $('swapBtn').addEventListener('click', () => {
     const from = sourceLang.value === 'auto' && lastResult ? lastResult.sourceLanguageId : sourceLang.value;
     const to = targetLang.value;
-    if (from === 'auto' || !langById(from) || !langById(to)) return;
+    if (from === 'auto' || !langById(from) || !langById(to)) {
+      setMessage('Pick a listed source language first (Auto-detect and "Other" cannot be swapped until BOT has detected the language).', 'error');
+      return;
+    }
     sourceLang.value = to;
     targetLang.value = from;
     syncOther();
+    saveSoon();
     if (lastResult) {
       sourceCode.value = lastResult.convertedCode;
       renderResult({ success: false, message: '' });
+      $('convertTimer').textContent = '';
+      $('detectedBadge').hidden = true;
       setMessage('Swapped. Press Convert to translate back to ' + langById(from).name + '.', '');
     }
   });
 
+  /** Clear: empty the source, the converted code, the details, messages, timer and the Copy/Download buttons. */
   $('clearBtn').addEventListener('click', () => {
+    if ($('convertBtn').disabled) return; // do not wipe the page while a conversion is running
     sourceCode.value = '';
     $('detectedBadge').hidden = true;
+    renderResult({ success: false, message: '' });
+    $('businessBox').hidden = true;
+    $('businessText').innerHTML = '';
+    $('explanation').textContent = '';
+    $('runCommand').textContent = '';
+    $('savedFile').textContent = '';
+    setMessage('', '');
+    const t = $('convertTimer');
+    t.textContent = '';
+    t.className = '';
     sourceCode.focus();
+    saveState();
   });
 
   $('convertBtn').addEventListener('click', convert);
@@ -540,6 +576,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   let sourceKind = 'git';
   let currentJob = null;
   let pollTimer = null;
+  let jobClosed = false;
   let currentFile = null;
   let fileDirty = false;
   const jobUrl = (suffix) => '/api/convert/jobs/' + currentJob.id + (suffix || '');
@@ -553,12 +590,14 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       ? 'Convert one snippet or file. Large code is converted in parts automatically.'
       : 'Convert a whole codebase: every file in every folder, with imports linked between the converted files.';
     if (mode === 'project') loadRecent();
+    saveState();
   }
 
   function setSourceKind(kind) {
     sourceKind = kind;
     document.querySelectorAll('.source-kinds .chip').forEach((c) => c.classList.toggle('active', c.dataset.kind === kind));
     document.querySelectorAll('.kind-fields[data-kind]').forEach((f) => { f.hidden = f.dataset.kind !== kind; });
+    saveState();
   }
 
   function setJobMessage(text, kind) {
@@ -632,7 +671,9 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
 
   async function startJob(form) {
     const btn = $('startJobBtn');
+    if (btn.disabled) return; // already starting a job: no double submit
     btn.disabled = true;
+    $('convertBtn').disabled = true;
     setJobMessage('Starting the conversion…', '');
     try {
       const res = await fetch('/api/convert/jobs', { method: 'POST', body: form });
@@ -643,17 +684,63 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       }
       setJobMessage('', '');
       openJob(data);
+      loadRecent();
     } catch (e) {
       setJobMessage(netError(e), 'error');
     } finally {
       btn.disabled = false;
+      $('convertBtn').disabled = false;
     }
   }
 
-  function openJob(job) {
+  /** Close the job panel and forget the open job (the job itself stays in "Previous conversions"). */
+  function closeJob() {
+    if (fileDirty && !confirm('Discard your unsaved changes to ' + currentFile + '?')) return;
+    clearInterval(pollTimer);
+    currentJob = null;
+    currentFile = null;
+    fileDirty = false;
+    pollFailures = 0;
+    jobClosed = true;
+    $('jobPanel').hidden = true;
+    $('fileList').innerHTML = '';
+    $('fileEditor').value = '';
+    $('fileReadonlyCode').textContent = '';
+    $('fileLogic').innerHTML = '';
+    $('filePath').textContent = 'Select a file';
+    $('fileNotes').textContent = '';
+    $('saveFileBtn').disabled = true;
+    $('downloadFileBtn').disabled = true;
+    $('jobStatus').textContent = '';
+    $('jobStatus').className = 'job-status';
+    $('jobBar').style.width = '0%';
+    $('jobBar').className = 'bar';
+    const t = $('jobTimer');
+    t.textContent = '';
+    t.className = '';
+    $('doneBanner').hidden = true;
+    $('zipBtn').href = '#';
+    $('zipBtn').classList.add('disabled');
+    $('doneZipBtn').href = '#';
+    $('pushMessageOut').textContent = '';
+    $('pushMessageOut').className = 'convert-message';
+    setJobMessage('', '');
+    const select = $('recentSelect');
+    select.value = '';
+    const zip = $('recentZipBtn');
+    zip.href = '#';
+    zip.classList.add('disabled');
+    showView('converted');
+    saveState();
+  }
+
+  function openJob(job, quiet) {
     currentJob = job;
     currentFile = null;
     fileDirty = false;
+    pollFailures = 0;
+    jobClosed = false;
+    saveState();
     $('jobPanel').hidden = false;
     $('fileEditor').value = '';
     $('filePath').textContent = 'Select a file';
@@ -664,17 +751,30 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     $('pushRepo').value = /^(https:|git@)/.test(job.sourceLabel) ? job.sourceLabel.replace(/ \(.*\)$/, '') : $('pushRepo').value;
     renderJob(job);
     loadTree();
-    $('jobPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!quiet) $('jobPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     clearInterval(pollTimer);
     if (job.status === 'QUEUED' || job.status === 'RUNNING') pollTimer = setInterval(poll, 2000);
   }
 
+  let pollFailures = 0;
   async function poll() {
     if (!currentJob) return;
+    const polledId = currentJob.id;
     try {
       const res = await fetch(jobUrl());
-      if (!res.ok) return;
+      if (currentJob && currentJob.id !== polledId) return; // another job was opened meanwhile
+      if (res.status === 404) {
+        clearInterval(pollTimer);
+        $('jobStatus').textContent = 'This conversion is no longer available on the server.';
+        $('jobStatus').className = 'job-status failed';
+        $('jobTimer').textContent = '';
+        loadRecent();
+        return;
+      }
+      if (!res.ok) { pollFailures++; return; }
+      pollFailures = 0;
       const job = await res.json();
+      if (!currentJob || currentJob.id !== polledId) return;
       const changed = job.doneFiles !== currentJob.doneFiles || job.status !== currentJob.status;
       currentJob = job;
       renderJob(job);
@@ -683,7 +783,12 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
         clearInterval(pollTimer);
         loadRecent();
       }
-    } catch (e) { /* keep polling */ }
+    } catch (e) {
+      pollFailures++; // keep polling: BOT may just be restarting
+      if (pollFailures >= 3 && currentJob) {
+        $('jobStatus').textContent = 'Lost contact with BOT \u2013 retrying\u2026 (the conversion continues on the server if it is still running)';
+      }
+    }
   }
 
   function renderJob(job) {
@@ -812,16 +917,25 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     fileDirty = false;
     markActive(path);
     $('filePath').textContent = path;
-    const res = await fetch(jobUrl('/file?side=output&path=' + encodeURIComponent(path)));
-    const data = await res.json();
+    let res = null;
+    let data = {};
+    try {
+      res = await fetch(jobUrl('/file?side=output&path=' + encodeURIComponent(path)));
+      data = await res.json();
+    } catch (e) {
+      $('fileEditor').value = netError(e);
+      $('saveFileBtn').disabled = true;
+      $('downloadFileBtn').disabled = true;
+      return;
+    }
     $('fileEditor').value = res.ok ? data.content : (data.error || 'Could not open the file.');
     const info = fileInfo(path);
     const how = info ? { llm: 'converted by AI', 'sample-library': 'from the sample library', copied: 'copied unchanged' }[info.mode] || info.mode : null;
     $('fileNotes').textContent = info
       ? 'From ' + info.sourcePath + ' · ' + how + (info.parts > 1 ? ' · large file, converted in ' + info.parts + ' parts' : '')
       : (path.endsWith('.md') ? 'Report written by BOT' : 'Copied or generated project file');
-    $('saveFileBtn').disabled = currentJob.status === 'RUNNING';
-    $('downloadFileBtn').disabled = false;
+    $('saveFileBtn').disabled = !res.ok || currentJob.status === 'RUNNING';
+    $('downloadFileBtn').disabled = !res.ok;
     showView('converted');
   }
 
@@ -835,9 +949,13 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     if (view === 'original') {
       const code = $('fileReadonlyCode');
       const sourcePath = info ? info.sourcePath : currentFile;
-      const res = await fetch(jobUrl('/file?side=source&path=' + encodeURIComponent(sourcePath)));
-      const data = await res.json();
-      code.textContent = res.ok ? data.content : 'There is no original for this file: BOT generated it.';
+      try {
+        const res = await fetch(jobUrl('/file?side=source&path=' + encodeURIComponent(sourcePath)));
+        const data = await res.json();
+        code.textContent = res.ok ? data.content : 'There is no original for this file: BOT generated it.';
+      } catch (e) {
+        code.textContent = netError(e);
+      }
     } else if (view === 'logic') {
       const parts = [];
       if (info && info.businessLogic) parts.push(info.businessLogic);
@@ -857,9 +975,11 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: $('fileEditor').value })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       fileDirty = !res.ok;
       $('fileNotes').textContent = res.ok ? 'Saved ' + currentFile : (data.error || 'Could not save.');
+    } catch (e) {
+      $('fileNotes').textContent = 'Could not save: ' + netError(e);
     } finally {
       btn.disabled = false;
     }
@@ -905,10 +1025,11 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       const res = await fetch(jobUrl('/push'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         $('pushMessageOut').className = 'convert-message error';
-        $('pushMessageOut').textContent = data.error || 'Push failed.';
+        $('pushMessageOut').textContent = data.error || (res.status === 403
+          ? 'Pushing is only available on the machine that hosts BOT.' : 'Push failed (HTTP ' + res.status + ').');
         return;
       }
       showPush(data, false);
@@ -936,16 +1057,76 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
         select.appendChild(o);
       });
       const zip = $('recentZipBtn');
-      zip.href = '#';
-      zip.classList.add('disabled');
-      select.onchange = () => {
+      const syncZip = () => {
         const job = jobs.find((j) => j.id === select.value);
         const ready = !!job && job.status === 'DONE';
         zip.href = ready ? '/api/convert/jobs/' + job.id + '/zip' : '#';
         zip.classList.toggle('disabled', !ready);
-        if (job) openJob(job);
       };
-    } catch (e) { /* ignore */ }
+      select.onchange = () => {
+        syncZip();
+        const job = jobs.find((j) => j.id === select.value);
+        if (job) openJob(job);
+        else closeJob();
+      };
+      // keep the dropdown on the job that is open in the panel
+      select.value = currentJob && jobs.some((j) => j.id === currentJob.id) ? currentJob.id : '';
+      syncZip();
+      return jobs;
+    } catch (e) { return []; }
+  }
+
+  // ---- Survive a refresh: remember the mode, the open job and the pasted code in this browser ------
+  const STORE_KEY = 'bot.convert.v1';
+  let storeTimer = null;
+  function saveState() {
+    clearTimeout(storeTimer);
+    try {
+      const code = sourceCode.value;
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        mode: $('projectMode').hidden ? 'paste' : 'project',
+        kind: sourceKind,
+        jobId: currentJob ? currentJob.id : null, closed: jobClosed,
+        sourceLang: sourceLang.value, targetLang: targetLang.value,
+        sourceOther: $('sourceOther').value, targetOther: $('targetOther').value,
+        code: code.length <= 200000 ? code : '',
+        instructions: $('instructions').value,
+        comments: $('optComments').checked, logic: $('optLogic').checked,
+        repoUrl: $('repoUrl').value, repoBranch: $('repoBranch').value,
+        subfolder: $('subfolder').value, projectInstructions: $('projectInstructions').value
+      }));
+    } catch (e) { /* storage unavailable: the page works, it just starts empty after a refresh */ }
+  }
+  const saveSoon = () => { clearTimeout(storeTimer); storeTimer = setTimeout(saveState, 400); };
+
+  async function restoreState() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { s = null; }
+    if (!s) return;
+    const pick = (select, v) => { if (v && [...select.options].some((o) => o.value === v)) select.value = v; };
+    pick(sourceLang, s.sourceLang);
+    pick(targetLang, s.targetLang);
+    $('sourceOther').value = s.sourceOther || '';
+    $('targetOther').value = s.targetOther || '';
+    syncOther();
+    sourceCode.value = s.code || '';
+    $('instructions').value = s.instructions || '';
+    $('optComments').checked = !!s.comments;
+    $('optLogic').checked = !!s.logic;
+    $('repoUrl').value = s.repoUrl || '';
+    $('repoBranch').value = s.repoBranch || '';
+    $('subfolder').value = s.subfolder || '';
+    $('projectInstructions').value = s.projectInstructions || '';
+    if (s.kind && s.kind !== 'local') setSourceKind(s.kind);
+    if (s.mode !== 'project') return;
+    setMode('project'); // also loads the recent-jobs list
+    const jobs = await loadRecent();
+    // re-open the job that was open before the refresh, otherwise the latest one from the list
+    const job = jobs.find((j) => j.id === s.jobId) || (s.closed ? null : jobs[0]);
+    if (job) {
+      openJob(job, true);
+      loadRecent(); // points the dropdown and the ZIP link at the re-opened job
+    }
   }
 
   document.querySelectorAll('.mode-tab').forEach((t) => t.addEventListener('click', () => setMode(t.dataset.mode)));
@@ -962,8 +1143,15 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   });
   $('zipBtn').addEventListener('click', (e) => { if ($('zipBtn').classList.contains('disabled')) e.preventDefault(); });
   $('pushBtn').addEventListener('click', push);
+  $('closeJobBtn').addEventListener('click', closeJob);
+  ['recentZipBtn', 'doneZipBtn'].forEach((id) =>
+    $(id).addEventListener('click', (e) => { if ($(id).getAttribute('href') === '#') e.preventDefault(); }));
+  document.addEventListener('input', saveSoon);
+  document.addEventListener('change', saveSoon);
+  window.addEventListener('pagehide', saveState);
 
   renderGallery();
+  restoreState();
 </script>
 </body>
 </html>

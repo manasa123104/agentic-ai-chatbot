@@ -26,12 +26,33 @@ public final class RequestOrigin {
             "CF-Connecting-IP", "True-Client-IP", "X-Forwarded-For", "X-Real-IP", "Forwarded", "X-Forwarded-Host"
     };
 
+    public static final String PUBLIC_MODE_NOTICE =
+            "This is the public BOT Space: converting a folder on a computer and pushing to GitHub are disabled here. "
+                    + "Use a GitHub https URL, upload files or a ZIP, or paste code, and download the result as a ZIP.";
+
+    /**
+     * Set from {@code agentic.public-mode} at startup. Behind a hosting proxy (Hugging Face, Render, ...) every request
+     * arrives from the proxy, so no request may ever be treated as the host machine.
+     */
+    private static volatile boolean publicMode;
+
     private RequestOrigin() {
     }
 
-    /** True only for a direct request from 127.0.0.1 / ::1 that did not pass through a proxy or tunnel. */
+    public static void setPublicMode(boolean enabled) {
+        publicMode = enabled;
+    }
+
+    public static boolean isPublicMode() {
+        return publicMode;
+    }
+
+    /**
+     * True only for a direct request from 127.0.0.1 / ::1 that did not pass through a proxy or tunnel, and never
+     * in public mode.
+     */
     public static boolean isHost(HttpServletRequest request) {
-        if (request == null) {
+        if (publicMode || request == null) {
             return false;
         }
         for (String header : PROXY_HEADERS) {

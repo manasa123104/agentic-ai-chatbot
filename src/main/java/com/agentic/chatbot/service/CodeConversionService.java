@@ -46,6 +46,8 @@ public class CodeConversionService {
     private static final Pattern CHAT_SOURCE_NOUN = Pattern.compile(
             "(?i)([\\w#+/.]+)\\s+(?:code|program|snippet|function|script|class)\\b");
 
+    private static final int CLOUD_CHUNK_CHARS = 12_000;
+
     private final CodeSampleLibrary library;
     private final LlmClient llmClient;
     private final LocalLlmDetector localLlm;
@@ -89,6 +91,11 @@ public class CodeConversionService {
     /** Name of the model used for non-sample code, or empty when only the samples can be converted. */
     public Optional<String> llmName() {
         return activeLlm().map(LlmClient::describe);
+    }
+
+    /** Hosted models (Gemini, OpenAI) handle far larger parts than small local ones, so use fewer, bigger calls. */
+    private int chunkCharsFor(LlmClient llm) {
+        return llm != null && llm.isCloud() ? Math.max(chunkChars, CLOUD_CHUNK_CHARS) : chunkChars;
     }
 
     public Optional<LlmClient> activeLlm() {
@@ -277,7 +284,7 @@ public class CodeConversionService {
                                  String instructions, boolean addComments, String projectContext,
                                  java.util.function.BiConsumer<Integer, Integer> onPart) {
         String sourceId = source == null ? detectLanguage(code) : source.id();
-        List<CodeChunker.Chunk> chunks = CodeChunker.split(code, sourceId, chunkChars);
+        List<CodeChunker.Chunk> chunks = CodeChunker.split(code, sourceId, chunkCharsFor(llm));
         String systemPrompt = conversionSystemPrompt(target, addComments);
         boolean entryPoint = ProjectModuleMapper.MAIN_ENTRY.matcher(code).find();
         if (chunks.size() == 1) {
@@ -726,7 +733,7 @@ public class CodeConversionService {
      */
     public String explainWith(LlmClient llm, String code, String sourceName, String relatedNotes) {
         String language = sourceName == null ? "source" : sourceName;
-        List<CodeChunker.Chunk> chunks = CodeChunker.split(code, null, chunkChars * 2);
+        List<CodeChunker.Chunk> chunks = CodeChunker.split(code, null, chunkCharsFor(llm) * 2);
         String related = relatedNotes == null || relatedNotes.isBlank() ? ""
                 : "=== WHAT THE FILES IT USES DO (facts, do not repeat them as this code's own rules) ===\n"
                         + relatedNotes.strip() + "\n\n";

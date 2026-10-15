@@ -13,6 +13,11 @@ public interface LlmClient {
         return complete(systemPrompt, userPrompt);
     }
 
+    /** True for hosted models (Gemini, OpenAI): they take much larger chunks than a small local model. */
+    default boolean isCloud() {
+        return false;
+    }
+
     /** Short human-readable name of the model behind this client. */
     default String describe() {
         return "the LLM";

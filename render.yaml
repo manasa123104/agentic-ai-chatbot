@@ -1,17 +1,23 @@
+# Render Blueprint: free web service running the Dockerfile, AI by free Google Gemini.
+# Get a key at https://aistudio.google.com/apikey and paste it when Render asks for GEMINI_API_KEY.
 services:
   - type: web
     name: bot-code-converter
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /convert
+    healthCheckPath: /
+    autoDeploy: true
     envVars:
-      # Without a key the converter still works for the built-in sample programs.
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
-      - key: CONVERTER_OLLAMA_ENABLED
-        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false          # you type it in the Render dashboard; it is never stored in git
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: PUBLIC_MODE
+        value: "true"
       - key: CONVERTER_ALLOW_LOCAL_PATHS
         value: "false"
+      - key: CONVERTER_OLLAMA_ENABLED
+        value: "false"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-Xmx300m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Xss512k"

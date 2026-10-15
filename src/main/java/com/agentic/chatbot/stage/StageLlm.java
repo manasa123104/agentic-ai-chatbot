@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
- * Picks the model for the stage bots: the OpenAI client when OPENAI_API_KEY is set, otherwise a local Ollama model.
+ * Picks the model for the stage bots: Gemini when GEMINI_API_KEY is set, then OpenAI (OPENAI_API_KEY), otherwise a local Ollama model.
  */
 @Component
 public class StageLlm {

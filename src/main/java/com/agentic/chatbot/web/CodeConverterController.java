@@ -28,6 +28,8 @@ public class CodeConverterController {
         var llmName = conversionService.llmName();
         model.addAttribute("allowLocalPaths", allowLocalPaths && host);
         model.addAttribute("isHost", host);
+        model.addAttribute("publicMode", RequestOrigin.isPublicMode());
+        model.addAttribute("publicModeNotice", RequestOrigin.PUBLIC_MODE_NOTICE);
         model.addAttribute("llmReady", llmName.isPresent());
         model.addAttribute("llmName", llmName.orElse(""));
         model.addAttribute("languages", sampleLibrary.languages());

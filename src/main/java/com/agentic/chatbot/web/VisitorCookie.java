@@ -41,9 +41,15 @@ public final class VisitorCookie {
         if (id == null) {
             id = UUID.randomUUID().toString();
             boolean https = "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto")) || request.isSecure();
-            ResponseCookie cookie = ResponseCookie.from(NAME, id)
-                    .httpOnly(true).secure(https).sameSite("Lax").path("/")
-                    .maxAge(Duration.ofDays(365)).build();
+            ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(NAME, id)
+                    .httpOnly(true).path("/").maxAge(Duration.ofDays(365));
+            if (RequestOrigin.isPublicMode()) {
+                // A Hugging Face Space page embeds the app in a cross-site iframe, where a Lax cookie is never sent.
+                builder.secure(true).sameSite("None").partitioned(true);
+            } else {
+                builder.secure(https).sameSite("Lax");
+            }
+            ResponseCookie cookie = builder.build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         }
         return hash(id);
