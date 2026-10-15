@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 330" width="1100" height="330" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>BOT 5-stage pipeline</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/>
+    </marker>
+    <marker id="arrowDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="330" rx="14" fill="#ffffff" stroke="#e5e7eb"/>
+
+  <!-- input -->
+  <text x="550" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#111827">BOT: 5-stage AI development pipeline (each stage runs alone or chained, or use Run all)</text>
+
+  <!-- stage boxes: x = 30, 240, 450, 660, 870 ; width 190 -->
+  <g font-size="13" text-anchor="middle">
+    <g>
+      <rect x="30" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="125" y="86" font-size="15" font-weight="700" fill="#312e81">1. Business Analyst</text>
+      <text x="125" y="112" fill="#374151">In: prompt + domain</text>
+      <text x="125" y="130" fill="#374151">39 domains, domain sample</text>
+      <text x="125" y="160" font-weight="600" fill="#065f46">Out: user stories</text>
+    </g>
+    <g>
+      <rect x="240" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="335" y="86" font-size="15" font-weight="700" fill="#312e81">2. Developer</text>
+      <text x="335" y="112" fill="#374151">In: user stories</text>
+      <text x="335" y="130" fill="#374151">57 languages, with comments</text>
+      <text x="335" y="160" font-weight="600" fill="#065f46">Out: source code</text>
+    </g>
+    <g>
+      <rect x="450" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="545" y="86" font-size="15" font-weight="700" fill="#312e81">3. Tester</text>
+      <text x="545" y="112" fill="#374151">In: source code</text>
+      <text x="545" y="130" fill="#374151">JUnit, pytest, Jest, Selenium</text>
+      <text x="545" y="160" font-weight="600" fill="#065f46">Out: unit + UI tests</text>
+    </g>
+    <g>
+      <rect x="660" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="755" y="86" font-size="15" font-weight="700" fill="#312e81">4. Deploy</text>
+      <text x="755" y="112" fill="#374151">In: code + tests</text>
+      <text x="755" y="130" fill="#374151">Docker, CI/CD, Kubernetes</text>
+      <text x="755" y="160" font-weight="600" fill="#065f46">Out: DEPLOY.md + configs</text>
+    </g>
+    <g>
+      <rect x="870" y="60" width="200" height="130" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+      <text x="970" y="86" font-size="15" font-weight="700" fill="#78350f">5. Trainer</text>
+      <text x="970" y="112" fill="#374151">In: approved outputs</text>
+      <text x="970" y="130" fill="#374151">learns from your approvals</text>
+      <text x="970" y="160" font-weight="600" fill="#065f46">Out: bot-training.json</text>
+    </g>
+  </g>
+
+  <!-- forward arrows -->
+  <g stroke="#4f46e5" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <line x1="221" y1="125" x2="238" y2="125"/>
+    <line x1="431" y1="125" x2="448" y2="125"/>
+    <line x1="641" y1="125" x2="658" y2="125"/>
+    <line x1="851" y1="125" x2="868" y2="125"/>
+  </g>
+
+  <!-- feedback loop from Trainer back to Business Analyst / Developer -->
+  <path d="M970 192 L970 255 L125 255 L125 194" fill="none" stroke="#d97706" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrowDash)"/>
+  <text x="548" y="248" text-anchor="middle" font-size="13" font-style="italic" fill="#92400e">feedback loop: trained examples improve the next run of every stage</text>
+
+  <!-- footer -->
+  <text x="550" y="300" text-anchor="middle" font-size="12" fill="#6b7280">Runs on a local Ollama model (qwen2.5-coder:1.5b) or any OpenAI compatible API. Web pages: / (chat)  /stages  /convert</text>
+</svg>
