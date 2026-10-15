@@ -9,6 +9,9 @@ RUN mvn -q -B clean package -DskipTests
 # Stage 2: small JRE 17 runtime (no Ollama; the AI is Google Gemini via GEMINI_API_KEY)
 FROM eclipse-temurin:17-jre
 WORKDIR /app
+# git is needed to clone GitHub repos for the repo converter (shallow clones, https only in public mode)
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/target/agentic-ai-chatbot-1.0.0.jar app.jar
 # Fit a 512 MB free instance: small heap, single-threaded GC. Scratch data lives in /tmp (ephemeral).
 ENV JAVA_TOOL_OPTIONS="-Xmx300m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Xss512k" \
