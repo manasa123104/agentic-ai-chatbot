@@ -131,7 +131,7 @@
             <div class="source-kinds" role="tablist">
                 <button type="button" class="chip active" data-kind="git">GitHub / Git link</button>
                 <button type="button" class="chip" data-kind="upload">Upload files, folder or ZIP</button>
-                <button type="button" class="chip" data-kind="local">Folder on this computer</button>
+                <button type="button" class="chip" data-kind="local" th:if="${allowLocalPaths}">Folder on this computer</button>
             </div>
             <div class="project-form">
                 <div class="kind-fields" data-kind="git">
@@ -146,7 +146,7 @@
                     <label class="field"><span>Or a whole folder</span>
                         <input type="file" id="uploadFolder" webkitdirectory directory multiple/></label>
                 </div>
-                <div class="kind-fields" data-kind="local" hidden>
+                <div class="kind-fields" data-kind="local" hidden th:if="${allowLocalPaths}">
                     <label class="field wide"><span>Folder path on the machine running BOT</span>
                         <input type="text" id="localPath" placeholder="C:\Users\me\projects\my-java-app"/></label>
                 </div>
@@ -214,7 +214,7 @@
                 </div>
             </div>
 
-            <div class="push-box">
+            <div class="push-box" th:hidden="${!isHost}">
                 <p class="pipe-label">Upload to your code repository</p>
                 <div class="push-fields">
                     <label class="field wide"><span>Repository URL</span>
@@ -229,7 +229,7 @@
                         <input type="text" id="pushMessage" placeholder="Convert project to Python"/></label>
                     <button type="button" class="btn convert-btn" id="pushBtn">Push to branch</button>
                 </div>
-                <p class="field-help">Uses this computer's saved Git login (or GITHUB_TOKEN). A new branch is created so your main branch is not changed;
+                <p class="field-help">Uses this computer's saved Git login (or GITHUB_TOKEN) and is only available on the host machine. A new branch is created so your main branch is not changed;
                     open the link to review it and raise a pull request.</p>
                 <p class="convert-message" id="pushMessageOut"></p>
             </div>
@@ -261,6 +261,7 @@
 <script th:src="@{/js/runtimer.js}"></script>
 <script th:inline="javascript">
   const LANGUAGES = /*[[${allLanguages}]]*/ [];
+const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   const SAMPLES = /*[[${samples}]]*/ [];
 
   const $ = (id) => document.getElementById(id);
@@ -586,6 +587,9 @@
 
   /** Mirrors the server check: a github.com URL must be owner/repository, not an organisation or user page. */
   function repoUrlProblem(url) {
+    if (!ALLOW_LOCAL && /^file:/i.test(url)) {
+      return 'Local repositories (file://) are disabled on this server. Use an https:// repository URL, or upload the files or a ZIP.';
+    }
     const m = /^https:\/\/(?:www\.)?github\.com(?:\/([^?#]*))?(?:[?#].*)?$/i.exec(url);
     if (!m) return null;
     const parts = (m[1] || '').split('/').filter(Boolean);

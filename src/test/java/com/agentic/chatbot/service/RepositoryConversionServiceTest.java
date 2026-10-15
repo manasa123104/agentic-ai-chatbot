@@ -172,4 +172,17 @@ class RepositoryConversionServiceTest {
         assertTrue(top.contains("does not exist") && top.contains("complete, initial") && !top.contains(".git"), top);
         String nested = RepositoryConversionService.missingFolderMessage(repo, "complete/app");
         assertTrue(nested.contains("\"complete\"") && nested.contains("src"), nested);
+    }
+
+    @Test
+    void safeModeRefusesLocalFoldersAndFileRepositories() {
+        CodeConversionService converter = new CodeConversionService(new CodeSampleLibrary(), new FakeLlm(),
+                temp.resolve("generated2").toString());
+        RepositoryConversionService safe = new RepositoryConversionService(converter,
+                new GitService("", "BOT", "bot@example.com"), temp.resolve("jobs2").toString(), 300, 2048, false);
+        RepositoryConversionService.Options options = new RepositoryConversionService.Options("auto", "python", null, false, false);
+        assertThrows(IllegalArgumentException.class, () -> safe.startFromLocal(temp.toString(), "", options));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> safe.startFromGit("file:///C:/secret/repo", "", "", options));
+        assertTrue(e.getMessage().contains("file://"), e.getMessage());
     }}

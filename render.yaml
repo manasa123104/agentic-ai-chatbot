@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: bot-code-converter
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /convert
+    envVars:
+      # Without a key the converter still works for the built-in sample programs.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: CONVERTER_OLLAMA_ENABLED
+        value: "false"
+      - key: CONVERTER_ALLOW_LOCAL_PATHS
+        value: "false"

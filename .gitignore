@@ -24,3 +24,5 @@ generated-app/conversions/
 __pycache__/
 *.pyc
 *.tmp
+
+logs/

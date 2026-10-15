@@ -57,6 +57,11 @@ public class ConversionJob {
     private List<String> generatedFiles = new ArrayList<>();
     private List<String> skipped = new ArrayList<>();
     private List<PushRecord> pushes = new ArrayList<>();
+    /** Hash of the anonymous visitor cookie that started the job; blank for jobs made before owners existed. */
+    private String owner = "";
+
+    public String getOwner() { return owner == null ? "" : owner; }
+    public void setOwner(String owner) { this.owner = owner == null ? "" : owner; }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

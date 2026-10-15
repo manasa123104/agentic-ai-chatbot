@@ -1,0 +1,9 @@
+target
+data
+generated-app
+logs
+.git
+.idea
+.vscode
+*.log
+docs

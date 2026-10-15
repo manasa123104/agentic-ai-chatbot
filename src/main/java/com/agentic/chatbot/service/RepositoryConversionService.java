@@ -132,6 +132,30 @@ public class RepositoryConversionService {
         return Optional.ofNullable(id == null ? null : jobs.get(id));
     }
 
+    /** Stamps the job with the visitor who started it (a hash of their anonymous cookie). */
+    public void assignOwner(ConversionJob job, String owner) {
+        update(job, j -> j.setOwner(owner));
+    }
+
+    /**
+     * Visitors only see their own jobs. The host machine (a direct localhost request, not through a tunnel) sees
+     * everything, including jobs from before owners existed.
+     */
+    public static boolean canAccess(ConversionJob job, String owner, boolean host) {
+        return host || (owner != null && !owner.isEmpty() && owner.equals(job.getOwner()));
+    }
+
+    public List<ConversionJob> listFor(String owner, boolean host) {
+        return jobs.values().stream().filter(j -> canAccess(j, owner, host))
+                .sorted(Comparator.comparing(ConversionJob::getCreatedAt).reversed())
+                .map(this::snapshot).toList();
+    }
+
+    /** The job if this visitor may see it; empty (shown as 404) for unknown jobs and other people's jobs. */
+    public Optional<ConversionJob> getFor(String id, String owner, boolean host) {
+        return get(id).filter(j -> canAccess(j, owner, host));
+    }
+
     /** A copy that is safe to serialise while the job is still being updated. */
     public ConversionJob snapshot(ConversionJob job) {
         synchronized (job) {
@@ -141,6 +165,9 @@ public class RepositoryConversionService {
 
     public ConversionJob startFromGit(String url, String branch, String subfolder, Options options) {
         GitService.validateRepoUrl(url);
+        if (!allowLocalPaths && url.trim().toLowerCase(Locale.ROOT).startsWith("file:")) {
+            throw new IllegalArgumentException("file:// repositories are disabled on this server - use a GitHub https URL or upload.");
+        }
         ConversionJob job = newJob(options, url.trim() + (branch == null || branch.isBlank() ? "" : " (" + branch.trim() + ")"), subfolder);
         submit(job, () -> {
             update(job, j -> j.setMessage("Cloning " + url.trim() + " ..."));

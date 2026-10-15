@@ -2,6 +2,7 @@ package com.agentic.chatbot.web;
 
 import com.agentic.chatbot.service.CodeConversionService;
 import com.agentic.chatbot.service.CodeSampleLibrary;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,9 +23,11 @@ public class CodeConverterController {
     }
 
     @GetMapping("/convert")
-    public String convert(Model model) {
+    public String convert(Model model, HttpServletRequest request) {
+        boolean host = RequestOrigin.isHost(request);
         var llmName = conversionService.llmName();
-        model.addAttribute("allowLocalPaths", allowLocalPaths);
+        model.addAttribute("allowLocalPaths", allowLocalPaths && host);
+        model.addAttribute("isHost", host);
         model.addAttribute("llmReady", llmName.isPresent());
         model.addAttribute("llmName", llmName.orElse(""));
         model.addAttribute("languages", sampleLibrary.languages());

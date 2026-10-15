@@ -3,6 +3,8 @@ package com.agentic.chatbot.web;
 import com.agentic.chatbot.model.ConversionJob;
 import com.agentic.chatbot.service.RepositoryConversionService;
 import com.agentic.chatbot.service.RepositoryConversionService.Options;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -55,7 +57,16 @@ public class RepositoryConversionController {
                                @RequestParam(required = false) String subfolder,
                                @RequestParam(required = false) String fileName,
                                @RequestParam(required = false) String code,
-                               @RequestParam(required = false) List<MultipartFile> files) throws IOException {
+                               @RequestParam(required = false) List<MultipartFile> files,
+                               HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (!RequestOrigin.isHost(request)) {
+            if ("local".equals(inputType)) {
+                throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_LOCAL_FOLDER);
+            }
+            if ("git".equals(inputType) && (repoUrl == null || !repoUrl.trim().toLowerCase(java.util.Locale.ROOT).startsWith("https://"))) {
+                throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_REPO_URL);
+            }
+        }
         Options options = new Options(sourceLanguage, targetLanguage, instructions, addComments, explainLogic);
         ConversionJob job = switch (inputType) {
             case "git" -> jobs.startFromGit(repoUrl, branch, subfolder, options);
@@ -64,40 +75,61 @@ public class RepositoryConversionController {
             case "text" -> jobs.startFromText(fileName, code, options);
             default -> throw new IllegalArgumentException("inputType must be git, local, upload or text.");
         };
+        jobs.assignOwner(job, VisitorCookie.owner(request, response));
         return jobs.snapshot(job);
     }
 
+    /** Jobs belong to the browser that started them; anyone else gets 404 (the host machine sees all). */
+    private ConversionJob own(String id, HttpServletRequest request, HttpServletResponse response) {
+        return jobs.getFor(id, VisitorCookie.owner(request, response), RequestOrigin.isHost(request))
+                .orElseThrow(JobNotFoundException::new);
+    }
+
+    public static class JobNotFoundException extends RuntimeException {
+        public JobNotFoundException() {
+            super("Unknown conversion job.");
+        }
+    }
+
     @GetMapping
-    public List<ConversionJob> list() {
-        return jobs.list();
+    public List<ConversionJob> list(HttpServletRequest request, HttpServletResponse response) {
+        return jobs.listFor(VisitorCookie.owner(request, response), RequestOrigin.isHost(request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ConversionJob> get(@PathVariable String id) {
-        return jobs.get(id).map(jobs::snapshot).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    public ConversionJob get(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) {
+        return jobs.snapshot(own(id, request, response));
     }
 
     @GetMapping("/{id}/files")
-    public List<String> files(@PathVariable String id, @RequestParam(defaultValue = "output") String side) throws IOException {
+    public List<String> files(@PathVariable String id, @RequestParam(defaultValue = "output") String side,
+                              HttpServletRequest request, HttpServletResponse response) throws IOException {
+        own(id, request, response);
         return jobs.listFiles(id, side);
     }
 
     @GetMapping("/{id}/file")
     public Map<String, String> read(@PathVariable String id, @RequestParam String path,
-                                    @RequestParam(defaultValue = "output") String side) throws IOException {
+                                    @RequestParam(defaultValue = "output") String side,
+                                    HttpServletRequest request, HttpServletResponse response) throws IOException {
+        own(id, request, response);
         return Map.of("path", path, "side", side, "content", jobs.readFile(id, side, path));
     }
 
     @PutMapping("/{id}/file")
     public Map<String, Object> save(@PathVariable String id, @RequestParam String path,
-                                    @RequestBody Map<String, String> body) throws IOException {
+                                    @RequestBody Map<String, String> body,
+                                    HttpServletRequest request, HttpServletResponse response) throws IOException {
+        own(id, request, response);
         jobs.saveFile(id, path, body.get("content"));
         return Map.of("saved", true, "path", path);
     }
 
     @GetMapping("/{id}/download")
     public ResponseEntity<byte[]> download(@PathVariable String id, @RequestParam String path,
-                                           @RequestParam(defaultValue = "output") String side) throws IOException {
+                                           @RequestParam(defaultValue = "output") String side,
+                                           HttpServletRequest request, HttpServletResponse response) throws IOException {
+        own(id, request, response);
         Path file = jobs.resolveFile(id, side, path);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
@@ -107,8 +139,9 @@ public class RepositoryConversionController {
     }
 
     @GetMapping("/{id}/zip")
-    public ResponseEntity<StreamingResponseBody> zip(@PathVariable String id) {
-        ConversionJob job = jobs.get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
+    public ResponseEntity<StreamingResponseBody> zip(@PathVariable String id, HttpServletRequest request,
+                                                      HttpServletResponse response) {
+        ConversionJob job = own(id, request, response);
         String name = "converted-" + job.getTargetLanguageId() + "-" + id + ".zip";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name).build().toString())
@@ -120,9 +153,24 @@ public class RepositoryConversionController {
     }
 
     @PostMapping("/{id}/push")
-    public ConversionJob.PushRecord push(@PathVariable String id, @RequestBody PushRequest request) throws IOException {
-        return jobs.push(id, request.repoUrl(), request.branch(), request.baseBranch(), request.folder(),
-                request.commitMessage());
+    public ConversionJob.PushRecord push(@PathVariable String id, @RequestBody PushRequest body,
+                                         HttpServletRequest request, HttpServletResponse response) throws IOException {
+        own(id, request, response);
+        if (!RequestOrigin.isHost(request)) {
+            throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_PUSH);
+        }
+        return jobs.push(id, body.repoUrl(), body.branch(), body.baseBranch(), body.folder(),
+                body.commitMessage());
+    }
+
+    @ExceptionHandler(JobNotFoundException.class)
+    public ResponseEntity<Map<String, String>> notFound(JobNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(RequestOrigin.HostOnlyException.class)
+    public ResponseEntity<Map<String, String>> hostOnly(RequestOrigin.HostOnlyException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
     }
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
