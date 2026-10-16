@@ -1709,19 +1709,78 @@ public class StageService {
         Set<String> only = stage == null ? null : stageFiles(runId, stage);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes); Stream<Path> walk = Files.walk(dir)) {
+            Set<String> names = new LinkedHashSet<>();
+            Map<String, String> code = new LinkedHashMap<>();
             for (Path p : walk.filter(Files::isRegularFile).sorted().toList()) {
                 String rel = dir.relativize(p).toString().replace('\\', '/');
                 if (only != null && !only.contains(rel)) {
                     continue;
                 }
+                names.add(rel);
+                if (StageBusinessLogic.isCode(rel) && !rel.startsWith("training/")) {
+                    code.put(rel, readQuietly(p));
+                }
                 zip.putNextEntry(new ZipEntry(runId + "/" + rel));
                 Files.copy(p, zip);
                 zip.closeEntry();
+            }
+            // business logic goes with every code download: one file per code file plus a stage-level summary
+            for (Map.Entry<String, String> e : code.entrySet()) {
+                String name = StageBusinessLogic.companionName(e.getKey());
+                if (names.add(name)) {
+                    addText(zip, runId + "/" + name, StageBusinessLogic.fileMarkdown(e.getKey(), e.getValue()));
+                }
+            }
+            if (names.add(StageBusinessLogic.PROJECT_FILE)) {
+                addText(zip, runId + "/" + StageBusinessLogic.PROJECT_FILE, projectLogic(runId, stage, code));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Could not build the ZIP: " + e.getMessage(), e);
         }
         return bytes.toByteArray();
+    }
+
+    private static void addText(ZipOutputStream zip, String name, String text) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(text.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
+    private String projectLogic(String runId, StageType stage, Map<String, String> code) {
+        Path dir = runDir(runId);
+        String title = (stage == null ? "run " : stage.title() + " output, run ") + runId;
+        return StageBusinessLogic.projectMarkdown(title, readQuietly(dir.resolve("stories.md")), code);
+    }
+
+    /**
+     * Business logic as Markdown: of one code file ({@code path}) or, when blank, of the whole stage (or run when
+     * {@code stage} is null). Derived from the {@code Business rule:} comments in the generated code, so it needs no model.
+     */
+    public String businessLogic(String runId, StageType stage, String path) {
+        Path dir = runDir(runId);
+        if (!Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Run " + runId + " not found.");
+        }
+        if (path != null && !path.isBlank()) {
+            Path file = resolveInside(dir, path);
+            if (!Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("File not found: " + path);
+            }
+            return StageBusinessLogic.fileMarkdown(path.replace('\\', '/'), readQuietly(file));
+        }
+        Set<String> only = stage == null ? null : stageFiles(runId, stage);
+        Map<String, String> code = new LinkedHashMap<>();
+        try (Stream<Path> walk = Files.walk(dir)) {
+            for (Path p : walk.filter(Files::isRegularFile).sorted().toList()) {
+                String rel = dir.relativize(p).toString().replace('\\', '/');
+                if ((only == null || only.contains(rel)) && StageBusinessLogic.isCode(rel) && !rel.startsWith("training/")) {
+                    code.put(rel, readQuietly(p));
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read the run: " + e.getMessage(), e);
+        }
+        return projectLogic(runId, stage, code);
     }
 
     /**

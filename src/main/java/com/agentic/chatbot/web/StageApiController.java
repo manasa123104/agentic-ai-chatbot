@@ -139,6 +139,114 @@ public class StageApiController {
         }
     }
 
+    @PostMapping("/run-all")
+    public Map<String, Object> runAll(@RequestBody StageRequest request) {
+        List<StageResponse> results = stages.runAll(request);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("runId", results.get(0).runId());
+        body.put("stages", results);
+        return body;
+    }
+
+    /** The domain dropdown: groups of {id, label, samples}; any other text is accepted as a custom domain. */
+    @GetMapping("/domains")
+    public List<Map<String, Object>> domains() {
+        return StageOptions.domainGroups();
+    }
+
+    /** The language dropdown: built-in languages (group "samples") then catalog languages (group "more"). */
+    @GetMapping("/languages")
+    public List<Map<String, String>> languages() {
+        return StageOptions.languages();
+    }
+
+    @GetMapping("/training")
+    public Map<String, Object> training() {
+        return stages.trainingStats();
+    }
+
+    @GetMapping("/training/examples")
+    public List<Map<String, String>> trainingExamples(@RequestParam(required = false) String stage,
+                                                      @RequestParam(required = false) String domain,
+                                                      @RequestParam(defaultValue = "100") int limit) {
+        return stages.trainingExamples(stage, domain, limit);
+    }
+
+    @DeleteMapping("/training/examples/{id}")
+    public Map<String, Object> deleteExample(@PathVariable String id) {
+        if (!stages.deleteTrainingExample(id)) {
+            throw new IllegalArgumentException("Training example " + id + " not found.");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("deleted", id);
+        body.put("stats", stages.trainingStats());
+        return body;
+    }
+
+    @PostMapping("/{stage}")
+    public StageResponse run(@PathVariable String stage, @RequestBody StageRequest request) {
+        return stages.run(stageOf(stage), legacy(stage, request));
+    }
+
+    @PostMapping("/{stage}/approve")
+    public Map<String, Object> approve(@PathVariable String stage, @RequestBody ApproveRequest request) {
+        return stages.approve(stageOf(stage), request.domain(), request.language(), request.input(), request.output(),
+                request.feedback(), request.runId());
+    }
+
+    @GetMapping("/runs/{runId}/file")
+    public ResponseEntity<byte[]> file(@PathVariable String runId, @RequestParam String path) throws IOException {
+        Path file = stages.file(runId, path).orElseThrow(() -> new IllegalArgumentException("File not found: " + path));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.getFileName().toString()).build().toString())
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(Files.readAllBytes(file));
+    }
+
+    /** Business logic of one code file ({@code path}) or of a whole stage/run, as a Markdown download. */
+    @GetMapping("/runs/{runId}/logic")
+    public ResponseEntity<byte[]> logic(@PathVariable String runId, @RequestParam(required = false) String stage,
+                                        @RequestParam(required = false) String path) {
+        StageType only = stage == null || stage.isBlank() ? null : stageOf(stage);
+        String markdown = stages.businessLogic(runId, only, path);
+        String name = path == null || path.isBlank() ? "BUSINESS_LOGIC.md"
+                : com.agentic.chatbot.stage.StageBusinessLogic.companionName(path).replaceAll("^.*/", "");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name).build().toString())
+                .contentType(MediaType.parseMediaType("text/markdown;charset=UTF-8"))
+                .body(markdown.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @GetMapping("/runs/{runId}/zip")
+    public ResponseEntity<byte[]> zip(@PathVariable String runId, @RequestParam(required = false) String stage) {
+        StageType only = stage == null || stage.isBlank() ? null : stageOf(stage);
+        String name = "bot-" + (only == null ? "run" : only.id()) + "-" + runId + ".zip";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name).build().toString())
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(stages.zip(runId, only));
+    }
+
+    /**
+     * Old Tester ids select one part. For functional-test, "language" used to mean the Selenium language
+     * (java, ruby, both); it becomes the automation choice when no automation option is given.
+     */
+    static StageRequest legacy(String id, StageRequest request) {
+        var part = StageType.testerPart(id);
+        if (part.isEmpty()) {
+            return request;
+        }
+        StageRequest r = request.withOption("testerPart", part.get());
+        if (part.get().equals("automation") && request.option("automation", "").isBlank()) {
+            String language = request.option("language", "");
+            if (StageAutomation.fromId(language).isPresent()) {
+                r = r.withOption("automation", language).withOption("language", null);
+            }
+        }
+        return r;
+    }
+
     private static StageType stageOf(String id) {
         return StageType.fromId(id).orElseThrow(() -> new IllegalArgumentException(
                 "Unknown stage '" + id + "'. Use ba, developer, tester, deploy or trainer."));

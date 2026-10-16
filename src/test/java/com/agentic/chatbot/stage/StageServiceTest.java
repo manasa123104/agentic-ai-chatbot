@@ -137,6 +137,17 @@ class StageServiceTest {
         Set<String> deployZip = zipEntries(service.zip(ba.runId(), StageType.DEPLOY));
         assertTrue(deployZip.contains(ba.runId() + "/Dockerfile") && deployZip.contains(ba.runId() + "/pom.xml"));
         assertTrue(zipEntries(service.zip(ba.runId(), StageType.TRAINER)).contains(ba.runId() + "/training/TRAINING_REPORT.md"));
+
+        // business logic travels with every code ZIP: a companion per code file and a stage-level BUSINESS_LOGIC.md
+        String logicName = ba.runId() + "/src/main/java/com/bank/transfer/FundTransferService.business-logic.md";
+        assertTrue(zip.contains(logicName), zip.toString());
+        assertTrue(zip.contains(ba.runId() + "/BUSINESS_LOGIC.md"));
+        assertTrue(testerZip.contains(logicName) && testerZip.contains(ba.runId() + "/BUSINESS_LOGIC.md"));
+        assertTrue(deployZip.contains(ba.runId() + "/BUSINESS_LOGIC.md"));
+        String stageLogic = service.businessLogic(ba.runId(), StageType.DEVELOPER, null);
+        assertTrue(stageLogic.contains("FundTransferService.java"), stageLogic);
+        assertTrue(service.businessLogic(ba.runId(), null, "src/main/java/com/bank/transfer/FundTransferService.java")
+                .startsWith("# Business logic: src/main/java/com/bank/transfer/FundTransferService.java"));
     }
 
     @Test
