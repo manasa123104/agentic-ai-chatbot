@@ -156,6 +156,12 @@ public class StageApiController {
     static String friendlyGitError(String raw, String repoUrl) {
         String m = raw == null ? "" : raw;
         String lower = m.toLowerCase(Locale.ROOT);
+        if (lower.contains("ambiguous argument 'head'") || lower.contains("unknown revision")
+                || lower.contains("remote branch") && lower.contains("not found in upstream")
+                || lower.contains("does not have any commits") || lower.contains("empty repository")) {
+            return "This repository looks empty or the branch has no commits yet - uncheck Pull first, or create an initial "
+                    + "commit on GitHub; BOT will also try a first-push automatically.";
+        }
         if (lower.contains("repository not found") || lower.contains("not found") && lower.contains("clone")) {
             return "Repository not found: " + repoUrl + ". Check the URL (https://github.com/owner/repo, no trailing dot), "
                     + "and that your token can see the repository if it is private.";

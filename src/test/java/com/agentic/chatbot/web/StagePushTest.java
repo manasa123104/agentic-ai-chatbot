@@ -145,6 +145,46 @@ class StagePushTest {
     }
 
     @Test
+    void emptyRemoteWithPullFirstDoesFirstPushInsteadOfRevParseHeadFailure() throws Exception {
+        Assumptions.assumeTrue(gitInstalled(), "git is not installed");
+        Path remote = Files.createDirectories(tmp.resolve("empty.git"));
+        git(remote, "init", "-q", "--bare", "-b", "main");
+
+        StageService stages = stages();
+        String id = stages.runAll(new StageRequest("banking", "fund transfer between accounts", Map.of(), null)).get(0).runId();
+
+        // pull first (push() defaults it on) against a repository with no commits at all
+        Map<String, Object> out = controller(stages).push(id, push(remote.toUri().toString()), local());
+        assertTrue((Integer) out.get("files") > 5, out.toString());
+        String tree = git(remote, "ls-tree", "-r", "--name-only", "bot/test");
+        assertTrue(tree.contains("stories.md") && tree.contains("Dockerfile"), tree);
+    }
+
+    @Test
+    void emptyRemoteWithBaseBranchAndPullFirstAlsoPushes() throws Exception {
+        Assumptions.assumeTrue(gitInstalled(), "git is not installed");
+        Path remote = Files.createDirectories(tmp.resolve("empty2.git"));
+        git(remote, "init", "-q", "--bare", "-b", "main");
+        Path content = Files.createDirectories(tmp.resolve("content"));
+        Files.writeString(content.resolve("a.txt"), "hi\n");
+
+        GitService.PushResult r = new GitService("", "BOT", "bot@example.com").pushDirectory(content,
+                remote.toUri().toString(), "feature/x", "main", "gen", "first", tmp.resolve("work"), null, true);
+        assertEquals("feature/x", r.branch());
+        assertTrue(git(remote, "ls-tree", "-r", "--name-only", "feature/x").contains("gen/a.txt"));
+    }
+
+    @Test
+    void headRevParseErrorsAndMissingRepositoryNameGetFriendlyMessages() {
+        String msg = StageApiController.friendlyGitError("git rev-parse failed: fatal: ambiguous argument 'HEAD': unknown revision "
+                + "or path not in the working tree.", "https://github.com/o/r");
+        assertTrue(msg.contains("looks empty") && msg.contains("uncheck Pull first"), msg);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> GitService.validateRepoUrl(GitService.normalizeRepoUrl("https://github.com/manasa123104/")));
+        assertTrue(e.getMessage().contains("repository name is missing"), e.getMessage());
+    }
+
+    @Test
     void completedRunPushesTheWholeRunEvenWhenTheUrlHasATrailingDot() throws Exception {
         Assumptions.assumeTrue(gitInstalled(), "git is not installed");
         Path remote = Files.createDirectories(tmp.resolve("tester.git"));

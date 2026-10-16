@@ -85,8 +85,9 @@ public class GitService {
             return "This is the GitHub home page - use a repository URL such as https://github.com/spring-guides/gs-gradle";
         }
         if (parts.length == 1) {
-            return "This is a GitHub organisation or user page (" + parts[0] + ") - use a repository URL such as https://github.com/"
-                    + parts[0] + "/gs-gradle (owner/repository).";
+            return "This is a GitHub organisation or user page (" + parts[0] + ") - the repository name is missing. Use the full "
+                    + "URL https://github.com/" + parts[0] + "/<repository> (owner/repository), e.g. https://github.com/"
+                    + parts[0] + "/gs-gradle";
         }
         if (parts.length > 2) {
             String base = "https://github.com/" + parts[0] + "/" + parts[1].replaceAll("\\.git$", "");
@@ -156,19 +157,43 @@ public class GitService {
         }
         if (!pulled) {
             List<String> clone = new ArrayList<>(List.of("clone", "--depth", "1"));
-            if (baseBranch != null && !baseBranch.isBlank()) {
+            boolean withBase = baseBranch != null && !baseBranch.isBlank();
+            if (withBase) {
                 validateBranch(baseBranch);
                 clone.addAll(List.of("--branch", baseBranch.trim()));
             }
             clone.addAll(List.of("--", repoUrl.trim(), repo.toString()));
-            run(workDir, 600, auth, clone, userToken);
+            try {
+                run(workDir, 600, auth, clone, userToken);
+            } catch (IllegalStateException e) {
+                // a base branch cannot exist in an empty repository: retry without it, and rethrow if the remote is not empty
+                if (!withBase) {
+                    throw e;
+                }
+                deleteQuietly(repo);
+                run(workDir, 600, auth, List.of("clone", "--depth", "1", "--", repoUrl.trim(), repo.toString()), userToken);
+                if (hasCommits(repo)) {
+                    throw e;
+                }
+            }
         }
 
-        String base = pulled ? branch.trim()
+        // An empty remote (no commits yet) has an unborn HEAD: 'rev-parse HEAD' would fail, so start a first commit instead.
+        boolean emptyRemote = !hasCommits(repo);
+        if (emptyRemote) {
+            LoggerFactory.getLogger(GitService.class).info("Remote has no commits yet; making the first commit on {}", branch.trim());
+            pulled = false;
+        }
+        String base = emptyRemote ? branch.trim()
+                : pulled ? branch.trim()
                 : baseBranch == null || baseBranch.isBlank()
                 ? run(repo, 30, List.of(), List.of("rev-parse", "--abbrev-ref", "HEAD")).strip()
                 : baseBranch.trim();
-        run(repo, 30, List.of(), List.of("checkout", "-B", branch.trim()));
+        if (emptyRemote) {
+            run(repo, 30, List.of(), List.of("symbolic-ref", "HEAD", "refs/heads/" + branch.trim()));
+        } else {
+            run(repo, 30, List.of(), List.of("checkout", "-B", branch.trim()));
+        }
 
         Path destination = target.isEmpty() ? repo : repo.resolve(target).normalize();
         if (!destination.startsWith(repo)) {
@@ -193,6 +218,16 @@ public class GitService {
         String compareUrl = pulled ? null : github.map(g -> "https://github.com/" + g[0] + "/" + g[1] + "/compare/" + base
                 + "..." + branch.trim() + "?expand=1").orElse(null);
         return new PushResult(branch.trim(), base, commit, branchUrl, compareUrl);
+    }
+
+    /** True when the checkout has at least one commit (an empty remote clones to an unborn HEAD). */
+    private boolean hasCommits(Path repo) {
+        try {
+            run(repo, 30, List.of(), List.of("rev-parse", "--verify", "-q", "HEAD"));
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
+        }
     }
 
     static Optional<String[]> githubRepo(String url) {
