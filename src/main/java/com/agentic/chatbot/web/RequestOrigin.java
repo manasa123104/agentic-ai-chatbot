@@ -27,8 +27,8 @@ public final class RequestOrigin {
     };
 
     public static final String PUBLIC_MODE_NOTICE =
-            "This is the public BOT Space: converting a folder on a computer and pushing to GitHub are disabled here. "
-                    + "Use a GitHub https URL, upload files or a ZIP, or paste code, and download the result as a ZIP.";
+            "This is the public BOT Space: converting a folder on a computer is disabled here, and pushing to GitHub needs your "
+                    + "own GitHub token. Use a GitHub https URL, upload files or a ZIP, or paste code, and download the result as a ZIP.";
 
     /**
      * Set from {@code agentic.public-mode} at startup. Behind a hosting proxy (Hugging Face, Render, ...) every request

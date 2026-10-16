@@ -643,19 +643,67 @@ public class RepositoryConversionService {
         Files.writeString(file, content == null ? "" : content.replace("\r\n", "\n"), StandardCharsets.UTF_8);
     }
 
+    /**
+     * ZIP of the converted output. It also carries the business logic: a {@code Foo.business-logic.md} next to every
+     * converted file that has a description, and BUSINESS_LOGIC.md (the project report, or a note saying it was not requested).
+     */
     public void writeZip(String id, OutputStream out) throws IOException {
         Path base = outputDir(id);
+        ConversionJob job = get(id).orElse(null);
+        Set<String> names = new java.util.LinkedHashSet<>();
         try (ZipOutputStream zip = new ZipOutputStream(out)) {
             for (Path file : walk(base)) {
-                zip.putNextEntry(new ZipEntry(base.relativize(file).toString().replace('\\', '/')));
+                String name = base.relativize(file).toString().replace('\\', '/');
+                names.add(name);
+                zip.putNextEntry(new ZipEntry(name));
                 Files.copy(file, zip);
                 zip.closeEntry();
+            }
+            if (job == null) {
+                return;
+            }
+            List<FileResult> files;
+            synchronized (job) {
+                files = new ArrayList<>(job.getFiles());
+            }
+            for (FileResult f : files) {
+                if (f.businessLogic() == null || f.businessLogic().isBlank() || !names.contains(f.targetPath())) {
+                    continue;
+                }
+                String name = BusinessLogicFiles.companionName(f.targetPath(), names);
+                names.add(name);
+                addText(zip, name, BusinessLogicFiles.fileMarkdown(job, f, f.targetPath()));
+            }
+            if (!names.contains(BusinessLogicFiles.PROJECT_FILE)) {
+                addText(zip, BusinessLogicFiles.PROJECT_FILE, BusinessLogicFiles.projectNote(job));
             }
         }
     }
 
+    private static void addText(ZipOutputStream zip, String name, String text) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(text.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
+    /** Business logic of one converted file as Markdown (a short note when none was generated). */
+    public String logicMarkdown(String id, String outputPath) {
+        ConversionJob job = get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
+        FileResult file;
+        synchronized (job) {
+            file = job.getFiles().stream().filter(f -> f.targetPath().equals(outputPath)).findFirst().orElse(null);
+        }
+        return BusinessLogicFiles.fileMarkdown(job, file, outputPath);
+    }
+
     public ConversionJob.PushRecord push(String id, String repoUrl, String branch, String baseBranch, String folder,
                                          String commitMessage) throws IOException {
+        return push(id, repoUrl, branch, baseBranch, folder, commitMessage, null, false);
+    }
+
+    /** {@code userToken} is a visitor's own GitHub token (used instead of the server's, never logged); {@code pull} starts from the remote branch. */
+    public ConversionJob.PushRecord push(String id, String repoUrl, String branch, String baseBranch, String folder,
+                                         String commitMessage, String userToken, boolean pull) throws IOException {
         ConversionJob job = get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
         if (job.getStatus() != ConversionJob.Status.DONE) {
             throw new IllegalStateException("The conversion has not finished yet.");
@@ -666,7 +714,7 @@ public class RepositoryConversionService {
             GitService.PushResult result = git.pushDirectory(outputDir(id), repoUrl, branch, baseBranch, targetFolder,
                     commitMessage == null || commitMessage.isBlank()
                             ? "Convert " + job.getSourceLabel() + " to " + job.getTargetLanguage() + " (BOT)" : commitMessage,
-                    work);
+                    work, userToken, pull);
             ConversionJob.PushRecord record = new ConversionJob.PushRecord(repoUrl.trim(), result.branch(),
                     result.baseBranch(), targetFolder, result.branchUrl(), result.compareUrl(), result.commit(),
                     LocalDateTime.now().toString());

@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.LinkedHashMap;
-import java.util.regex.Pattern;
 import java.util.List;
 import java.util.Map;
 
@@ -52,10 +51,6 @@ public class StageApiController {
                               String commitMessage, String token, Boolean pull) {
     }
 
-    private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_.\\-]{20,255}");
-    static final String TOKEN_NEEDED = "Pushing to GitHub here needs your own GitHub token (the server's GitHub login is only "
-            + "for the host machine). Create a personal access token with repo access in GitHub > Settings > Developer settings, "
-            + "paste it in the Token box and push again. It is used for this push only and is never stored or logged.";
 
     private final StageService stages;
     private final StoryImportService stories;
@@ -84,7 +79,7 @@ public class StageApiController {
         boolean host = RequestOrigin.isHost(request);
         StoryImportService.Imported imported = switch (inputType) {
             case "upload" -> stories.fromUploads(files, runId);
-            case "git" -> stories.fromGit(repoUrl, branch, subfolder, validToken(token), runId, !host);
+            case "git" -> stories.fromGit(repoUrl, branch, subfolder, GitPushPolicy.validToken(token), runId, !host);
             case "local" -> {
                 if (!host) {
                     throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_LOCAL_FOLDER);
@@ -110,15 +105,8 @@ public class StageApiController {
     @PostMapping("/runs/{runId}/push")
     public Map<String, Object> push(@PathVariable String runId, @RequestBody PushRequest body, HttpServletRequest request)
             throws IOException {
-        boolean host = RequestOrigin.isHost(request);
-        String token = validToken(body.token());
-        if (!host && token == null) {
-            throw new RequestOrigin.HostOnlyException(TOKEN_NEEDED);
-        }
+        String token = GitPushPolicy.authorize(request, body.repoUrl(), body.token());
         String repoUrl = body.repoUrl() == null ? "" : body.repoUrl().trim();
-        if (!host && !repoUrl.toLowerCase(Locale.ROOT).startsWith("https://")) {
-            throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_REPO_URL);
-        }
         String scope = body.stage() == null ? "" : body.stage().trim().toLowerCase(Locale.ROOT);
         StageType stage = scope.isEmpty() || scope.equals("run") ? null : stageOf(scope);
         String branch = body.branch() == null || body.branch().isBlank() ? "bot/" + runId : body.branch().trim();
@@ -149,112 +137,6 @@ public class StageApiController {
         } finally {
             GitService.deleteQuietly(work);
         }
-    }
-
-    /** The visitor's own GitHub token, or null when none was given; rejects anything that is not token-shaped. */
-    private static String validToken(String token) {
-        String t = token == null ? "" : token.trim();
-        if (t.isEmpty()) {
-            return null;
-        }
-        if (!TOKEN.matcher(t).matches()) {
-            throw new IllegalArgumentException("That does not look like a GitHub token (letters, digits, _ and - only).");
-        }
-        return t;
-    }
-
-    @PostMapping("/run-all")
-    public Map<String, Object> runAll(@RequestBody StageRequest request) {
-        List<StageResponse> results = stages.runAll(request);
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("runId", results.get(0).runId());
-        body.put("stages", results);
-        return body;
-    }
-
-    /** The domain dropdown: groups of {id, label, samples}; any other text is accepted as a custom domain. */
-    @GetMapping("/domains")
-    public List<Map<String, Object>> domains() {
-        return StageOptions.domainGroups();
-    }
-
-    /** The language dropdown: built-in languages (group "samples") then catalog languages (group "more"). */
-    @GetMapping("/languages")
-    public List<Map<String, String>> languages() {
-        return StageOptions.languages();
-    }
-
-    @GetMapping("/training")
-    public Map<String, Object> training() {
-        return stages.trainingStats();
-    }
-
-    @GetMapping("/training/examples")
-    public List<Map<String, String>> trainingExamples(@RequestParam(required = false) String stage,
-                                                      @RequestParam(required = false) String domain,
-                                                      @RequestParam(defaultValue = "100") int limit) {
-        return stages.trainingExamples(stage, domain, limit);
-    }
-
-    @DeleteMapping("/training/examples/{id}")
-    public Map<String, Object> deleteExample(@PathVariable String id) {
-        if (!stages.deleteTrainingExample(id)) {
-            throw new IllegalArgumentException("Training example " + id + " not found.");
-        }
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("deleted", id);
-        body.put("stats", stages.trainingStats());
-        return body;
-    }
-
-    @PostMapping("/{stage}")
-    public StageResponse run(@PathVariable String stage, @RequestBody StageRequest request) {
-        return stages.run(stageOf(stage), legacy(stage, request));
-    }
-
-    @PostMapping("/{stage}/approve")
-    public Map<String, Object> approve(@PathVariable String stage, @RequestBody ApproveRequest request) {
-        return stages.approve(stageOf(stage), request.domain(), request.language(), request.input(), request.output(),
-                request.feedback(), request.runId());
-    }
-
-    @GetMapping("/runs/{runId}/file")
-    public ResponseEntity<byte[]> file(@PathVariable String runId, @RequestParam String path) throws IOException {
-        Path file = stages.file(runId, path).orElseThrow(() -> new IllegalArgumentException("File not found: " + path));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(file.getFileName().toString()).build().toString())
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(Files.readAllBytes(file));
-    }
-
-    @GetMapping("/runs/{runId}/zip")
-    public ResponseEntity<byte[]> zip(@PathVariable String runId, @RequestParam(required = false) String stage) {
-        StageType only = stage == null || stage.isBlank() ? null : stageOf(stage);
-        String name = "bot-" + (only == null ? "run" : only.id()) + "-" + runId + ".zip";
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(name).build().toString())
-                .contentType(MediaType.parseMediaType("application/zip"))
-                .body(stages.zip(runId, only));
-    }
-
-    /**
-     * Old Tester ids select one part. For functional-test, "language" used to mean the Selenium language
-     * (java, ruby, both); it becomes the automation choice when no automation option is given.
-     */
-    static StageRequest legacy(String id, StageRequest request) {
-        var part = StageType.testerPart(id);
-        if (part.isEmpty()) {
-            return request;
-        }
-        StageRequest r = request.withOption("testerPart", part.get());
-        if (part.get().equals("automation") && request.option("automation", "").isBlank()) {
-            String language = request.option("language", "");
-            if (StageAutomation.fromId(language).isPresent()) {
-                r = r.withOption("automation", language).withOption("language", null);
-            }
-        }
-        return r;
     }
 
     private static StageType stageOf(String id) {

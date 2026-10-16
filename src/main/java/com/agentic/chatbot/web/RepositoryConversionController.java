@@ -1,6 +1,7 @@
 package com.agentic.chatbot.web;
 
 import com.agentic.chatbot.model.ConversionJob;
+import com.agentic.chatbot.service.BusinessLogicFiles;
 import com.agentic.chatbot.service.RepositoryConversionService;
 import com.agentic.chatbot.service.RepositoryConversionService.Options;
 import jakarta.servlet.http.HttpServletRequest;
@@ -149,18 +150,33 @@ public class RepositoryConversionController {
                 .body(out -> jobs.writeZip(id, out));
     }
 
-    public record PushRequest(String repoUrl, String branch, String baseBranch, String folder, String commitMessage) {
+    /** {@code token} is the visitor's own GitHub token (never stored or logged); {@code pull} starts from the remote branch. */
+    public record PushRequest(String repoUrl, String branch, String baseBranch, String folder, String commitMessage,
+                              String token, Boolean pull) {
+        public PushRequest(String repoUrl, String branch, String baseBranch, String folder, String commitMessage) {
+            this(repoUrl, branch, baseBranch, folder, commitMessage, null, null);
+        }
     }
 
     @PostMapping("/{id}/push")
     public ConversionJob.PushRecord push(@PathVariable String id, @RequestBody PushRequest body,
                                          HttpServletRequest request, HttpServletResponse response) throws IOException {
         own(id, request, response);
-        if (!RequestOrigin.isHost(request)) {
-            throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_PUSH);
-        }
+        String token = GitPushPolicy.authorize(request, body.repoUrl(), body.token());
         return jobs.push(id, body.repoUrl(), body.branch(), body.baseBranch(), body.folder(),
-                body.commitMessage());
+                body.commitMessage(), token, body.pull() == null || body.pull());
+    }
+
+    /** Business logic of one converted file as a Markdown download named like the file (Foo.py -> Foo.business-logic.md). */
+    @GetMapping("/{id}/logic")
+    public ResponseEntity<byte[]> logic(@PathVariable String id, @RequestParam String path, HttpServletRequest request,
+                                        HttpServletResponse response) {
+        own(id, request, response);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(BusinessLogicFiles.downloadName(path), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType("text/markdown;charset=UTF-8"))
+                .body(jobs.logicMarkdown(id, path).getBytes(StandardCharsets.UTF_8));
     }
 
     @ExceptionHandler(JobNotFoundException.class)
