@@ -185,6 +185,23 @@ class StagePushTest {
     }
 
     @Test
+    void wholeRunPushReturnsCiNoteAndKeepsWorkflowsOutOfDotGithub() throws Exception {
+        Assumptions.assumeTrue(gitInstalled(), "git is not installed");
+        Path remote = Files.createDirectories(tmp.resolve("ci-note.git"));
+        git(remote, "init", "-q", "--bare", "-b", "main");
+
+        StageService stages = stages();
+        String id = stages.runAll(new StageRequest("banking", "fund transfer between accounts", Map.of(), null)).get(0).runId();
+
+        Map<String, Object> out = controller(stages).push(id, push(remote.toUri().toString()), local());
+        assertTrue((Integer) out.get("files") > 5, out.toString());
+        assertTrue(String.valueOf(out.get("note")).contains("deploy/github-workflows"), String.valueOf(out.get("note")));
+        String tree = git(remote, "ls-tree", "-r", "--name-only", "bot/test");
+        assertTrue(tree.contains("deploy/github-workflows/ci-cd.yml"), tree);
+        assertFalse(tree.contains(".github/workflows/"), tree);
+    }
+
+    @Test
     void emptyRemoteWithPullFirstDoesFirstPushInsteadOfRevParseHeadFailure() throws Exception {
         Assumptions.assumeTrue(gitInstalled(), "git is not installed");
         Path remote = Files.createDirectories(tmp.resolve("empty.git"));

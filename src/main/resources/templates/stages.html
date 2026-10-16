@@ -808,6 +808,11 @@
     if (await checkRun(id) === false && !busy && locks === 0 && currentRunId() === id) runGone(id);
   }
 
+  /** True when the celebratory whole-run push panel should appear. */
+  function pipelineComplete() {
+    return STAGES.every((s) => results[s]) || (!!results.trainer && !!currentRunId());
+  }
+
   /**
    * The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished
    * AND the server still has the run (a quick status GET), so it never claims completion for a run that no longer exists.
@@ -815,15 +820,25 @@
   async function updateFinalPush() {
     const panel = $('finalPush');
     if (!panel) return;
-    const wanted = () => STAGES.every((s) => results[s]) || (!!results.trainer && !!currentRunId());
-    if (!wanted()) { panel.hidden = true; return; }
+    if (!pipelineComplete()) { panel.hidden = true; return; }
     const id = currentRunId();
     if (!id || id === verifiedRun) { panel.hidden = false; return; }
     const seq = ++verifySeq;
     const state = await checkRun(id);
     if (seq !== verifySeq) return; // a newer update (or a clear) took over
     if (state === false) { runGone(id); return; }
-    panel.hidden = !wanted();
+    panel.hidden = !pipelineComplete();
+  }
+
+  /** Show the whole-run push panel and bring it into view (after Run all, or after Trainer finishes the pipeline). */
+  async function revealFinalPush() {
+    if (!pipelineComplete()) return;
+    await updateFinalPush();
+    const panel = $('finalPush');
+    if (panel && !panel.hidden) {
+      setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel below.', 'ok');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function render(stage, data) {
@@ -1173,6 +1188,11 @@
         renderStats();
         loadExamples();
       } catch (e2) { /* the report is already shown; the counters refresh on the next visit */ }
+      if (STAGES.every((s) => results[s])) {
+        await revealFinalPush();
+      } else {
+        await updateFinalPush();
+      }
       return data;
     } catch (e) {
       if (e.stopped) {
@@ -1304,9 +1324,7 @@
         BotRun.idle();
       }
       if (STAGES.every((s) => results[s])) {
-        setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel at the end of the page.', 'ok');
-        updateFinalPush();
-        $('finalPush').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        await revealFinalPush();
       }
     } finally {
       busy = false;

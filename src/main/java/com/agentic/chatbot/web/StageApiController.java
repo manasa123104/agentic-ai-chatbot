@@ -172,11 +172,6 @@ public class StageApiController {
             boolean relocated = relocateGithubWorkflows(export);
             GitService.PushResult result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(),
                     message, work.resolve("push-1"), token, pullFirst);
-            String note = relocated
-                    ? "CI files are under deploy/github-workflows/ (not .github/workflows/) so a normal repo token can "
-                    + "push. Copy them into .github/workflows/ on GitHub to enable Actions, or use a classic token with "
-                    + "both the repo and workflow scopes."
-                    : null;
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("repoUrl", repoUrl);
             out.put("branch", result.branch());
@@ -185,8 +180,12 @@ public class StageApiController {
             out.put("branchUrl", result.branchUrl());
             out.put("compareUrl", result.compareUrl());
             out.put("files", copied);
-            if (note != null) {
-                out.put("note", note);
+            // Always tip when CI YAML is in the push: classic PATs need "workflow" to place files under .github/workflows/.
+            if (relocated || Files.isDirectory(export.resolve("deploy").resolve("github-workflows"))) {
+                out.put("note", "Pushed without enabling GitHub Actions: CI files are under deploy/github-workflows/ "
+                        + "(not .github/workflows/) so a normal repo token can push. Copy them into .github/workflows/ "
+                        + "on GitHub if you want Actions, or create a new classic token with both the repo and workflow "
+                        + "scopes and push again.");
             }
             return out;
         } catch (IllegalStateException e) {
