@@ -130,10 +130,6 @@ table { max-width: 100%; }
   .example-text { white-space: normal; }
   .push-box { padding: .75rem; }
 
-  /* ---------- workflow cards wrap ---------- */
-  .workflow-flow { flex-wrap: wrap; }
-  .workflow-flow .wf-node { min-width: 0; }
-
   /* ---------- /code ---------- */
   .code-layout { min-height: 0; }
   .code-files { max-height: 200px; border-right: 0; border-bottom: 1px solid #2d3640; }

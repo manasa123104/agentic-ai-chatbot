@@ -11,8 +11,7 @@ h1, h2, h3,
 .chat-title strong,
 .rail-brand strong,
 .final-push-head h2,
-.convert-card h2,
-.workflow-diagram h3 {
+.convert-card h2 {
   font-family: var(--font-head);
   font-weight: 600;
   letter-spacing: -.005em;
@@ -74,26 +73,6 @@ button.btn { cursor: pointer; }
 #welcomeMsg .bubble > p:first-child { font: 600 1.7rem/1.2 var(--font-head); margin: 0 0 .6rem; letter-spacing: -.01em; }
 #welcomeMsg .bubble > p:nth-child(2) { color: #3a424c; font-size: 1rem; line-height: 1.55; }
 .muted-note { color: var(--muted); font-size: .86rem; line-height: 1.5; margin: .9rem 0 0; }
-
-/* ---------- workflow card ---------- */
-.workflow-diagram { background: var(--surface-2); border-radius: var(--radius-lg); padding: 1rem 1.05rem 1.1rem; }
-.workflow-diagram h3 { font-size: 1.05rem; text-transform: none; letter-spacing: 0; color: var(--text); margin-bottom: .8rem; }
-.wf-node { border-radius: var(--radius); box-shadow: none; background: var(--surface); padding: .7rem .55rem .75rem; }
-a.wf-node:hover, a.wf-node:focus-visible { box-shadow: var(--shadow-sm); transform: none; border-color: var(--accent); }
-.wf-node .wf-num { background: var(--accent-soft); color: var(--accent-strong); border-radius: 6px; }
-.wf-node strong { font-size: 12px; }
-.wf-node span { font-size: 11px; }
-.wf-arrow { color: #8a949c; font-weight: 400; }
-.wf-io { border-top: 1px solid var(--line); }
-.wf-io .io-chip { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font-weight: 500; }
-.wf-io .io-chip.out { background: var(--accent-soft); color: var(--accent-strong); border-color: #c4d2d6; }
-.bot-pipeline.workflow-rail .wf-io .io-chip { background: transparent; color: var(--rail-text); border-color: #3b4753; }
-.bot-pipeline.workflow-rail .wf-io .io-chip.out { background: transparent; color: #b9d3da; }
-.bot-pipeline.workflow-rail .wf-node { background: #2b3540; border-color: #3b4753; }
-.bot-pipeline.workflow-rail .wf-node strong { color: var(--rail-text); }
-.bot-pipeline.workflow-rail .wf-node span { color: var(--rail-muted); }
-.bot-pipeline.workflow-rail .wf-num { background: #3a4855; color: #eceff2; }
-.bot-pipeline.workflow-rail a.wf-node:hover { background: #34414d; border-color: #566676; }
 
 /* ---------- rail ---------- */
 .new-chat { border-radius: 8px; }

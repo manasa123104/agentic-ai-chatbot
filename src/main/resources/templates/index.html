@@ -6,7 +6,6 @@
     <title>BOT</title>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
-    <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
@@ -79,25 +78,7 @@
             <div class="avatar-sm">B</div>
             <div class="bubble">
                 <p>Hi — I’m <strong>BOT</strong>.</p>
-                <p>Send a prompt and the 5 stages run end-to-end: <strong>Business Analyst → Developer → Tester → Deploy → Trainer</strong>. Pick any domain and any programming language.</p>
-                <div class="workflow-diagram workflow-five" aria-label="BOT 5-stage workflow diagram">
-                    <h3>Workflow · 5 stages</h3>
-                    <div class="workflow-flow">
-                        <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories, any domain</span></a>
-                        <div class="wf-arrow" aria-hidden="true">→</div>
-                        <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Code in any language</span></a>
-                        <div class="wf-arrow" aria-hidden="true">→</div>
-                        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit, automation + manual test cases</span></a>
-                        <div class="wf-arrow" aria-hidden="true">→</div>
-                        <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker, CI/CD, Kubernetes</span></a>
-                        <div class="wf-arrow" aria-hidden="true">→</div>
-                        <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approved outputs</span></a>
-                    </div>
-                    <div class="wf-io">
-                        <span class="io-chip">Input: end-user prompt + domain + language</span>
-                        <span class="io-chip out">Output: user stories, code, tests, deploy files</span>
-                    </div>
-                </div>
+                <p>Send a prompt and BOT writes your user stories, the code and a website. Pick any domain and any programming language, or open the <a href="/stages">Stage bots</a> to run each step yourself.</p>
                 <p class="actions">
                     <a class="btn" href="/stages">Open the 5-stage pipeline</a>
                     <a class="btn ghost" href="/code">Open User stories + code</a>
