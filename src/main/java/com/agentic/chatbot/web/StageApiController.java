@@ -105,8 +105,10 @@ public class StageApiController {
     @PostMapping("/runs/{runId}/push")
     public Map<String, Object> push(@PathVariable String runId, @RequestBody PushRequest body, HttpServletRequest request)
             throws IOException {
-        String token = GitPushPolicy.authorize(request, body.repoUrl(), body.token());
-        String repoUrl = body.repoUrl() == null ? "" : body.repoUrl().trim();
+        // a typo such as a trailing "." must be fixed (or reported) before anything else, not surface as a git failure
+        String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
+        GitService.validateRepoUrl(repoUrl);
+        String token = GitPushPolicy.authorize(request, repoUrl, body.token());
         String scope = body.stage() == null ? "" : body.stage().trim().toLowerCase(Locale.ROOT);
         StageType stage = scope.isEmpty() || scope.equals("run") ? null : stageOf(scope);
         String branch = body.branch() == null || body.branch().isBlank() ? "bot/" + runId : body.branch().trim();
@@ -119,7 +121,7 @@ public class StageApiController {
             Files.createDirectories(export);
             int copied = stages.exportFiles(runId, stage, export);
             if (copied == 0) {
-                throw new IllegalArgumentException("Nothing to push yet: run the stage first.");
+                throw new IllegalArgumentException(emptyPushMessage(runId, stage));
             }
             GitService.PushResult result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
                     work, token, body.pull() == null || body.pull());
@@ -133,10 +135,41 @@ public class StageApiController {
             out.put("files", copied);
             return out;
         } catch (IllegalStateException e) {
-            throw new IllegalArgumentException(e.getMessage());
+            throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
         } finally {
             GitService.deleteQuietly(work);
         }
+    }
+
+    /** Why a run (or one stage of it) has nothing to push: names the run so a wrong/stale run id is easy to spot. */
+    static String emptyPushMessage(String runId, StageType stage) {
+        if (stage == null) {
+            return "Run " + runId + " has no generated files to push: it holds only a training report, or nothing at all. "
+                    + "This is usually a run id that is not the one your stages used (check the run id under the stages, "
+                    + "or the Trainer's run box), so run the stages for this run first or press New run and Run all stages.";
+        }
+        return "Run " + runId + " has no " + stage.title() + " files to push yet: run the " + stage.title()
+                + " stage for this run first.";
+    }
+
+    /** Turns raw git failures into advice that tells a bad URL, a bad token and a missing permission apart. */
+    static String friendlyGitError(String raw, String repoUrl) {
+        String m = raw == null ? "" : raw;
+        String lower = m.toLowerCase(Locale.ROOT);
+        if (lower.contains("repository not found") || lower.contains("not found") && lower.contains("clone")) {
+            return "Repository not found: " + repoUrl + ". Check the URL (https://github.com/owner/repo, no trailing dot), "
+                    + "and that your token can see the repository if it is private.";
+        }
+        if (lower.contains("authentication failed") || lower.contains("invalid username or password")
+                || lower.contains("could not read username") || lower.contains("bad credentials")) {
+            return "GitHub rejected the token (bad, expired or revoked). Create a new personal access token with repo "
+                    + "access and paste it again.";
+        }
+        if (lower.contains("permission denied") || lower.contains("403") || lower.contains("write access")) {
+            return "The token was accepted but cannot write to " + repoUrl + ": give it repo (contents: write) access "
+                    + "to that repository.";
+        }
+        return m;
     }
 
     @PostMapping("/run-all")

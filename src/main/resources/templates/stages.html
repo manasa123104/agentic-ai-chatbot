@@ -478,6 +478,9 @@
   const SAMPLES = Object.fromEntries(DOMAIN_GROUPS.flatMap((g) => g.domains).map((d) => [d.label, d.samples]));
   const REQUIREMENTS = Object.fromEntries(DOMAIN_GROUPS.flatMap((g) => g.domains).map((d) => [d.label, d.requirement]));
   const GENERIC_REQUIREMENT = /*[[${genericRequirement}]]*/ 'Service request approval ({domain})';
+  const IS_HOST = /*[[${isHost}]]*/ false;
+  /** A pasted repository URL without spaces and without a trailing "." or "/" (https://github.com/owner/repo. -> .../repo). */
+  const cleanRepoUrl = (v) => String(v || '').replace(/\s+/g, '').replace(/[./]+$/, '');
   let lastSample = null; // the starter requirement we put in the Business Analyst box (null until we do)
   const GENERIC_SAMPLES = ['Service request approval', 'Customer onboarding', 'Report generation request'];
   const INPUTS = {
@@ -1523,17 +1526,30 @@
     if (blocked()) return;
     const panel = stage === 'trainer' ? $('pipelineComplete') : q(stage, '.gh-panel');
     const out = panel.querySelector('.gh-result');
-    const typedRun = stage === 'trainer' ? $('trainerRun').value.trim() : '';
-    const id = typedRun || (results[stage] && results[stage].runId) || runId;
+    // The whole-run panel pushes the run the stages produced: the Trainer's result (or the current run), never a stale value
+    // left in the Trainer's free-text run box. The box is only used when no run is known at all (Trainer on an old run).
+    const id = stage === 'trainer'
+      ? ((results.trainer && results.trainer.runId) || runId || $('trainerRun').value.trim())
+      : ((results[stage] && results[stage].runId) || runId);
     const newLink = panel.querySelector('.gh-newlink');
     if (newLink) newLink.hidden = true;
     const show = (text, kind) => { out.className = 'gh-result' + (kind ? ' ' + kind : ''); out.textContent = text; };
-    const repo = panel.querySelector('.gh-repo').value.trim();
-    if (!id) { show('Run this stage first.', 'error'); return; }
+    const repoInput = panel.querySelector('.gh-repo');
+    const repo = cleanRepoUrl(repoInput.value);
+    if (!id) { show('No run to push yet: run the stages (or press Run all stages) first.', 'error'); return; }
     if (!repo) { show('Enter the repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
+    if (!/^(https:\/\/[\w.-]+(:\d+)?\/[\w./~-]+|git@[\w.-]+:[\w./~-]+)$/.test(repo)) {
+      show('That is not a valid repository URL. Use the form https://github.com/owner/repo (no spaces, no trailing dot).', 'error');
+      return;
+    }
+    if (repoInput.value.trim() !== repo) {
+      document.querySelectorAll('.gh-repo').forEach((el) => { el.value = repo; });
+    }
+    const token = panel.querySelector('.gh-token').value.trim();
+    if (!IS_HOST && !token) { show('Paste your GitHub personal access token (repo access) to push.', 'error'); return; }
     const btn = panel.querySelector('.gh-push-btn');
     btn.disabled = true;
-    show('Pushing to GitHub... (cloning, adding your files, pushing)', '');
+    show('Pushing run ' + id + ' to GitHub... (cloning, adding your files, pushing)', '');
     try {
       const data = await post('/api/stages/runs/' + id + '/push', {
         stage: panel.dataset.scope, repoUrl: repo, branch: panel.querySelector('.gh-branch').value.trim(),

@@ -44,7 +44,23 @@ public class GitService {
     public record PushResult(String branch, String baseBranch, String commit, String branchUrl, String compareUrl) {
     }
 
+    /**
+     * Cleans a pasted repository URL: surrounding/inner whitespace and trailing "." and "/" characters (a stray full stop
+     * after the name is the commonest typo) are removed; a trailing ".git" is kept. Never returns null.
+     */
+    public static String normalizeRepoUrl(String url) {
+        if (url == null) {
+            return "";
+        }
+        String u = url.strip().replaceAll("\\s+", "");
+        return u.replaceAll("[./]+$", "");
+    }
+
     public static void validateRepoUrl(String url) {
+        if (url != null && url.strip().endsWith(".") && !url.strip().startsWith("-")) {
+            throw new IllegalArgumentException("The repository URL ends with a full stop (\"" + url.strip()
+                    + "\"). Remove it, e.g. https://github.com/owner/repo");
+        }
         if (url == null || url.isBlank() || url.startsWith("-") || !REPO_URL.matcher(url.trim()).matches()) {
             throw new IllegalArgumentException("Enter a repository URL such as https://github.com/owner/repo.git");
         }
