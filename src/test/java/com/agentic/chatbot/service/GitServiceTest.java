@@ -41,6 +41,30 @@ class GitServiceTest {
     }
 
     @Test
+    void pullFirstLaysFilesOverTheExistingBranchAndPushesIt() throws Exception {
+        Assumptions.assumeTrue(gitInstalled(), "git is not installed");
+        Path remote = Files.createDirectories(temp.resolve("remote.git"));
+        git(remote, "init", "-q", "--bare", "-b", "main");
+        Path seed = Files.createDirectories(temp.resolve("seed"));
+        git(seed, "init", "-q", "-b", "main");
+        Files.writeString(seed.resolve("README.md"), "hello\n");
+        git(seed, "add", "README.md");
+        git(seed, "commit", "-q", "-m", "init");
+        git(seed, "push", "-q", remote.toUri().toString(), "main");
+
+        Path content = Files.createDirectories(temp.resolve("out"));
+        Files.writeString(content.resolve("App.java"), "class App {}\n");
+        GitService service = new GitService("server-token-is-not-used-for-file-urls", "BOT", "bot@example.com");
+        GitService.PushResult result = service.pushDirectory(content, remote.toUri().toString(), "main", "", "", "Add app",
+                temp.resolve("work"), "ghp_exampleExampleExample1234", true);
+
+        assertEquals("main", result.branch());
+        assertTrue(git(remote, "ls-tree", "-r", "--name-only", "main").contains("App.java"));
+        assertTrue(git(remote, "ls-tree", "-r", "--name-only", "main").contains("README.md"), "existing files are kept");
+        assertEquals(null, result.compareUrl(), "pushing to the existing branch has nothing to compare");
+    }
+
+    @Test
     void pushesConvertedFilesToANewBranch() throws Exception {
         Assumptions.assumeTrue(gitInstalled(), "git is not installed");
         Path remote = Files.createDirectories(temp.resolve("remote.git"));

@@ -5,6 +5,7 @@ import com.agentic.chatbot.stage.StageDomain;
 import com.agentic.chatbot.stage.StageLanguage;
 import com.agentic.chatbot.stage.StageService;
 import com.agentic.chatbot.stage.StageType;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +25,9 @@ public class StagePageController {
     }
 
     @GetMapping("/stages")
-    public String stages(Model model) {
+    public String stages(Model model, HttpServletRequest request) {
+        // the host machine may read a local folder and push with the server's Git login; everyone else uploads / uses a token
+        model.addAttribute("isHost", RequestOrigin.isHost(request));
         var llmName = stages.modelName();
         model.addAttribute("llmReady", llmName.isPresent());
         model.addAttribute("llmName", llmName.orElse(""));

@@ -58,7 +58,7 @@ public final class StagePrompts {
                     : "Every public type and function has a doc comment in the language's usual style. ")
                     + "Every business rule has an inline comment starting with 'Business rule:' that says which rule it "
                     + "enforces. Validate inputs and raise clear errors.";
-            case TESTER -> "You are a senior software tester (unit and UI automation) for " + d + " software.\n"
+            case TESTER -> "You are a senior software tester (unit tests, UI automation and manual functional testing) for " + d + " software.\n"
                     + (java
                     ? "Write JUnit 5 tests (org.junit.jupiter.api) for the given Java code. "
                     : "Write " + unitFramework + " unit tests for the given " + languageName + " code. ")
@@ -67,7 +67,9 @@ public final class StagePrompts {
                     + "proves. No mocking libraries.\n"
                     + "For UI automation (" + automation.label() + ") use the page-object pattern: each Given/When/Then "
                     + "scenario becomes one test, use id locators with clear ids, explicit waits, and read the base URL "
-                    + "from configuration. Add a short comment above each test naming its scenario.";
+                    + "from configuration. Add a short comment above each test naming its scenario.\n"
+                    + "Manual (functional) test cases are for a person to run by hand: ID, title, preconditions, numbered steps and "
+                    + "expected results taken from the Given/When/Then scenarios.";
             case DEPLOY -> "You are a senior DevOps engineer for " + d + " systems. You write minimal, secure, "
                     + "production-ready Dockerfiles, build scripts and GitHub Actions pipelines for " + languageName
                     + " projects, with short comments explaining each step.";
@@ -108,6 +110,24 @@ public final class StagePrompts {
         return "Project code (" + languageName + "):\n" + clip(code, 2500) + "\n\n"
                 + "Write a multi-stage Dockerfile for this " + languageName + " project that builds it, runs its unit "
                 + "tests and starts it on port " + port + ". Reply with one ```dockerfile block and nothing else.";
+    }
+
+    /** BA prompt for stories the user uploaded or pulled from GitHub: organise them, never drop or invent any. */
+    public static String baRefine(String stories) {
+        return "These are existing user stories (possibly from several files):\n" + clip(stories, 9000) + "\n\n"
+                + "Organise them into the Markdown format from your instructions, grouped by feature. Keep EVERY story and its "
+                + "acceptance criteria; do not invent new stories. Add Given/When/Then scenarios only where they are missing. "
+                + "Write the user stories now.";
+    }
+
+    /** Manual (functional) test cases a person runs by hand. */
+    public static String manualTests(String stories, String code, String baseUrl) {
+        return (stories.isBlank() ? "" : "User stories:\n" + clip(stories, 2200) + "\n\n")
+                + (code.isBlank() ? "" : "Code (for context):\n" + clip(code, 1500) + "\n\n")
+                + "Write MANUAL functional test cases that a person can run by hand against the running application at "
+                + baseUrl + ". One case per Given/When/Then scenario, plus validation and error cases. Markdown, exactly:\n"
+                + "## TC-001: <title>\n**Story:** <story>\n**Preconditions**\n- ...\n**Steps**\n1. ...\n2. ...\n"
+                + "**Expected result**\n- ...\nUse concrete example values. No code.";
     }
 
     public static String baUser(String requirement) {

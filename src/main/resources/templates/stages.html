@@ -114,6 +114,56 @@
             <span class="badge stage-mode" hidden></span>
             <span class="stage-time"></span>
         </div>
+
+        <div class="ba-import" th:if="${s.id == 'ba'}">
+            <div class="ba-import-head">
+                <strong>Already have user stories? Bring them in</strong>
+                <span class="hint">Upload story files (.md, .txt, .docx, .csv, .feature), a whole folder or a ZIP (about 100 stories is fine), or pull them from a GitHub repo.
+                    They fill the Input box below, where you can still edit them. Or skip this and type a requirement as usual.</span>
+            </div>
+            <div class="ba-import-grid">
+                <div class="ba-import-col">
+                    <span class="setup-label">Upload file(s) or a ZIP</span>
+                    <input type="file" id="storyFiles" multiple="multiple" accept=".md,.markdown,.txt,.docx,.csv,.tsv,.feature,.story,.json,.zip"/>
+                    <span class="setup-label">Or a folder</span>
+                    <input type="file" id="storyFolder" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                    <button type="button" class="btn ghost small import-btn" id="importUploadBtn">Import uploaded stories</button>
+                </div>
+                <div class="ba-import-col">
+                    <span class="setup-label">From GitHub</span>
+                    <input type="text" id="storyRepo" placeholder="https://github.com/owner/repo" autocomplete="off"/>
+                    <input type="text" id="storyBranch" placeholder="Branch (optional)" autocomplete="off"/>
+                    <input type="text" id="storySub" placeholder="Sub-folder, e.g. docs/stories (optional)" autocomplete="off"/>
+                    <input type="password" id="storyToken" placeholder="GitHub token (private repos only)" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn" id="importGitBtn">Import from GitHub</button>
+                </div>
+                <div class="ba-import-col" th:if="${isHost}">
+                    <span class="setup-label">Folder on this computer (host only)</span>
+                    <input type="text" id="storyLocal" placeholder="C:\Users\you\stories" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn" id="importLocalBtn">Import folder</button>
+                </div>
+            </div>
+            <p class="import-status" id="importStatus" role="status" aria-live="polite"></p>
+            <label class="field slim ba-mode" id="baModeField" hidden><span>What should the Business Analyst do with them?</span>
+                <select id="baMode">
+                    <option value="passthrough">Use as-is: pass my stories straight to the Developer</option>
+                    <option value="refine">Refine and organise them with the AI model (keeps every story)</option>
+                    <option value="">Treat the text as a plain requirement (normal BA)</option>
+                </select>
+            </label>
+        </div>
+
+        <details class="help-tip" open="open" th:if="${s.id == 'tester'}">
+            <summary>What is Tester?</summary>
+            <p>The Tester checks that the Developer's code works. There are three kinds of test, and you can ask for any of them or all:</p>
+            <ul>
+                <li><strong>Unit tests</strong> &ndash; automated checks of small pieces of the code (one function or class at a time).</li>
+                <li><strong>Automation (Selenium)</strong> &ndash; scripts that open a real browser and click through the app like a robot user.</li>
+                <li><strong>Manual / Functional testing</strong> &ndash; step-by-step test cases (preconditions, steps, expected result) that a person runs by hand against the running app.</li>
+            </ul>
+            <p>Pick the mode in the drop-down above the results. Everything it writes can be downloaded as files or a ZIP.</p>
+        </details>
+
         <div class="convert-panes">
             <div class="pane">
                 <div class="pane-head">
@@ -135,12 +185,14 @@
                     <div class="out-tabs" role="tablist">
                         <button type="button" class="out-tab active" data-tab="unit">Unit tests <em class="tab-count"></em></button>
                         <button type="button" class="out-tab" data-tab="automation">Automation tests <em class="tab-count"></em></button>
+                        <button type="button" class="out-tab" data-tab="manual">Manual (functional) <em class="tab-count"></em></button>
                     </div>
                     <span class="tester-part">
                         <select class="part-select" title="Which tests to write">
-                            <option value="both">Unit + automation</option>
-                            <option value="unit">Unit only</option>
-                            <option value="automation">Automation only</option>
+                            <option value="all">All: Unit + Automation + Manual</option>
+                            <option value="unit">Unit (automated)</option>
+                            <option value="automation">Automation (Selenium)</option>
+                            <option value="manual">Manual (functional test cases)</option>
                         </select>
                     </span>
                     <button type="button" class="link-btn copy-btn" disabled>Copy</button>
@@ -149,6 +201,8 @@
                           placeholder="Unit tests appear here (JUnit 5, pytest, Jest, ... depending on the language)."></textarea>
                 <textarea class="stage-io tab-out" data-tab="automation" spellcheck="false" hidden
                           placeholder="UI automation tests appear here (Selenium or Playwright)."></textarea>
+                <textarea class="stage-io tab-out" data-tab="manual" spellcheck="false" hidden
+                          placeholder="Manual (functional) test cases appear here: ID, preconditions, numbered steps and expected results that a person runs by hand."></textarea>
             </div>
         </div>
         <p class="convert-message stage-message" role="status" aria-live="polite"></p>
@@ -161,6 +215,33 @@
             <select class="file-select" disabled><option>No files yet</option></select>
             <button type="button" class="btn ghost small file-btn" disabled>&#11015; File</button>
             <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
+        </div>
+        <div class="gh-panel" hidden th:if="${s.id == 'developer' or s.id == 'tester' or s.id == 'deploy'}"
+             th:attr="data-scope=${s.id == 'deploy' ? 'run' : s.id}">
+            <div class="gh-head">
+                <strong>Push to GitHub</strong>
+                <span class="hint" th:text="${s.id == 'developer' ? 'Pushes the code the Developer wrote.'
+                    : s.id == 'tester' ? 'Pushes the code plus its tests (unit, automation and manual cases).'
+                    : 'Pushes the whole run: stories, code, tests and deployment files.'}">What is pushed</span>
+            </div>
+            <div class="gh-grid">
+                <label class="field"><span>Repository URL</span>
+                    <input type="text" class="gh-repo" placeholder="https://github.com/owner/repo" autocomplete="off"/></label>
+                <label class="field"><span>Branch (blank = new branch bot/&lt;run&gt;)</span>
+                    <input type="text" class="gh-branch" placeholder="e.g. main or feature/bot" autocomplete="off"/></label>
+                <label class="field"><span>Folder in the repo (optional)</span>
+                    <input type="text" class="gh-folder" placeholder="e.g. generated/bank-app" autocomplete="off"/></label>
+                <label class="field"><span th:text="${isHost} ? 'GitHub token (optional here: the saved Git login of this computer is used if blank)' : 'Your GitHub token (required)'">Token</span>
+                    <input type="password" class="gh-token" autocomplete="off" placeholder="ghp_... or github_pat_..."/></label>
+            </div>
+            <div class="gh-actions">
+                <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
+                    Pull first: start from the latest code on that branch, then add these files</label>
+                <button type="button" class="btn small gh-push-btn">&#11014; Push to GitHub</button>
+            </div>
+            <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
+                : 'Needs a GitHub personal access token with repo access. It is used for this push only and is never saved or logged.'">Note</p>
+            <p class="gh-result" role="status" aria-live="polite"></p>
         </div>
         <div class="train-row">
             <input type="text" class="feedback" maxlength="1000"
@@ -254,11 +335,13 @@
   const INPUTS = {
     'ba': ['Requirement', 'Describe what the business needs, e.g. "fund transfer between accounts".'],
     'developer': ['User stories', 'Paste user stories, or run the Business Analyst stage and press "Send to next stage".'],
-    'tester': ['Code (+ stories)', 'Paste code to unit-test (several files can be separated by === FILE: path === lines). Automation tests use the run\'s user stories, or stories pasted here.'],
+    'tester': ['Code (+ stories)', 'Paste code to test (several files can be separated by === FILE: path === lines). Automation and manual test cases use the run\'s user stories, or stories pasted here.'],
     'deploy': ['Code to deploy', 'Paste the code (or run the Developer stage). Deploy writes a Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML and DEPLOY.md.']
   };
-  const MODES = { llm: 'AI model', template: 'Offline template', trained: 'From training', trainer: 'Training report' };
+  const MODES = { llm: 'AI model', template: 'Offline template', trained: 'From training', trainer: 'Training report',
+    passthrough: 'Your stories (as-is)' };
   const AUTOMATION_ROOT = /^(selenium-|playwright-)/;
+  const MANUAL_ROOT = /^manual-tests\//;
 
   const $ = (id) => document.getElementById(id);
   const card = (stage) => document.querySelector('.stage-card[data-stage="' + stage + '"]');
@@ -300,7 +383,7 @@
     return {
       'ba': 'Senior Business Analyst, ' + d + ' domain · user stories with Given/When/Then',
       'developer': 'Senior ' + lang + ' developer, ' + d + ' domain · commented ' + lang + ' code',
-      'tester': 'Tester · unit tests with ' + unit + ' + automation with ' + automationLabel(),
+      'tester': 'Tester · unit tests with ' + unit + ' + automation with ' + automationLabel() + ' + manual (functional) test cases',
       'deploy': 'DevOps · Dockerfile, build scripts, GitHub Actions CI/CD, Kubernetes for ' + lang
     };
   }
@@ -367,6 +450,7 @@
     if (language() === 'other') o.languageName = $('languageName').value.trim();
     if ($('automation').value) o.automation = $('automation').value;
     if (stage === 'tester') o.testerPart = q('tester', '.part-select').value;
+    if (stage === 'ba' && !$('baModeField').hidden && $('baMode').value) o.baMode = $('baMode').value;
     return o;
   }
 
@@ -384,14 +468,15 @@
     const shown = new Set((data.output || '').split('\n').filter((l) => l.startsWith('=== FILE: ')).map((l) => l.slice(10, -4)));
     const bundle = (list) => list.map((f) => '=== FILE: ' + f.path + ' ===\n' + f.content.trimEnd()).join('\n\n');
     const visible = files.filter((f) => shown.has(f.path));
-    const unit = visible.filter((f) => !AUTOMATION_ROOT.test(f.path));
+    const manual = visible.filter((f) => MANUAL_ROOT.test(f.path));
+    const unit = visible.filter((f) => !AUTOMATION_ROOT.test(f.path) && !MANUAL_ROOT.test(f.path));
     const auto = visible.filter((f) => AUTOMATION_ROOT.test(f.path));
     card('tester').querySelector('.tab-out[data-tab="unit"]').value = bundle(unit);
     card('tester').querySelector('.tab-out[data-tab="automation"]').value = bundle(auto);
+    card('tester').querySelector('.tab-out[data-tab="manual"]').value = bundle(manual);
     const counts = card('tester').querySelectorAll('.tab-count');
-    counts[0].textContent = unit.length ? '(' + unit.length + ')' : '';
-    counts[1].textContent = auto.length ? '(' + auto.length + ')' : '';
-    showTab(unit.length || !auto.length ? 'unit' : 'automation');
+    [unit, auto, manual].forEach((list, i) => { counts[i].textContent = list.length ? '(' + list.length + ')' : ''; });
+    showTab(unit.length ? 'unit' : auto.length ? 'automation' : manual.length ? 'manual' : 'unit');
   }
 
   function showTab(tab) {
@@ -505,6 +590,8 @@
     if (approve && stage !== 'trainer') approve.disabled = false;
     const next = q(stage, '.next-btn');
     if (next) next.disabled = false;
+    const gh = card(stage).querySelector('.gh-panel');
+    if (gh) gh.hidden = !hasFiles;
   }
 
   function render(stage, data) {
@@ -549,6 +636,13 @@
     if (approve && stage !== 'trainer') approve.disabled = true;
     const next = q(stage, '.next-btn');
     if (next) next.disabled = true;
+    const gh = c.querySelector('.gh-panel');
+    if (gh) {
+      gh.hidden = true;
+      const res = gh.querySelector('.gh-result');
+      res.textContent = '';
+      res.className = 'gh-result';
+    }
     const fb = stage === 'trainer' ? null : q(stage, '.feedback');
     if (fb) fb.value = '';
     const step = stepTimeEl(stage);
@@ -562,7 +656,7 @@
   const blocked = (internal) => !internal && (locks > 0 || busy);
   function applyLock() {
     const on = locks > 0 || busy;
-    document.querySelectorAll('.run-btn, #runAllBtn, #newRunBtn, #saveRunBtn').forEach((b) => { b.disabled = on; });
+    document.querySelectorAll('.run-btn, #runAllBtn, #newRunBtn, #saveRunBtn, .import-btn, .gh-push-btn').forEach((b) => { b.disabled = on; });
     ['domain', 'language'].forEach((id) => { $(id).disabled = on; });
   }
 
@@ -578,7 +672,11 @@
           domain: $('domain').value, domainName: $('domainName').value, language: $('language').value,
           languageName: $('languageName').value, automation: $('automation').value, useModel: $('useModel').checked,
           baseUrl: $('baseUrl').value, port: $('port').value, k8s: $('k8s').checked, compose: $('compose').checked,
-          buildLocally: $('buildLocally').checked, testerPart: q('tester', '.part-select').value
+          buildLocally: $('buildLocally').checked, testerPart: q('tester', '.part-select').value,
+          baMode: $('baMode').value, baModeShown: !$('baModeField').hidden,
+          ghRepo: document.querySelector('.gh-repo').value, ghBranch: document.querySelector('.gh-branch').value,
+          ghFolder: document.querySelector('.gh-folder').value, ghPull: document.querySelector('.gh-pull').checked
+          // the GitHub token is never stored
         },
         trainerRun: $('trainerRun').value, trainerFeedback: $('trainerFeedback').value,
         pending: Object.keys(stageStart), stages: {}
@@ -590,6 +688,7 @@
         if (stage === 'tester') {
           st.unit = card(stage).querySelector('.tab-out[data-tab="unit"]').value;
           st.auto = card(stage).querySelector('.tab-out[data-tab="automation"]').value;
+          st.manual = card(stage).querySelector('.tab-out[data-tab="manual"]').value;
         } else {
           st.out = q(stage, '.stage-output').value;
         }
@@ -606,6 +705,8 @@
   let leaving = false; // set while the page unloads, so aborted requests cannot overwrite what was saved
   const persistSoon = () => { clearTimeout(persistTimer); persistTimer = setTimeout(persist, 400); };
 
+  function setSelect(sel, v) { if (v != null && [...sel.options].some((o) => o.value === v)) sel.value = v; }
+
   function restore() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); } catch (e) { s = null; }
@@ -621,7 +722,13 @@
     if (cfg.port) $('port').value = cfg.port;
     if (!$('useModel').disabled && cfg.useModel != null) $('useModel').checked = cfg.useModel;
     ['k8s', 'compose', 'buildLocally'].forEach((k) => { if (cfg[k] != null) $(k).checked = cfg[k]; });
-    if (cfg.testerPart) q('tester', '.part-select').value = cfg.testerPart;
+    setSelect(q('tester', '.part-select'), cfg.testerPart);
+    setSelect($('baMode'), cfg.baMode);
+    $('baModeField').hidden = !cfg.baModeShown;
+    if (cfg.ghRepo != null) document.querySelectorAll('.gh-repo').forEach((e) => { e.value = cfg.ghRepo; });
+    if (cfg.ghBranch != null) document.querySelectorAll('.gh-branch').forEach((e) => { e.value = cfg.ghBranch; });
+    if (cfg.ghFolder != null) document.querySelectorAll('.gh-folder').forEach((e) => { e.value = cfg.ghFolder; });
+    if (cfg.ghPull != null) document.querySelectorAll('.gh-pull').forEach((e) => { e.checked = cfg.ghPull; });
     lastSample = s.lastSample == null ? null : s.lastSample;
     $('trainerRun').value = s.trainerRun || '';
     $('trainerFeedback').value = s.trainerFeedback || '';
@@ -638,11 +745,12 @@
         const auto = card(stage).querySelector('.tab-out[data-tab="automation"]');
         unit.value = st.unit || '';
         auto.value = st.auto || '';
+        const manual = card(stage).querySelector('.tab-out[data-tab="manual"]');
+        manual.value = st.manual || '';
         const n = (v) => (v.match(/^=== FILE: /gm) || []).length;
         const counts = card(stage).querySelectorAll('.tab-count');
-        counts[0].textContent = n(unit.value) ? '(' + n(unit.value) + ')' : '';
-        counts[1].textContent = n(auto.value) ? '(' + n(auto.value) + ')' : '';
-        showTab(unit.value || !auto.value ? 'unit' : 'automation');
+        [unit, auto, manual].forEach((t, i) => { counts[i].textContent = n(t.value) ? '(' + n(t.value) + ')' : ''; });
+        showTab(unit.value ? 'unit' : auto.value ? 'automation' : manual.value ? 'manual' : 'unit');
       } else {
         q(stage, '.stage-output').value = st.out || '';
       }
@@ -896,6 +1004,8 @@
     $('trainerFeedback').value = '';
     document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
     lastSample = null;
+    $('baModeField').hidden = true;
+    importStatus('');
     setRun(null);
     loadDomainRequirement(false);
     ba.focus();
@@ -1022,7 +1132,7 @@
         if (blocked()) return;
         q(stage, '.stage-input').value = '';
         resetStage(stage);
-        if (stage === 'ba') lastSample = null;
+        if (stage === 'ba') { lastSample = null; $('baModeField').hidden = true; importStatus(''); }
         q(stage, '.stage-input').focus();
         persist();
       });
@@ -1068,6 +1178,123 @@
   });
 
   card('tester').querySelectorAll('.out-tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  // ---- Business Analyst: bring your own stories (upload, folder, ZIP, GitHub, host folder) ----------
+  function importStatus(text, kind) {
+    const el = $('importStatus');
+    el.textContent = text || '';
+    el.className = 'import-status' + (kind ? ' ' + kind : '');
+  }
+
+  async function importStories(kind) {
+    if (blocked()) return;
+    const form = new FormData();
+    form.append('inputType', kind);
+    if (runId) form.append('runId', runId);
+    if (kind === 'upload') {
+      const files = [...$('storyFiles').files, ...$('storyFolder').files];
+      if (!files.length) { importStatus('Choose story files, a folder or a ZIP first.', 'error'); return; }
+      files.forEach((f) => form.append('files', f, f.webkitRelativePath || f.name));
+    } else if (kind === 'git') {
+      const url = $('storyRepo').value.trim();
+      if (!url) { importStatus('Enter the GitHub repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
+      form.append('repoUrl', url);
+      form.append('branch', $('storyBranch').value.trim());
+      form.append('subfolder', $('storySub').value.trim());
+      if ($('storyToken').value.trim()) form.append('token', $('storyToken').value.trim());
+    } else {
+      const path = $('storyLocal').value.trim();
+      if (!path) { importStatus('Enter the folder path on this computer.', 'error'); return; }
+      form.append('localPath', path);
+    }
+    const box = q('ba', '.stage-input');
+    if (box.value.trim() && box.value !== lastSample
+        && !confirm('Replace the text in the Business Analyst box with the imported stories?')) return;
+    const buttons = document.querySelectorAll('.import-btn');
+    buttons.forEach((b) => { b.disabled = true; });
+    importStatus(kind === 'git' ? 'Cloning the repository...' : 'Reading the stories...', '');
+    try {
+      const res = await fetch('/api/stages/ba/import', { method: 'POST', body: form });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error((data && data.error) || 'Import failed (HTTP ' + res.status + ').');
+      box.value = data.content;
+      lastSample = null;
+      setRun(data.runId);
+      $('baModeField').hidden = false;
+      let msg = 'Imported ' + data.files.length + ' of ' + data.totalFiles + ' story file(s) into the Input box.';
+      if (data.truncated) msg += ' The Input box holds the first part only (size limit); the rest is saved in the run folder. Import a sub-folder to continue.';
+      if ((data.skipped || []).length) msg += ' Skipped: ' + data.skipped.slice(0, 3).join('; ') + (data.skipped.length > 3 ? ' and ' + (data.skipped.length - 3) + ' more' : '') + '.';
+      importStatus(msg, 'ok');
+      $('storyToken').value = '';
+      setMessage('ba', 'Stories imported. Choose below what the Business Analyst should do with them, edit the text if you like, then press Run.', '');
+      persist();
+    } catch (e) {
+      importStatus(e.message, 'error');
+    } finally {
+      buttons.forEach((b) => { b.disabled = false; });
+      applyLock();
+    }
+  }
+  $('importUploadBtn').addEventListener('click', () => importStories('upload'));
+  $('importGitBtn').addEventListener('click', () => importStories('git'));
+  if ($('importLocalBtn')) $('importLocalBtn').addEventListener('click', () => importStories('local'));
+
+  // ---- Push to GitHub (after Developer, Tester and Deploy) -----------------------------------------
+  const GH_TEXT_FIELDS = ['gh-repo', 'gh-branch', 'gh-folder', 'gh-token'];
+  document.addEventListener('input', (e) => {
+    const t = e.target;
+    if (!t.closest || !t.closest('.gh-panel')) return;
+    GH_TEXT_FIELDS.forEach((cls) => {
+      if (t.classList.contains(cls)) document.querySelectorAll('.' + cls).forEach((el) => { if (el !== t) el.value = t.value; });
+    });
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.classList && e.target.classList.contains('gh-pull')) {
+      document.querySelectorAll('.gh-pull').forEach((el) => { el.checked = e.target.checked; });
+    }
+  });
+
+  async function pushStage(stage) {
+    if (blocked()) return;
+    const panel = q(stage, '.gh-panel');
+    const out = panel.querySelector('.gh-result');
+    const id = (results[stage] && results[stage].runId) || runId;
+    const show = (text, kind) => { out.className = 'gh-result' + (kind ? ' ' + kind : ''); out.textContent = text; };
+    const repo = panel.querySelector('.gh-repo').value.trim();
+    if (!id) { show('Run this stage first.', 'error'); return; }
+    if (!repo) { show('Enter the repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
+    const btn = panel.querySelector('.gh-push-btn');
+    btn.disabled = true;
+    show('Pushing to GitHub... (cloning, adding your files, pushing)', '');
+    try {
+      const data = await post('/api/stages/runs/' + id + '/push', {
+        stage: panel.dataset.scope, repoUrl: repo, branch: panel.querySelector('.gh-branch').value.trim(),
+        folder: panel.querySelector('.gh-folder').value.trim(), token: panel.querySelector('.gh-token').value.trim(),
+        pull: panel.querySelector('.gh-pull').checked
+      });
+      show('Pushed ' + data.files + ' file(s) to branch ' + data.branch + ' (commit ' + String(data.commit).slice(0, 7) + '). ', 'ok');
+      [{ label: 'View branch', url: data.branchUrl }, { label: 'Compare / open pull request', url: data.compareUrl }].forEach(({ label, url }) => {
+        if (url && url.startsWith('https://github.com/')) {
+          const a = document.createElement('a');
+          a.href = url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = label;
+          out.append(a, ' ');
+        }
+      });
+      document.querySelectorAll('.gh-token').forEach((el) => { el.value = ''; });
+    } catch (e) {
+      show(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      applyLock();
+    }
+  }
+  STAGES.forEach((stage) => {
+    const push = card(stage).querySelector('.gh-push-btn');
+    if (push) push.addEventListener('click', () => pushStage(stage));
+  });
   $('saveRunBtn').addEventListener('click', saveRun);
   $('refreshExamples').addEventListener('click', loadExamples);
   $('exampleStage').addEventListener('change', loadExamples);

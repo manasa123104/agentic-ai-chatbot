@@ -11,7 +11,7 @@ import java.util.Optional;
 public enum StageType {
     BA("ba", "Business Analyst", "User stories with Given/When/Then acceptance criteria"),
     DEVELOPER("developer", "Developer", "Commented code in the chosen language"),
-    TESTER("tester", "Tester", "Unit tests and UI automation tests"),
+    TESTER("tester", "Tester", "Unit tests, UI automation tests and manual (functional) test cases"),
     DEPLOY("deploy", "Deploy", "Dockerfile, scripts, CI/CD workflow, Kubernetes YAML, DEPLOY.md"),
     TRAINER("trainer", "Trainer", "Run summary, approved training examples and stats");
 

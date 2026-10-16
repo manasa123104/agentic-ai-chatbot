@@ -1,5 +1,6 @@
 package com.agentic.chatbot.service;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -80,6 +81,16 @@ public class GitService {
     }
 
     public void cloneRepo(String url, String branch, Path destination) {
+        cloneRepo(url, branch, destination, null);
+    }
+
+    /** True when the server has its own GITHUB_TOKEN configured. */
+    public boolean hasServerToken() {
+        return !token.isEmpty();
+    }
+
+    /** Clones with {@code userToken} (a visitor's own PAT) instead of the server token when it is given. */
+    public void cloneRepo(String url, String branch, Path destination, String userToken) {
         validateRepoUrl(url);
         List<String> args = new ArrayList<>(List.of("clone", "--depth", "1"));
         if (branch != null && !branch.isBlank()) {
@@ -87,7 +98,7 @@ public class GitService {
             args.addAll(List.of("--branch", branch.trim()));
         }
         args.addAll(List.of("--", url.trim(), destination.toString()));
-        run(destination.getParent(), 600, authArgs(url), args);
+        run(destination.getParent(), 600, authArgs(url, userToken), args, userToken);
     }
 
     /**
@@ -96,6 +107,17 @@ public class GitService {
      */
     public PushResult pushDirectory(Path content, String repoUrl, String branch, String baseBranch, String folder,
                                     String commitMessage, Path workDir) throws IOException {
+        return pushDirectory(content, repoUrl, branch, baseBranch, folder, commitMessage, workDir, null, false);
+    }
+
+    /**
+     * Like the method above, with two additions for the stage bots: {@code userToken} (the visitor's own PAT, used
+     * instead of the server token and never logged) and {@code pullFirst} (start from the latest remote copy of
+     * {@code branch} when it already exists, so the generated files are laid over what is there, then push).
+     */
+    public PushResult pushDirectory(Path content, String repoUrl, String branch, String baseBranch, String folder,
+                                    String commitMessage, Path workDir, String userToken, boolean pullFirst)
+            throws IOException {
         validateRepoUrl(repoUrl);
         validateBranch(branch);
         String target = folder == null ? "" : folder.trim().replace('\\', '/').replaceAll("^/+|/+$", "");
@@ -104,16 +126,30 @@ public class GitService {
         }
         Path repo = workDir.resolve("repo");
         Files.createDirectories(workDir);
-        List<String> auth = authArgs(repoUrl);
-        List<String> clone = new ArrayList<>(List.of("clone", "--depth", "1"));
-        if (baseBranch != null && !baseBranch.isBlank()) {
-            validateBranch(baseBranch);
-            clone.addAll(List.of("--branch", baseBranch.trim()));
+        List<String> auth = authArgs(repoUrl, userToken);
+        boolean pulled = false;
+        if (pullFirst) {
+            try {
+                run(workDir, 600, auth, List.of("clone", "--depth", "1", "--branch", branch.trim(), "--", repoUrl.trim(),
+                        repo.toString()), userToken);
+                pulled = true;
+            } catch (IllegalStateException e) {
+                LoggerFactory.getLogger(GitService.class).info("Branch {} not found on the remote; starting from the base branch", branch.trim());
+                deleteQuietly(repo);
+            }
         }
-        clone.addAll(List.of("--", repoUrl.trim(), repo.toString()));
-        run(workDir, 600, auth, clone);
+        if (!pulled) {
+            List<String> clone = new ArrayList<>(List.of("clone", "--depth", "1"));
+            if (baseBranch != null && !baseBranch.isBlank()) {
+                validateBranch(baseBranch);
+                clone.addAll(List.of("--branch", baseBranch.trim()));
+            }
+            clone.addAll(List.of("--", repoUrl.trim(), repo.toString()));
+            run(workDir, 600, auth, clone, userToken);
+        }
 
-        String base = baseBranch == null || baseBranch.isBlank()
+        String base = pulled ? branch.trim()
+                : baseBranch == null || baseBranch.isBlank()
                 ? run(repo, 30, List.of(), List.of("rev-parse", "--abbrev-ref", "HEAD")).strip()
                 : baseBranch.trim();
         run(repo, 30, List.of(), List.of("checkout", "-B", branch.trim()));
@@ -126,20 +162,20 @@ public class GitService {
         run(repo, 60, List.of(), List.of("add", "-A", "--", target.isEmpty() ? "." : target));
         String status = run(repo, 30, List.of(), List.of("status", "--porcelain"));
         if (status.isBlank()) {
-            throw new IllegalStateException("Nothing to push: the branch already contains this converted code.");
+            throw new IllegalStateException("Nothing to push: the branch already contains this code.");
         }
         String message = commitMessage == null || commitMessage.isBlank()
                 ? "Add converted code from BOT" : commitMessage.strip();
         run(repo, 60, List.of(), List.of("-c", "user.name=" + authorName, "-c", "user.email=" + authorEmail,
                 "-c", "commit.gpgsign=false", "commit", "-q", "-m", message));
         String commit = run(repo, 30, List.of(), List.of("rev-parse", "HEAD")).strip();
-        run(repo, 600, auth, List.of("push", "-u", "origin", "HEAD:refs/heads/" + branch.trim()));
+        run(repo, 600, auth, List.of("push", "-u", "origin", "HEAD:refs/heads/" + branch.trim()), userToken);
 
         Optional<String[]> github = githubRepo(repoUrl);
         String branchUrl = github.map(g -> "https://github.com/" + g[0] + "/" + g[1] + "/tree/" + branch.trim()
                 + (target.isEmpty() ? "" : "/" + target)).orElse(null);
-        String compareUrl = github.map(g -> "https://github.com/" + g[0] + "/" + g[1] + "/compare/" + base + "..."
-                + branch.trim() + "?expand=1").orElse(null);
+        String compareUrl = pulled ? null : github.map(g -> "https://github.com/" + g[0] + "/" + g[1] + "/compare/" + base
+                + "..." + branch.trim() + "?expand=1").orElse(null);
         return new PushResult(branch.trim(), base, commit, branchUrl, compareUrl);
     }
 
@@ -160,14 +196,24 @@ public class GitService {
     }
 
     private List<String> authArgs(String url) {
-        if (token.isEmpty() || !url.trim().startsWith("https://")) {
+        return authArgs(url, null);
+    }
+
+    /** A visitor's own token wins over the server token; the server token is never used when one is given. */
+    private List<String> authArgs(String url, String userToken) {
+        String use = userToken != null && !userToken.isBlank() ? userToken.trim() : token;
+        if (use.isEmpty() || !url.trim().startsWith("https://")) {
             return List.of();
         }
-        String basic = Base64.getEncoder().encodeToString(("x-access-token:" + token).getBytes(StandardCharsets.UTF_8));
+        String basic = Base64.getEncoder().encodeToString(("x-access-token:" + use).getBytes(StandardCharsets.UTF_8));
         return List.of("-c", "http.extraHeader=Authorization: Basic " + basic);
     }
 
     private String run(Path dir, int timeoutSeconds, List<String> configArgs, List<String> args) {
+        return run(dir, timeoutSeconds, configArgs, args, null);
+    }
+
+    private String run(Path dir, int timeoutSeconds, List<String> configArgs, List<String> args, String userToken) {
         List<String> command = new ArrayList<>();
         command.add("git");
         command.addAll(configArgs);
@@ -192,7 +238,7 @@ public class GitService {
             }
             String output = processOutput.join();
             if (process.exitValue() != 0) {
-                throw new IllegalStateException("git " + args.get(0) + " failed: " + scrub(output).strip());
+                throw new IllegalStateException("git " + args.get(0) + " failed: " + scrub(output, userToken).strip());
             }
             return output;
         } catch (IOException e) {
@@ -203,8 +249,29 @@ public class GitService {
         }
     }
 
-    private String scrub(String text) {
-        return token.isEmpty() ? text : text.replace(token, "***");
+    private String scrub(String text, String userToken) {
+        String out = token.isEmpty() ? text : text.replace(token, "***");
+        if (userToken != null && !userToken.isBlank()) {
+            String t = userToken.trim();
+            out = out.replace(t, "***").replace(Base64.getEncoder().encodeToString(
+                    ("x-access-token:" + t).getBytes(StandardCharsets.UTF_8)), "***");
+        }
+        return out;
+    }
+
+    /** Recursively deletes a folder, ignoring errors (read-only Git objects are made writable first). */
+    public static void deleteQuietly(Path dir) {
+        if (dir == null || !Files.exists(dir)) {
+            return;
+        }
+        try (var paths = Files.walk(dir)) {
+            for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                path.toFile().setWritable(true);
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException e) {
+            // best effort
+        }
     }
 
     static void copyTree(Path from, Path to) throws IOException {

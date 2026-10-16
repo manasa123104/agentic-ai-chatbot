@@ -12,7 +12,7 @@ Starts BOT on port 8080 if needed, starts a Cloudflare quick tunnel, and prints 
 - The link **changes every time the tunnel restarts** (reboot, script re-run). Run the script again and share the new one.
 - The laptop must stay on and awake. Uses the local Ollama model (`qwen2.5-coder:1.5b`), which is slow when several people convert at once.
 - Stop the tunnel: `Get-Process cloudflared | Stop-Process`.
-- Safe by design: through the link, "Folder on this computer" and "Push to branch" are blocked (HTTP 403); remote users use a GitHub https URL, upload, or paste code. Those two features still work when you open BOT on the laptop itself (`http://localhost:8080`).
+- Safe by design: through the link, "Folder on this computer" and "Push to branch" are blocked (HTTP 403); remote users use a GitHub https URL, upload, or paste code. Those two features still work when you open BOT on the laptop itself (`http://localhost:8080`). The Stage bots page (`/stages`) is the exception for pushing: visitors can push generated code to their own repo by pasting their own GitHub token (used for that one push only, never stored or logged; the server's `GITHUB_TOKEN` is never used for them).
 
 ## 2. Permanent free link on Render + free Google Gemini AI (recommended)
 

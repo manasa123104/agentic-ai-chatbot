@@ -9,7 +9,8 @@ import java.util.Map;
  * @param input   requirement, user stories, code, or a run id (Trainer), depending on the stage
  * @param options optional settings: offline=true, language (java, python, go, ... or other + languageName),
  *                automation (java, ruby, both, python, javascript, csharp, playwright-js, playwright-ts, none),
- *                testerPart (unit, automation, both), baseUrl, package, keepModelCode, port, kubernetes, compose,
+ *                testerPart (unit, automation, manual, both = unit + automation, all = default: unit + automation + manual),
+ *                baMode (passthrough = keep uploaded/GitHub stories as-is, refine = let the model organise them), baseUrl, package, keepModelCode, port, kubernetes, compose,
  *                buildLocally, save (Trainer), stages (Trainer), feedback (Trainer)
  * @param runId   existing run to add files to; blank starts a new run
  */

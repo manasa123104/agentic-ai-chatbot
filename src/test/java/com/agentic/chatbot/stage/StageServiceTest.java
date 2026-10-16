@@ -107,6 +107,7 @@ class StageServiceTest {
         assertTrue(paths(tester).contains("src/test/java/com/bank/transfer/FundTransferServiceTest.java"), "unit tests");
         assertTrue(paths(tester).contains("selenium-java/src/test/java/com/bank/transfer/ui/FundTransferSeleniumTest.java"));
         assertTrue(paths(tester).contains("selenium-ruby/spec/fund_transfer_spec.rb"), "automation tests from the run's stories");
+        assertTrue(paths(tester).contains("manual-tests/manual-test-cases.md"), "manual (functional) cases are part of the default mode");
         assertTrue(tester.nextInput().contains("FundTransferService"), "deploy gets the developer's code");
 
         Path dir = service.runDir(ba.runId());
@@ -351,6 +352,55 @@ class StageServiceTest {
     }
 
     // ------------------------------------------------------------------ independence
+
+    @Test
+    void testerWritesManualFunctionalCasesFromStoriesAsStepsAndExpectedResults() throws Exception {
+        StageService service = service(OFFLINE);
+        StageResponse ba = service.run(StageType.BA, request("banking", "fund transfer between accounts", Map.of()));
+        StageResponse manual = service.run(StageType.TESTER, new StageRequest("banking", "", Map.of("testerPart", "manual"), ba.runId())
+                .withInput("public class FundTransferService { public void transfer(long cents) { } }", ba.runId()));
+
+        assertTrue(paths(manual).contains("manual-tests/manual-test-cases.md"));
+        assertTrue(paths(manual).stream().noneMatch(p -> p.startsWith("src/test/") || StageAutomation.isAutomationPath(p)),
+                "manual mode writes no unit or automation tests: " + paths(manual));
+        String cases = content(manual, "manual-test-cases.md");
+        assertTrue(cases.contains("TC-001") && cases.contains("**Preconditions**") && cases.contains("**Steps**")
+                && cases.contains("1. ") && cases.contains("**Expected result**"), cases);
+        assertTrue(cases.contains("Written from the user stories"), "built from the run's Given/When/Then stories");
+        assertThrows(IllegalArgumentException.class,
+                () -> service.run(StageType.TESTER, request("banking", "just some words", Map.of("testerPart", "manual"))),
+                "no stories and no code: nothing to write cases from");
+    }
+
+    @Test
+    void businessAnalystCanPassUploadedStoriesStraightThrough() {
+        StageService service = service(OFFLINE);
+        String stories = "# Story 1: Login\nAs a user, I want to log in, so that I can see my account.\n"
+                + "Scenario: Valid login\n  Given a registered user\n  When they sign in\n  Then they see the dashboard\n";
+        StageResponse ba = service.run(StageType.BA, request("banking", stories, Map.of("baMode", "passthrough")));
+        assertEquals("passthrough", ba.mode());
+        assertEquals(stories.strip(), ba.output().strip(), "stories are kept exactly as given");
+        StageResponse refineOffline = service.run(StageType.BA, request("banking", stories, Map.of("baMode", "refine")));
+        assertEquals("passthrough", refineOffline.mode(), "no model: refine falls back to as-is");
+        assertTrue(refineOffline.notes().stream().anyMatch(n -> n.contains("No AI model")), refineOffline.notes().toString());
+    }
+
+    @Test
+    void exportFilesCopiesAStageForGitWithoutRunBookkeeping() throws Exception {
+        StageService service = service(OFFLINE);
+        List<StageResponse> run = service.runAll(request("banking", "fund transfer between accounts", Map.of()));
+        String id = run.get(0).runId();
+        Path dev = Files.createDirectories(tmp.resolve("export-dev"));
+        assertTrue(service.exportFiles(id, StageType.DEVELOPER, dev) > 0);
+        assertTrue(Files.exists(dev.resolve("src/main/java/com/bank/transfer/FundTransferService.java")));
+        assertFalse(Files.exists(dev.resolve("stories.md")));
+        Path all = Files.createDirectories(tmp.resolve("export-all"));
+        service.exportFiles(id, null, all);
+        assertTrue(Files.exists(all.resolve("stories.md")) && Files.exists(all.resolve("Dockerfile")));
+        assertTrue(Files.exists(all.resolve("manual-tests/manual-test-cases.md")));
+        assertFalse(Files.exists(all.resolve("run.json")));
+        assertFalse(Files.exists(all.resolve("training")));
+    }
 
     @Test
     void testerWorksAloneOnPastedCode() throws Exception {

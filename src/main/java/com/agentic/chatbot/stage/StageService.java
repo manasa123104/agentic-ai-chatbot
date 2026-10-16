@@ -6,6 +6,7 @@ import com.agentic.chatbot.stage.StageResponse.StageFile;
 import com.agentic.chatbot.stage.template.AutomationTemplates;
 import com.agentic.chatbot.stage.template.CodeTemplates;
 import com.agentic.chatbot.stage.template.DeployTemplates;
+import com.agentic.chatbot.stage.template.ManualTestTemplates;
 import com.agentic.chatbot.stage.template.PolyglotTemplates;
 import com.agentic.chatbot.stage.template.PythonTemplates;
 import com.agentic.chatbot.stage.template.SeleniumTemplates;
@@ -228,6 +229,9 @@ public class StageService {
         if (stage == StageType.DEPLOY) {
             return deploy(ctx, input, model, dir);
         }
+        if (stage == StageType.BA && !ctx.request().option("baMode", "").isBlank()) {
+            return importedStories(ctx, input, model, dir);
+        }
         List<String> notes = new ArrayList<>();
         if (model.isPresent()) {
             try {
@@ -251,6 +255,47 @@ public class StageService {
         Generated t = template(stage, ctx, input, dir);
         t.notes().addAll(0, notes);
         return t;
+    }
+
+    /**
+     * Business Analyst on uploaded or GitHub stories (option baMode): "passthrough" keeps them exactly as given so they go
+     * straight to the Developer; "refine" lets the AI model organise them without dropping any (and falls back to
+     * passthrough without a model).
+     */
+    private Generated importedStories(Ctx ctx, String input, Optional<LlmClient> model, Path dir) {
+        List<String> notes = new ArrayList<>();
+        boolean refine = ctx.request().option("baMode", "").equalsIgnoreCase("refine");
+        if (refine && model.isPresent()) {
+            try {
+                Generated g = viaModel(StageType.BA, ctx, input, model.get(), dir);
+                if (g != null) {
+                    g.notes().add("Refined the uploaded/GitHub stories with the AI model; edit them below before sending them to the Developer.");
+                    return g;
+                }
+                notes.add("The AI model's answer could not be used, so your stories were kept as they are.");
+            } catch (RuntimeException e) {
+                log.warn("Business Analyst refine failed: {}", e.getMessage());
+                notes.add("The AI model failed (" + e.getMessage() + "), so your stories were kept as they are.");
+            }
+        } else if (refine) {
+            notes.add("No AI model is connected, so your stories were kept as they are (use as-is).");
+        }
+        Map<String, String> files = new LinkedHashMap<>();
+        files.put("stories.md", input.strip() + "\n");
+        notes.add(0, "Used your uploaded/GitHub stories as-is (" + countStories(input) + " story heading(s) found); the Developer receives them unchanged.");
+        if (input.length() > 2500) {
+            notes.add("The Developer reads the first part of long story sets; for 100+ stories run it per feature or sub-folder.");
+        }
+        return new Generated(files, Map.of(), notes, "passthrough", "your stories");
+    }
+
+    private static int countStories(String text) {
+        Matcher m = Pattern.compile("(?im)^\\s*(?:#{1,4}\\s*story\\b|as an?\\s)").matcher(text);
+        int n = 0;
+        while (m.find()) {
+            n++;
+        }
+        return n;
     }
 
     private static String needModel(Ctx ctx, String what) {
@@ -312,6 +357,9 @@ public class StageService {
         for (Map.Entry<String, String> part : parts) {
             String path = part.getKey();
             String content = part.getValue();
+            if (path.startsWith("manual-tests/")) {
+                continue; // earlier manual test cases are tester output, not stories
+            }
             if (path.endsWith(".md") || (path.isBlank() && isStories(content))) {
                 stories.append(content).append('\n');
             } else if (marked && !path.isBlank()) {
@@ -339,15 +387,29 @@ public class StageService {
     }
 
     private static String testerPart(Ctx ctx) {
-        String part = ctx.request().option("testerPart", "both").toLowerCase(Locale.ROOT);
-        return part.equals("unit") || part.equals("automation") ? part : "both";
+        String part = ctx.request().option("testerPart", "all").toLowerCase(Locale.ROOT);
+        return part.equals("unit") || part.equals("automation") || part.equals("manual") || part.equals("both") ? part : "all";
+    }
+
+    /** Unit tests are written for unit, both (legacy: unit + automation) and all. */
+    private static boolean wantsUnit(String part) {
+        return part.equals("unit") || part.equals("both") || part.equals("all");
+    }
+
+    private static boolean wantsAutomation(String part) {
+        return part.equals("automation") || part.equals("both") || part.equals("all");
+    }
+
+    /** Manual (functional) test cases a person runs by hand: only for manual and all. */
+    private static boolean wantsManual(String part) {
+        return part.equals("manual") || part.equals("all");
     }
 
     private String testerTemplate(Ctx ctx, TesterInput in, Map<String, String> files, Map<String, String> extras,
                                   List<String> notes) {
         String part = testerPart(ctx);
         List<String> which = new ArrayList<>();
-        if (!part.equals("automation")) {
+        if (wantsUnit(part)) {
             if (in.code().isBlank()) {
                 requireAutomationOnly(part, notes);
             } else if (ctx.java()) {
@@ -394,7 +456,7 @@ public class StageService {
                 notes.add(needModel(ctx, "unit tests (" + ctx.lang().unitFramework() + ")"));
             }
         }
-        if (!part.equals("unit") && ctx.automation() != StageAutomation.NONE) {
+        if (wantsAutomation(part) && ctx.automation() != StageAutomation.NONE) {
             String stories = in.stories().isBlank() ? in.code() : in.stories();
             if (in.stories().isBlank()) {
                 notes.add("No user stories found (paste them or run the Business Analyst stage), so the automation tests "
@@ -402,8 +464,11 @@ public class StageService {
             }
             which.add(automationTemplates(ctx, stories, files, extras, notes) + " automation template");
         }
+        if (wantsManual(part) && manualTemplate(ctx, in, files, notes)) {
+            which.add("manual (functional) test-case template");
+        }
         if (files.isEmpty()) {
-            throw new IllegalArgumentException("Nothing to test: paste code for unit tests or user stories for automation tests.");
+            throw new IllegalArgumentException("Nothing to test: paste code for unit tests or user stories for automation and manual tests.");
         }
         return String.join(" and ", which);
     }
@@ -412,7 +477,32 @@ public class StageService {
         if (part.equals("unit")) {
             throw new IllegalArgumentException("Paste code to unit-test, or run the Developer stage first.");
         }
-        notes.add("No code in the input, so only automation tests were written.");
+        notes.add("No code in the input, so no unit tests were written.");
+    }
+
+    /** Manual (functional) test cases from the stories (or the code when there are none); false when there is nothing to write from. */
+    private boolean manualTemplate(Ctx ctx, TesterInput in, Map<String, String> files, List<String> notes) {
+        if (in.stories().isBlank() && in.code().isBlank()) {
+            if (testerPart(ctx).equals("manual")) {
+                throw new IllegalArgumentException("Paste user stories (Given/When/Then) or code to write manual test cases from, "
+                        + "or run the Business Analyst stage first.");
+            }
+            return false;
+        }
+        if (!ManualTestTemplates.hasCases(in.stories(), in.code())) {
+            if (testerPart(ctx).equals("manual")) {
+                throw new IllegalArgumentException("No Given/When/Then scenarios or methods found to write manual test cases from. "
+                        + "Paste user stories with scenarios, or run the Business Analyst stage first.");
+            }
+            notes.add("No scenarios or methods found, so no manual test cases were written.");
+            return false;
+        }
+        if (in.stories().isBlank()) {
+            notes.add("No user stories found, so the manual test cases were derived from the code. Run the Business Analyst "
+                    + "stage (or paste stories) for cases that follow the acceptance criteria.");
+        }
+        files.putAll(ManualTestTemplates.files(ctx.domain(), in.stories(), in.code(), baseUrl(ctx.request())));
+        return true;
     }
 
     private static String describeTests(Map<String, String> sources, Map<String, String> tests) {
@@ -468,8 +558,9 @@ public class StageService {
         Map<String, String> extras = new LinkedHashMap<>();
         switch (stage) {
             case BA -> {
-                String answer = StageFiles.collapseRepeats(
-                        StageFiles.stripFences(model.complete(system, StagePrompts.baUser(input)))).strip();
+                String user = ctx.request().option("baMode", "").equalsIgnoreCase("refine")
+                        ? StagePrompts.baRefine(input) : StagePrompts.baUser(input);
+                String answer = StageFiles.collapseRepeats(StageFiles.stripFences(model.complete(system, user))).strip();
                 if (!looksLikeStories(answer)) {
                     return null;
                 }
@@ -593,7 +684,7 @@ public class StageService {
                                 Map<String, String> extras, List<String> notes) {
         String part = testerPart(ctx);
         TesterBudget budget = new TesterBudget(model, system, notes);
-        if (!part.equals("automation")) {
+        if (wantsUnit(part)) {
             if (in.code().isBlank()) {
                 requireAutomationOnly(part, notes);
             } else {
@@ -608,12 +699,32 @@ public class StageService {
                 }
             }
         }
-        if (!part.equals("unit") && ctx.automation() != StageAutomation.NONE) {
+        if (wantsAutomation(part) && ctx.automation() != StageAutomation.NONE) {
             String stories = in.stories().isBlank() ? in.code() : in.stories();
             functionalViaModel(ctx, stories, budget, files, extras, notes);
         }
+        if (wantsManual(part)) {
+            manualViaModel(ctx, in, budget, files, notes);
+        }
         if (files.isEmpty()) {
-            throw new IllegalArgumentException("Nothing to test: paste code for unit tests or user stories for automation tests.");
+            throw new IllegalArgumentException("Nothing to test: paste code for unit tests or user stories for automation and manual tests.");
+        }
+    }
+
+    private void manualViaModel(Ctx ctx, TesterInput in, TesterBudget budget, Map<String, String> files, List<String> notes) {
+        if (in.stories().isBlank() && in.code().isBlank()) {
+            manualTemplate(ctx, in, files, notes);
+            return;
+        }
+        String answer = budget.call(StagePrompts.manualTests(trimmedCode(in.stories()), trimmedCode(in.code()),
+                baseUrl(ctx.request())), "the manual test cases").map(a -> StageFiles.stripFences(a).strip()).orElse("");
+        String lower = answer.toLowerCase(Locale.ROOT);
+        if (answer.length() > 120 && lower.contains("step") && lower.contains("expected")) {
+            files.put(ManualTestTemplates.PATH, "# Manual test cases (functional testing)\n\n"
+                    + answer.replaceFirst("(?m)^# .*\\R+", "") + "\n");
+        } else {
+            notes.add("No usable manual test cases from the model; used the offline template.");
+            manualTemplate(ctx, in, files, notes);
         }
     }
 
@@ -1496,7 +1607,8 @@ public class StageService {
         }
     }
 
-    private String resolveRunId(String requested) {
+    /** The requested run id when valid, else a new one (also used by the stories importer). */
+    public String resolveRunId(String requested) {
         if (requested != null && RUN_ID.matcher(requested.trim()).matches()) {
             return requested.trim();
         }
@@ -1610,6 +1722,37 @@ public class StageService {
             throw new UncheckedIOException("Could not build the ZIP: " + e.getMessage(), e);
         }
         return bytes.toByteArray();
+    }
+
+    /**
+     * Copies the files of one stage (Developer; Tester and Deploy include the Developer's code) or, when {@code stage} is
+     * null, of the whole run (without run.json, training reports and imported story files) into {@code target}, ready to
+     * push to Git. Returns the number of files copied.
+     */
+    public int exportFiles(String runId, StageType stage, Path target) {
+        Path dir = runDir(runId);
+        if (!Files.isDirectory(dir)) {
+            throw new IllegalArgumentException("Run " + runId + " not found.");
+        }
+        Set<String> only = stage == null ? null : stageFiles(runId, stage);
+        int copied = 0;
+        try (Stream<Path> walk = Files.walk(dir)) {
+            for (Path p : walk.filter(Files::isRegularFile).sorted().toList()) {
+                String rel = dir.relativize(p).toString().replace('\\', '/');
+                boolean skip = only != null ? !only.contains(rel)
+                        : rel.equals("run.json") || rel.startsWith("training/") || rel.startsWith("stories-input/");
+                if (skip) {
+                    continue;
+                }
+                Path dest = target.resolve(rel).normalize();
+                Files.createDirectories(dest.getParent());
+                Files.copy(p, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                copied++;
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not prepare the files: " + e.getMessage(), e);
+        }
+        return copied;
     }
 
     private Set<String> stageFiles(String runId, StageType stage) {
