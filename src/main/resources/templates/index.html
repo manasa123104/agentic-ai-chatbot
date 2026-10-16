@@ -143,13 +143,13 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <ul class="attach-list" id="attachList"></ul>
                 <div class="attach-actions">
-                    <span class="attach-note">Upload file &rarr; user stories + website: BOT reads these file(s) as your user stories and requirements, then writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
+                    <span class="attach-note">Upload file &rarr; user stories + website: the text of the file is pasted into the box above so you can read and edit it; then press Send and BOT writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
                     <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
             </div>
             <div class="composer-tools">
-                <label class="tool-btn" title="Upload file: BOT reads it as your user stories and builds the code and a website from it. Several files are used together.">
+                <label class="tool-btn" title="Upload file: its text is pasted into the box so you can edit the user stories; press Send and BOT builds the code and a website from them. Several files are added one after another.">
                     <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
                     Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
@@ -178,7 +178,7 @@ if __name__ == &quot;__main__&quot;:
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: it becomes the user stories for your website</p>
+            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box as your user stories, edit it, then Send</p>
         </form>
     </footer>
 </div>
@@ -647,12 +647,40 @@ if __name__ == &quot;__main__&quot;:
     }
   }
 
+  // Upload file -> user stories: the file text is pasted straight into the prompt box so it can be read and edited.
+  var pastedStories = false;
+
+  function pasteIntoBox(entries) {
+    var fresh = entries.filter(function (e) { return BotUpload.isText(e.path) && !e.pasted; });
+    if (!fresh.length) return;
+    BotUpload.readText(fresh, { perFile: 60000, total: 150000 }).then(function (read) {
+      if (!read.blocks.length) return;
+      var multi = read.blocks.length > 1 || (input.value || '').trim() !== '' || attached.length > 1;
+      var parts = read.blocks.map(function (b) {
+        var body = b.text.replace(/\s+$/, '');
+        return (multi ? '--- ' + b.path + (b.cut ? ' (truncated)' : '') + ' ---\n' : '') + body;
+      });
+      var block = parts.join('\n\n');
+      var existing = (input.value || '').replace(/\s+$/, '');
+      input.value = existing ? existing + '\n\n' + block + '\n' : block + '\n';
+      fresh.forEach(function (e) {
+        if (read.blocks.some(function (b) { return b.path === e.path; })) e.pasted = true;
+      });
+      pastedStories = true;
+      autoSize();
+      input.focus();
+      input.scrollTop = input.scrollHeight;
+    });
+  }
+
   function addAttachments(entries) {
+    var added = [];
     entries.forEach(function (e) {
       var dup = attached.some(function (a) { return a.path === e.path && a.file.size === e.file.size; });
-      if (!dup) attached.push(e);
+      if (!dup) { attached.push(e); added.push(e); }
     });
     renderTray();
+    pasteIntoBox(added);
   }
 
   ['attachFiles'].forEach(function (id) {
@@ -697,10 +725,24 @@ if __name__ == &quot;__main__&quot;:
 
   /** The prompt with the attached text / code files added as context (or as the code to convert). */
   async function composeStory(text) {
-    if (!attached.length) return { story: withLanguage(text), shown: text };
-    var read = await BotUpload.readText(attached);
-    var names = attached.slice(0, 3).map(function (a) { return a.path; }).join(', ') +
-      (attached.length > 3 ? ' and ' + (attached.length - 3) + ' more' : '');
+    // files already pasted into the box are part of 	ext; only the rest are read here
+    var pending = attached.filter(function (a) { return !a.pasted; });
+    if (!pending.length) {
+      if (pastedStories && text && attached.length && !CONVERT_INTENT.test(text)) {
+        var pnames = attached.slice(0, 3).map(function (a) { return a.path; }).join(', ') +
+          (attached.length > 3 ? ' and ' + (attached.length - 3) + ' more' : '');
+        return {
+          story: withLanguage('Build a website from the user stories and requirements below.\n\n' +
+            '=== User stories and requirements (from the uploaded file) ===\n' + text),
+          shown: 'Upload \u2192 user stories + website\n[Uploaded: ' + pnames + ']',
+          fromUpload: true
+        };
+      }
+      return { story: withLanguage(text), shown: text };
+    }
+    var read = await BotUpload.readText(pending);
+    var names = pending.slice(0, 3).map(function (a) { return a.path; }).join(', ') +
+      (pending.length > 3 ? ' and ' + (pending.length - 3) + ' more' : '');
     var note = '\n[Attached: ' + names + ']';
     var skippedNote = read.skipped.length
       ? ' (' + read.skipped.length + ' file(s) not added: not text or over the size limit)' : '';
@@ -727,7 +769,7 @@ if __name__ == &quot;__main__&quot;:
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     var text = (input.value || '').trim();
-    if (!text && !attached.length) return;
+    if (!text && !attached.some(function (a) { return !a.pasted; })) return;
     if (running) return;
     var composed = await composeStory(text);
     if (composed.story === null) {
@@ -748,6 +790,7 @@ if __name__ == &quot;__main__&quot;:
       return;
     }
     attached = [];
+    pastedStories = false;
     renderTray();
     runPipeline(composed.story, composed.shown, { fromUpload: !!composed.fromUpload });
   });
@@ -758,7 +801,10 @@ if __name__ == &quot;__main__&quot;:
       form.requestSubmit();
     }
   });
-  input.addEventListener('input', autoSize);
+  input.addEventListener('input', function () {
+    if (!(input.value || '').trim()) pastedStories = false;
+    autoSize();
+  });
 
   document.querySelectorAll('.chip').forEach(function (chip) {
     chip.addEventListener('click', function () {
