@@ -32,11 +32,10 @@ public class GeneratedSiteController {
     @GetMapping(value = "/site/{page}", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
     public String showPage(@PathVariable String page, HttpSession session, HttpServletRequest request) throws Exception {
-        Path template = styleService.outputDir().resolve("src/main/resources/templates/" + page + ".html");
-        if (!Files.exists(template)) {
+        String html = loadTemplate(page);
+        if (html == null) {
             return missingPage(page);
         }
-        String html = Files.readString(template, StandardCharsets.UTF_8);
         Object user = session.getAttribute("googleUser");
         Object email = session.getAttribute("googleEmail");
         return preparePreviewHtml(html, page, null, user, email, RequestOrigin.isHost(request));
@@ -60,8 +59,8 @@ public class GeneratedSiteController {
             }
         }
 
-        Path loginTemplate = styleService.outputDir().resolve("src/main/resources/templates/" + page + ".html");
-        String raw = Files.exists(loginTemplate) ? Files.readString(loginTemplate, StandardCharsets.UTF_8) : "";
+        String loaded = loadTemplate(page);
+        String raw = loaded == null ? "" : loaded;
         boolean looksLikeLogin = raw.toLowerCase().contains("password") || page.equalsIgnoreCase("login")
                 || page.equalsIgnoreCase("register");
 
@@ -92,6 +91,87 @@ public class GeneratedSiteController {
                   <script>window.location.replace('/site/%s');</script>
                 </body></html>
                 """.formatted(dest, dest, dest, dest);
+    }
+
+    /**
+     * The generated template for the page, or - for sign-in pages that were never generated - a built-in
+     * login page that uses the same theme tokens as the rest of the site. Null when there is nothing to show.
+     */
+    private String loadTemplate(String page) throws Exception {
+        Path template = styleService.outputDir().resolve("src/main/resources/templates/" + page + ".html");
+        if (Files.exists(template)) {
+            return Files.readString(template, StandardCharsets.UTF_8);
+        }
+        if (isAuthPage(page)) {
+            return fallbackLoginPage(page);
+        }
+        return null;
+    }
+
+    private static boolean isAuthPage(String page) {
+        String p = page == null ? "" : page.toLowerCase();
+        return p.equals("login") || p.equals("signin") || p.equals("sign-in") || p.equals("register")
+                || p.equals("signup") || p.equals("sign-up");
+    }
+
+    private String fallbackLoginPage(String page) {
+        boolean register = page.toLowerCase().contains("regist") || page.toLowerCase().contains("sign-up")
+                || page.equalsIgnoreCase("signup");
+        String title = register ? "Create account" : "Sign in";
+        String button = register ? "Create account" : "Next";
+        String homeLink = Files.exists(styleService.outputDir().resolve("src/main/resources/templates/home.html"))
+                ? "/site/home" : "/";
+        return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8"/>
+                  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                  <title>@@TITLE@@</title>
+                  <style>
+                    :root { --bg:#ece8e0; --card:#fbf9f5; --accent:#2c5d68; --text:#1d2430; --muted:#5c636b; --line:#d8d3c8; --footer:#f6f3ee; }
+                    * { box-sizing: border-box; }
+                    body { margin:0; min-height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text);
+                           font-family:'Public Sans','Segoe UI',system-ui,sans-serif; }
+                    .wrap { flex:1; display:grid; place-items:center; padding:2rem 1rem 4rem; }
+                    .card { width:min(440px,100%); background:var(--card); border:1px solid var(--line); border-radius:12px; padding:40px 36px 32px; }
+                    h1 { margin:0; text-align:center; font:600 1.6rem 'Source Serif 4',Georgia,serif; }
+                    .subtitle { text-align:center; color:var(--muted); margin:.5rem 0 1.5rem; }
+                    .field { margin-bottom:1rem; }
+                    label { display:block; font-size:.85rem; font-weight:600; color:var(--muted); margin-bottom:.3rem; }
+                    input { width:100%; padding:.7rem .8rem; border:1px solid var(--line); border-radius:8px; font:inherit; background:#fff; color:var(--text); }
+                    input:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent); }
+                    .error { color:#9b2c2c; font-size:.88rem; margin:0 0 .75rem; }
+                    .actions { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-top:1.5rem; }
+                    .link { color:var(--accent); font-weight:600; text-decoration:none; font-size:.9rem; }
+                    .link:hover { text-decoration:underline; }
+                    button { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:8px; padding:.6rem 1.3rem; font-family:inherit; font-weight:600; font-size:.95rem; cursor:pointer; }
+                    .divider { display:flex; align-items:center; gap:.75rem; margin:1.4rem 0 .9rem; color:var(--muted); font-size:.8rem; }
+                    .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--line); }
+                    .google-btn { display:flex; align-items:center; justify-content:center; gap:.65rem; padding:.6rem; border:1px solid var(--line);
+                                  border-radius:8px; background:#fff; color:var(--text); font-weight:600; text-decoration:none; }
+                    .site-footer { padding:1rem 1.5rem; background:var(--footer); color:var(--muted); font-size:.8rem; border-top:1px solid var(--line); }
+                  </style>
+                </head>
+                <body>
+                <div class="wrap">
+                  <div class="card">
+                    <h1>@@TITLE@@</h1>
+                    <p class="subtitle">to continue to your workspace</p>
+                    <div class="error"></div>
+                    <form action="/site/@@PAGE@@" method="post">
+                      <div class="field"><label for="field1">Email or username</label>
+                        <input id="field1" name="field1" autocomplete="username"/></div>
+                      <div class="field"><label for="field2">Password</label>
+                        <input id="field2" name="field2" type="password" autocomplete="current-password"/></div>
+                      <div class="actions"><a class="link" href="@@HOME@@">Back to home</a><button type="submit">@@BUTTON@@</button></div>
+                    </form>
+                  </div>
+                </div>
+                </body>
+                </html>
+                """.replace("@@TITLE@@", title).replace("@@PAGE@@", page.replaceAll("[^A-Za-z0-9_-]", ""))
+                .replace("@@HOME@@", homeLink).replace("@@BUTTON@@", button);
     }
 
     private String readRedirectPath() {
@@ -160,11 +240,11 @@ public class GeneratedSiteController {
         }
 
         String banner = """
-                <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem;font:13px Roboto,Arial,sans-serif">
-                  <a href="/code" style="background:#0f6b4c;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">User stories + code</a>
-                  <a href="/edit/%s" style="background:#1a73e8;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">Edit site</a>
-                  <a href="#" data-site-push data-host="%s" style="background:#24292f;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">&#11014; Push to GitHub</a>
-                  <a href="/" style="background:#fff;color:#1a73e8;border:1px solid #dadce0;padding:.45rem .75rem;border-radius:999px;text-decoration:none">New story</a>
+                <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem;font:13px 'Public Sans',Segoe UI,Arial,sans-serif">
+                  <a href="/code" style="background:#fbf9f5;color:#244a54;border:1px solid #d8d3c8;padding:.45rem .75rem;border-radius:8px;text-decoration:none">User stories + code</a>
+                  <a href="/edit/%s" style="background:#2c5d68;color:#fff;border:1px solid #2c5d68;padding:.45rem .75rem;border-radius:8px;text-decoration:none">Edit site</a>
+                  <a href="#" data-site-push data-host="%s" style="background:#222a33;color:#fff;border:1px solid #222a33;padding:.45rem .75rem;border-radius:8px;text-decoration:none">&#11014; Push to GitHub</a>
+                  <a href="/" style="background:#fbf9f5;color:#244a54;border:1px solid #d8d3c8;padding:.45rem .75rem;border-radius:8px;text-decoration:none">New story</a>
                 </div>
                 <script src="/js/sitepush.js" defer></script>
                 """.formatted(page, host);
@@ -197,6 +277,7 @@ public class GeneratedSiteController {
                 : "";
         // Override theme tokens so editor / story colors and fonts apply on generated pages
         return """
+                <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
                 <style id="site-theme">
                   :root {
                     --bg: %s !important;
@@ -273,13 +354,20 @@ public class GeneratedSiteController {
     }
 
     private String missingPage(String page) {
+        SiteStyle s = styleService.load();
+        boolean hasHome = Files.exists(styleService.outputDir().resolve("src/main/resources/templates/home.html"));
+        String home = hasHome ? "<a href=\"/site/home\">Back to home</a> · " : "";
         return """
-                <!DOCTYPE html><html><body style="font-family:Segoe UI,sans-serif;padding:2rem">
-                <h1>Page not found</h1>
+                <!DOCTYPE html><html><head><meta charset="UTF-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/></head>
+                <body style="margin:0;font-family:%s;background:%s;color:%s;padding:2.5rem 1.5rem">
+                <div style="max-width:520px;margin:0 auto;background:%s;border:1px solid #d8d3c8;border-radius:12px;padding:1.75rem">
+                <h1 style="margin:0 0 .5rem;font:600 1.5rem 'Source Serif 4',Georgia,serif">Page not found</h1>
                 <p>No generated template for <code>%s</code>.</p>
-                <p><a href="/">Back to chatbot</a> · <a href="/edit">Edit site</a></p>
-                </body></html>
-                """.formatted(page);
+                <p style="color:%s">%s<a href="/" style="color:%s">Back to chatbot</a> · <a href="/edit" style="color:%s">Edit site</a></p>
+                </div></body></html>
+                """.formatted(s.getFontFamily(), s.getBackgroundColor(), s.getTextColor(), s.getCardColor(),
+                escape(page), s.getTextColor(), home, s.getAccentColor(), s.getAccentColor());
     }
 
     private static String escape(String s) {

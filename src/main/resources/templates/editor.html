@@ -4,6 +4,9 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Edit site</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin"/>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&amp;family=Public+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/editor.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
@@ -39,6 +42,9 @@
 
             <fieldset>
                 <legend>Colors</legend>
+                <p class="hint" th:if="${matched}">Homepage colors loaded &mdash; press Save changes to apply them to every page.</p>
+                <p class="hint">Defaults follow the homepage palette.
+                    <a th:href="@{/edit/{p}(p=${page},match='home')}">Match homepage colors</a></p>
                 <div class="color-grid">
                     <label>Background <input type="color" th:field="*{backgroundColor}"/></label>
                     <label>Card <input type="color" th:field="*{cardColor}"/></label>
@@ -52,6 +58,8 @@
                 <legend>Typography</legend>
                 <label>Font family
                     <select th:field="*{fontFamily}">
+                        <option value="'Public Sans', 'Segoe UI', system-ui, sans-serif">Public Sans (homepage)</option>
+                        <option value="'Source Serif 4', Georgia, serif">Source Serif (homepage headings)</option>
                         <option value="Segoe UI, sans-serif">Segoe UI</option>
                         <option value="Georgia, serif">Georgia</option>
                         <option value="Arial, Helvetica, sans-serif">Arial</option>

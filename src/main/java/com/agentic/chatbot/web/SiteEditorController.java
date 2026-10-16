@@ -39,8 +39,15 @@ public class SiteEditorController {
     }
 
     @GetMapping("/edit/{page}")
-    public String edit(@PathVariable String page, Model model) {
+    public String edit(@PathVariable String page,
+                       @RequestParam(value = "match", required = false) String match,
+                       Model model) {
         SiteStyle style = styleService.load();
+        if ("home".equalsIgnoreCase(match)) {
+            // Pre-fill the pickers with the homepage palette; nothing is saved until "Save changes".
+            style = styleService.matchHomepage(style);
+            model.addAttribute("matched", true);
+        }
         if (style.getHeading() == null || style.getHeading().isBlank()) {
             style.setHeading(capitalize(page));
         }
