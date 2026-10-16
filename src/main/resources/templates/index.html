@@ -8,6 +8,17 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
+    <style>
+        .btn.generate-bot { background: var(--accent, #1f5f6b); color: #fff; border: 1px solid var(--accent-strong, #174a54); font-weight: 700; font-size: .95rem; padding: .6rem 1.2rem; cursor: pointer; box-shadow: 0 2px 8px rgba(31, 95, 107, .3); }
+        .btn.generate-bot:hover:not(:disabled) { filter: brightness(1.1); }
+        .btn.generate-bot:disabled { opacity: .55; cursor: default; box-shadow: none; }
+        .attach-actions .generate-bot { flex: 0 0 auto; }
+        .bot-status { margin: 0 0 .5rem; padding: .5rem .8rem; border-radius: 10px; font-size: 13.5px; line-height: 1.4; background: var(--accent-soft, #e3eef0); color: var(--accent-strong, #174a54); border: 1px solid #b9d0d5; }
+        .bot-status.tip { background: #fff6e0; color: #6b4b00; border-color: #e6cf94; }
+        .bot-status.busy::before { content: ""; display: inline-block; width: .8em; height: .8em; margin-right: .5em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -.1em; animation: botspin .8s linear infinite; }
+        .bot-status button { margin-left: .6rem; }
+        @keyframes botspin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body class="chat-app">
 <aside class="chat-rail" id="chatRail">
@@ -143,13 +154,14 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <ul class="attach-list" id="attachList"></ul>
                 <div class="attach-actions">
-                    <span class="attach-note">Upload file &rarr; user stories + website: the text of the file is pasted into the box above so you can read and edit it; then press Send and BOT writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
+                    <button type="button" class="btn generate-bot" id="generateBot" title="Send the uploaded stories to BOT: it writes the user stories, the code and the website">&#9654; Generate with BOT</button>
+                    <span class="attach-note">Upload file &rarr; user stories + website: the text of the file is pasted into the box below and BOT starts on its own (a short countdown lets you stop it to edit first). BOT writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
                     <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
             </div>
             <div class="composer-tools">
-                <label class="tool-btn" title="Upload file: its text is pasted into the box so you can edit the user stories; press Send and BOT builds the code and a website from them. Several files are added one after another.">
+                <label class="tool-btn" title="Upload file: its text is pasted into the box and BOT then builds the user stories, the code and a website from it automatically (or press Generate with BOT). Several files are added one after another.">
                     <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
                     Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
@@ -169,6 +181,7 @@ if __name__ == &quot;__main__&quot;:
                     </select>
                 </label>
             </div>
+            <p class="bot-status" id="botStatus" role="status" aria-live="polite" hidden></p>
             <div class="composer-box" id="composerBox">
                 <textarea id="userStory" name="userStory" rows="1"
                           placeholder="Describe a website, app or conversion, or upload a file of user stories and BOT builds the website. Name a language and say “with a chatbot agent” if you want one…"></textarea>
@@ -178,7 +191,7 @@ if __name__ == &quot;__main__&quot;:
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box as your user stories, edit it, then Send</p>
+            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box and BOT starts on its own after a 2 s countdown (type to stop and edit first, or press Generate with BOT)</p>
         </form>
     </footer>
 </div>
@@ -507,6 +520,9 @@ if __name__ == &quot;__main__&quot;:
     input.value = '';
     autoSize();
     sendBtn.disabled = true;
+    generateBtn.disabled = true;
+    cancelAutoStart();
+    setStatus('BOT is generating\u2026 ' + (opts.fromUpload ? 'user stories \u2192 code \u2192 website' : 'this can take a minute or two'), 'busy');
     addTyping();
     var pipeStart = Date.now();
     if (resume) {
@@ -598,6 +614,8 @@ if __name__ == &quot;__main__&quot;:
       document.body.classList.remove('is-running');
       try { localStorage.removeItem(PENDING_KEY); } catch (e) { /* ignore */ }
       sendBtn.disabled = false;
+      generateBtn.disabled = false;
+      setStatus('');
       input.focus();
     }
   }
@@ -650,6 +668,74 @@ if __name__ == &quot;__main__&quot;:
   // Upload file -> user stories: the file text is pasted straight into the prompt box so it can be read and edited.
   var pastedStories = false;
 
+  // ---- status line + auto-start of BOT after an upload ----------------------------------------------
+  var botStatus = document.getElementById('botStatus');
+  var generateBtn = document.getElementById('generateBot');
+  var MIN_STORY_CHARS = 40;       // non-whitespace characters that count as real stories
+  var AUTO_START_MS = 2000;       // short countdown so the text can still be edited / stopped
+  var autoTimer = null;
+
+  function setStatus(html, kind) {
+    if (!html) { botStatus.hidden = true; botStatus.innerHTML = ''; botStatus.className = 'bot-status'; return; }
+    botStatus.className = 'bot-status' + (kind ? ' ' + kind : '');
+    botStatus.innerHTML = html;
+    botStatus.hidden = false;
+  }
+
+  /** Non-whitespace characters left once placeholder answers such as "None." / "N/A" / "TBD" are removed. */
+  function meaningfulChars(text) {
+    return (text || '').replace(/\b(?:none|n\/a|na|tbd|todo|nil)\b\.?/gi, '').replace(/\s+/g, '').length;
+  }
+
+  function cancelAutoStart(message) {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+      if (message) {
+        setStatus('Auto-start stopped. Edit the stories, then press <strong>Generate with BOT</strong> (or Send).', 'tip');
+      }
+    }
+  }
+
+  function startWithBot() {
+    cancelAutoStart();
+    if (running) return;
+    if (!(input.value || '').trim() && !attached.some(function (a) { return !a.pasted; })) {
+      setStatus('Nothing to send yet. Upload a file or type your user stories first.', 'tip');
+      return;
+    }
+    setStatus('BOT is generating\u2026 user stories \u2192 code \u2192 website', 'busy');
+    form.requestSubmit();
+  }
+
+  /** After a paste: auto-start BOT when the box holds real stories, otherwise show a tip. */
+  function afterPaste() {
+    var text = (input.value || '').trim();
+    if (running) return;
+    if (CONVERT_INTENT.test(text)) {
+      setStatus('This looks like a conversion request. Press <strong>Send</strong> to convert it, or use <strong>Generate with BOT</strong> to build a website from it.', 'tip');
+      return;
+    }
+    if (meaningfulChars(text) <= MIN_STORY_CHARS) {
+      setStatus('This file has very little content. Add your user stories to the box, or press <strong>Generate with BOT</strong> to build from it anyway.', 'tip');
+      return;
+    }
+    var left = Math.ceil(AUTO_START_MS / 1000);
+    function paint() {
+      setStatus('Starting BOT in ' + left + 's\u2026 <button type="button" class="btn ghost small" id="cancelAuto">Stop &amp; edit first</button>', 'busy');
+      var c = document.getElementById('cancelAuto');
+      if (c) c.addEventListener('click', function () { cancelAutoStart(true); input.focus(); });
+    }
+    paint();
+    cancelAutoStart();
+    autoTimer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) { startWithBot(); } else { paint(); }
+    }, 1000);
+  }
+
+  generateBtn.addEventListener('click', startWithBot);
+
   function pasteIntoBox(entries) {
     var fresh = entries.filter(function (e) { return BotUpload.isText(e.path) && !e.pasted; });
     if (!fresh.length) return;
@@ -670,6 +756,7 @@ if __name__ == &quot;__main__&quot;:
       autoSize();
       input.focus();
       input.scrollTop = input.scrollHeight;
+      afterPaste();
     });
   }
 
@@ -692,6 +779,8 @@ if __name__ == &quot;__main__&quot;:
   });
 
   document.getElementById('attachClear').addEventListener('click', function () {
+    cancelAutoStart();
+    if (!running) setStatus('');
     attached = [];
     renderTray();
   });
@@ -773,6 +862,7 @@ if __name__ == &quot;__main__&quot;:
     if (running) return;
     var composed = await composeStory(text);
     if (composed.story === null) {
+      setStatus('');
       addUser(composed.shown);
       input.value = '';
       autoSize();
@@ -802,6 +892,7 @@ if __name__ == &quot;__main__&quot;:
     }
   });
   input.addEventListener('input', function () {
+    cancelAutoStart(true); // typing means the user is editing: do not fire BOT under their hands
     if (!(input.value || '').trim()) pastedStories = false;
     autoSize();
   });
