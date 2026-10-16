@@ -54,7 +54,7 @@ table { max-width: 100%; }
 @media (max-width: 768px) {
   /* ---------- tap targets: at least 40px ---------- */
   .btn, button, .chip, .tab, .mode-tab, .out-tab, .view-tab, .link-btn, .swap, .file-link, .rail-links a,
-  .history-clear, .system-toggle, .history-edit, .pipe-step {
+  .history-clear, .system-toggle, .history-edit, .pipe-step, .pipe-btn {
     min-height: 40px;
   }
   .btn, a.btn, .btn.small, .btn.ghost { display: inline-flex; align-items: center; justify-content: center; padding-top: .5rem; padding-bottom: .5rem; }

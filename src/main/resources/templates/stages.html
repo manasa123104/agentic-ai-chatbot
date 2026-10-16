@@ -98,8 +98,75 @@
         </div>
         <div class="pipeline-strip" id="pipeline">
             <span class="pipe-step" th:each="s, it : ${stageList}" th:attr="data-stage=${s.id}">
-                <b th:text="${it.count}">1</b><span th:text="${s.title}">Stage</span>
+                <button type="button" class="pipe-btn" aria-expanded="false"
+                        th:id="'pipeBtn-' + ${s.id}" th:attr="aria-controls='pipeHelp-' + ${s.id},data-help=${s.id}"
+                        th:title="'What is ' + ${s.title} + '? Click to read'">
+                    <b th:text="${it.count}">1</b><span class="pipe-name" th:text="${s.title}">Stage</span><i class="pipe-chev" aria-hidden="true">&#9662;</i>
+                </button>
             </span>
+        </div>
+        <p class="pipe-hint" id="pipeHint"><span aria-hidden="true">&#9662;</span> What is this? Tap any stage above to see what it does, what goes in, what comes out and what happens next.</p>
+        <div class="pipe-help-wrap" id="pipeHelpWrap" role="region" aria-live="polite">
+            <article class="pipe-help" id="pipeHelp-ba" data-help="ba" role="region" aria-labelledby="pipeBtn-ba" hidden>
+                <h3>What is BA (Business Analyst)?</h3>
+                <p class="pipe-lead">The Business Analyst turns a plain requirement (for example &ldquo;transfer money between accounts&rdquo;) into clear <strong>user stories</strong> for the domain you picked, each with acceptance criteria written as Given / When / Then.</p>
+                <dl>
+                    <dt>Role</dt><dd>Stage 1. Plays a senior Business Analyst for your domain: it decides who the users are, what they want and how we know a story is done.</dd>
+                    <dt>Input</dt><dd>A requirement you type, <em>or</em> story files you already have (.md, .txt, .docx, .csv, .feature, a folder or a ZIP, about 100 stories is fine), <em>or</em> stories pulled from a GitHub repository.</dd>
+                    <dt>Output</dt><dd>User stories with Given / When / Then acceptance criteria. You can edit them, download them, or ask it to use your own stories as-is or refine them (it keeps every story).</dd>
+                    <dt>Next stage</dt><dd>The stories become the input of the <strong>Developer</strong>. Press &ldquo;Send to next stage&rdquo;, or let <em>Run all stages</em> hand them over for you.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="ba">Go to the Business Analyst &darr;</button>
+            </article>
+            <article class="pipe-help" id="pipeHelp-developer" data-help="developer" role="region" aria-labelledby="pipeBtn-developer" hidden>
+                <h3>What is Developer?</h3>
+                <p class="pipe-lead">The Developer reads the user stories and writes <strong>working, commented code</strong> that implements them, in the language you chose (Java, Python, JavaScript, C#, Go and many more).</p>
+                <dl>
+                    <dt>Role</dt><dd>Stage 2. Plays a senior developer for your domain and language, following the stories and your approved training examples.</dd>
+                    <dt>Input</dt><dd>The user stories from the Business Analyst (or stories you paste in).</dd>
+                    <dt>Output</dt><dd>Source code files with comments. Edit the code, download it (a file, the stage ZIP, or a business-logic summary), or push it to GitHub.</dd>
+                    <dt>Next stage</dt><dd>The code goes to the <strong>Tester</strong>, which writes tests for it. The <strong>Deploy</strong> stage also builds on this same code.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="developer">Go to the Developer &darr;</button>
+            </article>
+            <article class="pipe-help" id="pipeHelp-tester" data-help="tester" role="region" aria-labelledby="pipeBtn-tester" hidden>
+                <h3>What is Tester?</h3>
+                <p class="pipe-lead">The Tester checks that the Developer&rsquo;s code works. It can write three kinds of test, any one or all of them:</p>
+                <ul>
+                    <li><strong>Unit tests</strong> &ndash; automated checks of small pieces of the code (one function or class at a time).</li>
+                    <li><strong>Automation (Selenium)</strong> &ndash; scripts that open a real browser and click through the app like a robot user.</li>
+                    <li><strong>Manual / Functional testing</strong> &ndash; step-by-step test cases (preconditions, steps, expected result) that a person runs by hand against the running app.</li>
+                </ul>
+                <dl>
+                    <dt>Role</dt><dd>Stage 3. Plays a tester who proves the stories were built correctly.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, plus the run&rsquo;s user stories for the automation and manual cases.</dd>
+                    <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Pick which to write in the drop-down above the results, and download them as files or a ZIP, or push the code plus its tests to GitHub.</dd>
+                    <dt>Next stage</dt><dd>Once the tests look right, the <strong>Deploy</strong> stage prepares the code to be released.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="tester">Go to the Tester &darr;</button>
+            </article>
+            <article class="pipe-help" id="pipeHelp-deploy" data-help="deploy" role="region" aria-labelledby="pipeBtn-deploy" hidden>
+                <h3>What is Deploy?</h3>
+                <p class="pipe-lead">Deploy prepares the code so the app can be <strong>packaged and released</strong>. It only produces the files; it does not publish or run anything for you.</p>
+                <dl>
+                    <dt>Role</dt><dd>Stage 4. Plays a DevOps engineer for your language: it writes everything needed to build and run the app anywhere.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code.</dd>
+                    <dt>Output</dt><dd>A Dockerfile, build scripts, a CI/CD workflow (GitHub Actions), Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide that explains how to run it. Download them from the Deploy card as a file or a ZIP. You can also tick &ldquo;Build image locally&rdquo; if Docker is installed.</dd>
+                    <dt>Next stage</dt><dd>The <strong>Trainer</strong> reviews the finished run and saves the outputs you approve.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="deploy">Go to Deploy &darr;</button>
+            </article>
+            <article class="pipe-help" id="pipeHelp-trainer" data-help="trainer" role="region" aria-labelledby="pipeBtn-trainer" hidden>
+                <h3>What is Trainer?</h3>
+                <p class="pipe-lead">The Trainer is BOT&rsquo;s memory. It does not write or deploy anything itself: it keeps the outputs <em>you approve</em> so the next runs in the same domain (and language) come out better.</p>
+                <dl>
+                    <dt>Role</dt><dd>Stage 5, the last one. Reviews the run and saves approved (and corrected) outputs as few-shot examples.</dd>
+                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases (unit, automation, manual) and Deploy files. Tick the stages to save. Your own corrections to an output are saved as you edited them, and you can add feedback such as &ldquo;always add an AML screening story&rdquo;.</dd>
+                    <dt>Output</dt><dd>A training report, and examples saved in <code>data/bot-training.json</code> on the machine running BOT. On the public Render site that file is temporary and is wiped on restart or redeploy, so treat training there as a demo. Nothing is saved automatically: press <em>Save this run as training</em>.</dd>
+                    <dt>Next stage</dt><dd>There is no next stage: the pipeline is complete. The saved examples are shown to the model the next time you run a stage for the same domain, and an <strong>All 5 stages done &mdash; Push to GitHub</strong> panel appears at the very end of the page so you can push the whole run to a new GitHub branch and get a new link.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
+            </article>
         </div>
         <p class="run-info" id="runInfo">No run yet. Run any stage on its own, or press Run all stages.</p>
         <p class="run-timer-row"><span id="totalTimer"></span></p>
@@ -129,7 +196,7 @@
         <details class="help-tip" open="open" th:if="${s.id == 'deploy'}">
             <summary>What is Deploy?</summary>
             <p>Deploy prepares the code so the app can be <strong>packaged and released</strong>. It writes a Dockerfile, build scripts, a CI/CD workflow (GitHub Actions), Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide that explains how to run it.</p>
-            <p>It only produces the files; download them from this card. After the Trainer, you can push the whole run to GitHub.</p>
+            <p>It only produces the files; download them from this card. The Trainer comes next.</p>
         </details>
         <div class="ba-import" th:if="${s.id == 'ba'}">
             <div class="ba-import-head">
@@ -287,7 +354,7 @@
                 <li><strong>Where it is kept</strong> &ndash; in <code>data/bot-training.json</code> on the machine running BOT. On the public Render site that file is temporary and is wiped on restart or redeploy, so treat training there as a demo.</li>
                 <li><strong>Nothing is saved automatically</strong> &ndash; press <em>Save this run as training</em> when you are happy with the results.</li>
             </ul>
-            <p>When the Trainer finishes, the whole pipeline is complete: push everything this run generated to GitHub from the panel below.</p>
+            <p>When the Trainer finishes, the whole pipeline is complete: the <strong>All 5 stages done &mdash; Push to GitHub</strong> panel appears at the very end of this page, so you can push everything this run generated to a new GitHub branch and get a new link.</p>
         </details>
         <div class="convert-panes">
             <div class="pane trainer-pane">
@@ -329,36 +396,6 @@
             <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
         </div>
 
-        <div class="gh-panel gh-complete" id="pipelineComplete" hidden data-scope="run">
-            <div class="gh-head">
-                <strong>Pipeline complete &mdash; Push to GitHub</strong>
-                <span class="hint">Pushes the entire run: stories, code, tests and deployment files from every stage, to a new branch of your repository.</span>
-            </div>
-            <div class="gh-grid">
-                <label class="field"><span>Repository URL</span>
-                    <input type="text" class="gh-repo" placeholder="https://github.com/owner/repo" autocomplete="off"/></label>
-                <label class="field"><span>New branch name (blank = bot/&lt;run&gt;)</span>
-                    <input type="text" class="gh-branch" placeholder="e.g. feature/bot" autocomplete="off"/></label>
-                <label class="field"><span>Folder in the repo (optional)</span>
-                    <input type="text" class="gh-folder" placeholder="e.g. generated/bank-app" autocomplete="off"/></label>
-                <label class="field"><span th:text="${isHost} ? 'GitHub token (optional here: the saved Git login of this computer is used if blank)' : 'Your GitHub token (required)'">Token</span>
-                    <input type="password" class="gh-token" autocomplete="off" placeholder="ghp_... or github_pat_..."/></label>
-            </div>
-            <div class="gh-actions">
-                <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
-                    Pull first: start from the latest code on that branch, then add these files</label>
-                <button type="button" class="btn small gh-push-btn">&#11014; Push to GitHub</button>
-            </div>
-            <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
-                : 'Needs a GitHub personal access token with repo access. It is used for this push only and is never saved or logged.'">Note</p>
-            <p class="gh-result" role="status" aria-live="polite"></p>
-            <div class="gh-newlink" hidden>
-                <strong>Your new GitHub link</strong>
-                <a class="gh-newlink-url" href="#" target="_blank" rel="noopener"></a>
-                <a class="gh-newlink-pr" href="#" target="_blank" rel="noopener" hidden>Compare / open pull request</a>
-            </div>
-        </div>
-
         <div class="trainer-stats">
             <h3>Approved examples</h3>
             <div class="stats-grid" id="statsGrid"></div>
@@ -374,6 +411,41 @@
                 <button type="button" class="btn ghost small" id="refreshExamples">Refresh</button>
             </div>
             <div class="example-list" id="exampleList"><p class="hint">Loading…</p></div>
+        </div>
+    </section>
+
+    <section class="convert-card final-push" id="finalPush" hidden aria-labelledby="finalPushTitle">
+        <div class="final-push-head">
+            <span class="final-push-badge" aria-hidden="true">&#10003;</span>
+            <div>
+                <h2 id="finalPushTitle">All 5 stages done &mdash; Push to GitHub</h2>
+                <p>Business Analyst, Developer, Tester, Deploy and Trainer are finished. Push the <strong>whole run</strong> (stories, code, tests and deployment files from every stage) to a <strong>new branch</strong> of your repository and get a new GitHub link to open it.</p>
+            </div>
+        </div>
+        <div class="gh-panel gh-complete" id="pipelineComplete" data-scope="run">
+            <div class="gh-grid">
+                <label class="field"><span>Repository URL</span>
+                    <input type="text" class="gh-repo" placeholder="https://github.com/owner/repo" autocomplete="off"/></label>
+                <label class="field"><span>New branch name (blank = bot/&lt;run&gt;)</span>
+                    <input type="text" class="gh-branch" placeholder="e.g. feature/bot" autocomplete="off"/></label>
+                <label class="field"><span>Folder in the repo (optional)</span>
+                    <input type="text" class="gh-folder" placeholder="e.g. generated/bank-app" autocomplete="off"/></label>
+                <label class="field"><span th:text="${isHost} ? 'GitHub token (optional here: the saved Git login of this computer is used if blank)' : 'Your GitHub token (required)'">Token</span>
+                    <input type="password" class="gh-token" autocomplete="off" placeholder="ghp_... or github_pat_..."/></label>
+            </div>
+            <div class="gh-actions">
+                <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
+                    Pull first: start from the latest code on that branch, then add these files</label>
+                <button type="button" class="btn convert-btn gh-push-btn">&#11014; Push whole run to GitHub</button>
+            </div>
+            <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
+                : 'Needs a GitHub personal access token with repo access. It is used for this push only and is never saved or logged.'">Note</p>
+            <p class="gh-result" role="status" aria-live="polite"></p>
+            <div class="gh-newlink" hidden>
+                <strong>Your new GitHub link</strong>
+                <a class="gh-newlink-url" href="#" target="_blank" rel="noopener"></a>
+                <a class="gh-newlink-pr" href="#" target="_blank" rel="noopener" hidden>Compare / open pull request</a>
+            </div>
         </div>
     </section>
 </main>
@@ -655,8 +727,17 @@
     const next = q(stage, '.next-btn');
     if (next) next.disabled = false;
     const gh = card(stage).querySelector('.gh-panel');
-    // the Trainer's panel is the "pipeline complete" whole-run push: available once there is a run
-    if (gh) gh.hidden = stage === 'trainer' ? !(data.runId || runId || $('trainerRun').value.trim()) : !hasFiles;
+    if (gh) gh.hidden = !hasFiles;
+    updateFinalPush();
+  }
+
+  /** The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished. */
+  function updateFinalPush() {
+    const panel = $('finalPush');
+    if (!panel) return;
+    const allDone = STAGES.every((s) => results[s]);
+    const trainerDone = !!results.trainer && !!(runId || $('trainerRun').value.trim());
+    panel.hidden = !(allDone || trainerDone);
   }
 
   function render(stage, data) {
@@ -715,6 +796,13 @@
     if (fb) fb.value = '';
     const step = stepTimeEl(stage);
     if (step) step.textContent = '';
+    if (stage === 'trainer') {
+      const fin = $('pipelineComplete');
+      fin.querySelector('.gh-result').textContent = '';
+      fin.querySelector('.gh-result').className = 'gh-result';
+      fin.querySelector('.gh-newlink').hidden = true;
+      $('finalPush').hidden = true;
+    }
     setStep(stage, '');
     updateTotal();
   }
@@ -843,6 +931,7 @@
       setRun(s.runId);
       $('runInfo').textContent += ' Restored after refresh; press New run to start over.';
     }
+    updateFinalPush();
     return any || !!s.runId;
   }
 
@@ -1053,9 +1142,9 @@
         handOff(stage);
       }
       if (STAGES.every((s) => results[s])) {
-        setMessage('trainer', 'Pipeline complete. Push everything this run generated to GitHub below.', 'ok');
-        const done = $('pipelineComplete');
-        if (done) { done.hidden = false; done.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel at the end of the page.', 'ok');
+        updateFinalPush();
+        $('finalPush').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } finally {
       busy = false;
@@ -1343,7 +1432,7 @@
 
   async function pushStage(stage) {
     if (blocked()) return;
-    const panel = q(stage, '.gh-panel');
+    const panel = stage === 'trainer' ? $('pipelineComplete') : q(stage, '.gh-panel');
     const out = panel.querySelector('.gh-result');
     const typedRun = stage === 'trainer' ? $('trainerRun').value.trim() : '';
     const id = typedRun || (results[stage] && results[stage].runId) || runId;
@@ -1394,9 +1483,30 @@
     }
   }
   STAGES.forEach((stage) => {
-    const push = card(stage).querySelector('.gh-push-btn');
+    const push = (stage === 'trainer' ? $('pipelineComplete') : card(stage)).querySelector('.gh-push-btn');
     if (push) push.addEventListener('click', () => pushStage(stage));
   });
+  // ---- "What is ...?" dropdowns under the pipeline strip: click a stage pill, one panel open at a time ------
+  function showPipeHelp(stage) {
+    document.querySelectorAll('.pipe-btn').forEach((b) => {
+      b.setAttribute('aria-expanded', String(b.dataset.help === stage));
+    });
+    document.querySelectorAll('.pipe-help').forEach((p) => { p.hidden = p.dataset.help !== stage; });
+    $('pipeHint').hidden = !!stage;
+  }
+  document.querySelectorAll('.pipe-btn').forEach((b) => b.addEventListener('click', () => {
+    showPipeHelp(b.getAttribute('aria-expanded') === 'true' ? null : b.dataset.help);
+  }));
+  document.querySelectorAll('.pipe-jump').forEach((b) => b.addEventListener('click', () => {
+    const target = card(b.dataset.jump);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = document.querySelector('.pipe-btn[aria-expanded="true"]');
+    if (open) { showPipeHelp(null); open.focus(); }
+  });
+
   $('saveRunBtn').addEventListener('click', saveRun);
   $('refreshExamples').addEventListener('click', loadExamples);
   $('exampleStage').addEventListener('change', loadExamples);
