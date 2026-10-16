@@ -200,7 +200,12 @@ public class SiteEditService {
         }
         String customUrl = extractImageUrl(instruction);
         if (customUrl != null) {
-            String[] cards = new String[]{customUrl, customUrl, customUrl, customUrl, customUrl, customUrl};
+            // several pictures (e.g. pasted into the chat) are spread over the six cards in turn
+            List<String> all = extractImageUrls(instruction);
+            String[] cards = new String[6];
+            for (int i = 0; i < cards.length; i++) {
+                cards[i] = all.isEmpty() ? customUrl : all.get(i % all.size());
+            }
             styled = new SiteThemePack.Theme(
                     styled.kind(), styled.accent(), styled.soft(), styled.dark(), styled.bg(), styled.ink(),
                     styled.muted(), styled.fontFamily(), styled.googleFontsHref(),
@@ -225,7 +230,30 @@ public class SiteEditService {
         if (m.find()) {
             return m.group(1);
         }
-        return null;
+        List<String> stored = uploadedImages(instruction);
+        return stored.isEmpty() ? null : stored.get(0);
+    }
+
+    /** Pictures kept by BOT itself (pasted into the chat): {@code /uploads/...png|jpg|webp|gif}. */
+    private static List<String> uploadedImages(String instruction) {
+        List<String> out = new ArrayList<>();
+        var m = Pattern.compile("(?i)(?<![\\w/])(/uploads/[\\w./-]+\\.(?:png|jpe?g|webp|gif))").matcher(instruction);
+        while (m.find()) {
+            if (!out.contains(m.group(1))) {
+                out.add(m.group(1));
+            }
+        }
+        return out;
+    }
+
+    /** Every picture the instruction names: BOT's own uploads first, otherwise the single link found. */
+    private static List<String> extractImageUrls(String instruction) {
+        List<String> stored = uploadedImages(instruction);
+        if (!stored.isEmpty()) {
+            return stored;
+        }
+        String one = extractImageUrl(instruction);
+        return one == null ? List.of() : List.of(one);
     }
 
     private boolean needsRebuild(String instruction) {

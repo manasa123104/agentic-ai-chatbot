@@ -137,10 +137,16 @@ public class PipelineOrchestrator {
     // ------------------------------------------------------------------ running
 
     public PipelineResponse run(PipelineRequest request) {
+        return run(request, PipelineListener.NONE);
+    }
+
+    /** Same as {@link #run(PipelineRequest)}, and tells {@code listener} when each bot starts and finishes. */
+    public PipelineResponse run(PipelineRequest request, PipelineListener listener) {
         String runId = RunControl.validId(request.getRunId()) ? request.getRunId() : newRunId();
+        PipelineListener hear = listener == null ? PipelineListener.NONE : listener;
         // a Resume that arrives while the stopped request is still finishing its current bot waits for it here
         synchronized (control.lock(runId)) {
-            return runLocked(request, runId);
+            return runLocked(request, runId, hear);
         }
     }
 
@@ -148,7 +154,7 @@ public class PipelineOrchestrator {
         return "run-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
-    private PipelineResponse runLocked(PipelineRequest request, String runId) {
+    private PipelineResponse runLocked(PipelineRequest request, String runId, PipelineListener listener) {
         PipelineResponse response = new PipelineResponse();
         response.setRunId(runId);
         List<BotStepLog> steps = new ArrayList<>();
@@ -203,8 +209,11 @@ public class PipelineOrchestrator {
                     control.clear(runId);
                     return stopped(response, steps, cp, plan.size());
                 }
+                int position = plan.indexOf(bot) + 1;
+                safely(() -> listener.stepStarted(bot.name(), position, plan.size()));
                 BotStepLog step = execute(bot, context);
                 steps.add(step);
+                safely(() -> listener.stepFinished(step, position, plan.size()));
                 if (step.isSuccess()) {
                     cp.completed.add(bot.name());
                     cp.steps.add(step);
@@ -332,6 +341,15 @@ public class PipelineOrchestrator {
         response.setCompletedSteps(cp.completed.size());
         response.setOutputDirectory(outputDir.toString());
         return response;
+    }
+
+    /** A broken listener (e.g. a closed browser tab) must never break the run itself. */
+    private static void safely(Runnable notification) {
+        try {
+            notification.run();
+        } catch (RuntimeException e) {
+            log.debug("Pipeline listener failed: {}", e.toString());
+        }
     }
 
     private BotStepLog execute(AgentBot bot, AgentContext context) {

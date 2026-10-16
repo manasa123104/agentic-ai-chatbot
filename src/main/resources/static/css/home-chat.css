@@ -1,0 +1,170 @@
+/*
+ * Home chat (/) - makes the page read like a ChatGPT conversation:
+ *  - the thread scrolls, the composer stays at the bottom of the window
+ *  - your messages are solid teal bubbles on the right, BOT's answers are white cards on the left
+ *  - a "Thinking" row, live progress steps and a streamed answer with a blinking cursor
+ *  - the System prompt hides in a small menu next to Upload file
+ * Loaded after style.css / site.css / mobile.css, so it only has to override.
+ */
+
+/* ---------- layout: header on top, scrolling thread, composer pinned at the bottom ---------- */
+@media (min-width: 901px) {
+  body.chat-app { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+  .chat-rail { height: 100vh; height: 100dvh; overflow-y: auto; }
+}
+.chat-shell { height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+@media (max-width: 900px) {
+  body.chat-app { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+}
+.chat-thread {
+  max-width: none;
+  min-height: 0;
+  overscroll-behavior: contain;
+  padding-left: max(1.35rem, calc((100% - 860px) / 2));
+  padding-right: max(1.35rem, calc((100% - 860px) / 2));
+  scroll-padding-bottom: 1rem;
+}
+.chat-composer { padding-top: .6rem; }
+
+/* ---------- bubbles: clearly "you" and "BOT" ---------- */
+.msg.user .bubble {
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 16px 16px 4px 16px;
+  max-width: min(640px, 82%);
+  max-height: 18rem;
+  overflow: auto;
+}
+.msg.bot.gpt .bubble { flex: 1 1 0; width: 100%; max-width: min(780px, calc(100% - 44px)); }
+.msg.bot { align-items: flex-start; }
+.msg.bot .avatar-sm { margin-top: .15rem; }
+
+/* ---------- thinking row ---------- */
+.think { display: flex; align-items: center; gap: .6rem; color: var(--muted); font-size: .9rem; }
+.think[hidden], .live-steps[hidden], .answer[hidden] { display: none; }
+.think .dots { display: inline-flex; gap: .3rem; align-items: center; }
+.think .dots i { width: 7px; height: 7px; border-radius: 50%; background: #98a3ae; animation: blink 1.2s infinite ease-in-out; }
+.think .dots i:nth-child(2) { animation-delay: .15s; }
+.think .dots i:nth-child(3) { animation-delay: .3s; }
+.think-time { margin-left: auto; font-size: .78rem; color: #86909a; font-variant-numeric: tabular-nums; }
+
+/* ---------- live steps (Business Analyst -> Developer -> Tester ...) ---------- */
+.live-steps { list-style: none; margin: .7rem 0 .2rem; padding: 0; display: grid; gap: .3rem; }
+.live-steps li { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem; font-size: .88rem; color: var(--text); }
+.live-steps .mark { width: 15px; height: 15px; flex: 0 0 15px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10px; line-height: 1; }
+.live-steps li.running { color: var(--muted); }
+.live-steps li.running .mark { border: 2px solid var(--accent); border-right-color: transparent; animation: hc-spin .8s linear infinite; }
+.live-steps li.done .mark { background: #2f9e6b; color: #fff; }
+.live-steps li.done .mark::before { content: "\2713"; }
+.live-steps li.failed { color: #a12b2b; }
+.live-steps li.failed .mark { background: #b5483a; color: #fff; }
+.live-steps li.failed .mark::before { content: "\2715"; }
+.live-steps .lab { flex: 0 1 auto; }
+.live-steps .t { font-size: .76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.live-steps .sum { display: none; }
+@keyframes hc-spin { to { transform: rotate(360deg); } }
+
+/* folded after the answer: "Show steps . 1m 23s" */
+.work-log { margin: 0 0 .6rem; }
+.work-log > summary { cursor: pointer; font: 500 .8rem var(--font-ui); color: var(--muted); list-style: none; display: inline-flex; align-items: center; gap: .35rem; }
+.work-log > summary::-webkit-details-marker { display: none; }
+.work-log > summary::before { content: "\25B8"; font-size: .7rem; transition: transform .15s; }
+.work-log[open] > summary::before { transform: rotate(90deg); }
+.work-log > summary:hover { color: var(--accent-strong); }
+.work-log .live-steps { margin-top: .5rem; padding-left: .1rem; }
+.work-log .sum { display: block; flex-basis: 100%; padding-left: 1.45rem; color: var(--muted); font-size: .78rem; line-height: 1.4; overflow-wrap: anywhere; }
+.work-log .sum:empty { display: none; }
+
+/* ---------- the streamed answer ---------- */
+.answer.md { font-size: .95rem; line-height: 1.6; overflow-wrap: anywhere; }
+.answer.md > :first-child { margin-top: 0; }
+.answer.md p { margin: 0 0 .65rem; }
+.answer.md p:last-child { margin-bottom: 0; }
+.answer.md ul, .answer.md ol { margin: .2rem 0 .75rem; padding-left: 1.3rem; }
+.answer.md li { margin: .22rem 0; }
+.answer.md a { color: var(--accent-strong); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.answer.md a:hover { color: var(--accent); }
+.answer.md code { font-family: var(--font-mono); font-size: .86em; background: #f0ece3; border: 1px solid #e3ddcf; border-radius: 5px; padding: .05rem .3rem; }
+.answer.md pre { background: #0f1720; color: #e6edf3; border-radius: 10px; padding: .8rem 1rem; overflow: auto; margin: .5rem 0 .75rem; }
+.answer.md pre code { background: none; border: 0; padding: 0; color: inherit; }
+.answer.md.streaming > :last-child::after {
+  content: "";
+  display: inline-block;
+  width: .5em; height: 1em;
+  margin-left: .12em;
+  vertical-align: -.15em;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: hc-caret 1s steps(1) infinite;
+}
+@keyframes hc-caret { 50% { opacity: 0; } }
+
+.extras:empty { display: none; }
+.extras { margin-top: .5rem; }
+.answer-time { margin: .6rem 0 0; }
+.msg-tools { display: flex; gap: .4rem; margin-top: .55rem; }
+.mini-btn {
+  border: 0; background: transparent; color: var(--muted);
+  font: 500 .78rem var(--font-ui); padding: .2rem .45rem; border-radius: 6px; cursor: pointer;
+}
+.mini-btn:hover { background: var(--accent-soft); color: var(--accent-strong); }
+
+/* ---------- composer: System prompt hides in a small menu ---------- */
+.system-menu { position: relative; }
+.system-toggle { cursor: pointer; }
+.system-panel {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  width: min(540px, 86vw);
+  display: grid;
+  gap: .5rem;
+  justify-items: start;
+  padding: .85rem .9rem .8rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md), 0 12px 32px rgba(30, 36, 46, .12);
+}
+.system-panel[hidden] { display: none; }
+.system-panel label { font: 600 .82rem var(--font-ui); color: var(--accent-strong); }
+.system-panel label small { font-weight: 400; color: var(--muted); }
+.system-panel .system-prompt { display: block; width: 100%; margin: 0; min-height: 96px; max-height: 40vh; }
+
+/* Send turns into Stop while BOT is answering */
+.send .ico-stop { display: none; }
+body.is-running .send .ico-send { display: none; }
+body.is-running .send .ico-stop { display: block; }
+body.is-running .send { background: #1d2430; }
+body.is-running .send:hover { background: #000; }
+.composer-box { border-radius: 20px; }
+.hint { font-size: .7rem; line-height: 1.4; }
+
+@media (max-width: 720px) {
+  .chat-thread { padding-left: .75rem; padding-right: .75rem; }
+  .msg.user .bubble { max-width: 92%; }
+  .msg.bot.gpt .bubble { max-width: calc(100% - 40px); }
+  .system-panel { position: fixed; left: .75rem; right: .75rem; bottom: 5.5rem; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .think .dots i, .live-steps li.running .mark, .answer.md.streaming > :last-child::after { animation: none; }
+}
+
+/* ---------- pictures pasted / dropped into the composer ---------- */
+.image-tray { margin: 0 0 .5rem; padding: .55rem .7rem .5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.image-tray[hidden] { display: none; }
+.thumbs { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .55rem; }
+.thumb { position: relative; width: 84px; }
+.thumb img { display: block; width: 84px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+.thumb-x {
+  position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 50%; background: #1d2430; color: #fff; font-size: 14px; line-height: 20px; cursor: pointer;
+}
+.thumb-x:hover { background: #a12b2b; }
+.thumb-size { display: block; margin-top: .15rem; font-size: .68rem; color: var(--muted); text-align: center; }
+.image-note { margin: .4rem 0 0; font-size: .74rem; line-height: 1.4; color: var(--muted); }
+.user-thumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
+.user-thumbs img { max-width: 160px; max-height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .45); }

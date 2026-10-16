@@ -43,6 +43,24 @@ public interface LlmClient {
         return sb.append("Assistant:").toString();
     }
 
+    /** An image sent along with a prompt: {@code mimeType} such as image/png, {@code base64} without a data: prefix. */
+    record ImageInput(String mimeType, String base64) {
+    }
+
+    /** True when this client can look at pictures (Gemini and OpenAI vision models). */
+    default boolean supportsVision() {
+        return false;
+    }
+
+    /**
+     * Sends the pictures together with the prompt to a vision model and returns its answer. Only call this when
+     * {@link #supportsVision()} is true; other clients throw.
+     */
+    default String describeImages(String systemPrompt, String prompt, List<ImageInput> images,
+                                  java.time.Duration timeout, int maxTokens) {
+        throw new UnsupportedOperationException("this model cannot look at images");
+    }
+
     /** True for hosted models (Gemini, OpenAI): they take much larger chunks than a small local model. */
     default boolean isCloud() {
         return false;

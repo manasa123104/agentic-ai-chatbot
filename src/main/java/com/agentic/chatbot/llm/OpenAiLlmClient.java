@@ -93,6 +93,73 @@ public class OpenAiLlmClient implements LlmClient {
         return cloud;
     }
 
+    /** Gemini models and the OpenAI "omni" / vision families take pictures; small local models usually do not. */
+    @Override
+    public boolean supportsVision() {
+        if (!isAvailable()) {
+            return false;
+        }
+        if (gemini) {
+            return true;
+        }
+        String m = model == null ? "" : model.toLowerCase(java.util.Locale.ROOT);
+        return !isLocalEndpoint(baseUrl)
+                && (m.contains("gpt-4o") || m.contains("gpt-4.1") || m.contains("gpt-5") || m.contains("vision")
+                || m.contains("gemini") || m.contains("claude"));
+    }
+
+    /** One non-streaming call with the pictures as OpenAI-style {@code image_url} parts (data URIs). */
+    @Override
+    public String describeImages(String systemPrompt, String prompt, java.util.List<ImageInput> images,
+                                 Duration callTimeout, int maxTokens) {
+        if (!supportsVision()) {
+            throw new UnsupportedOperationException("this model cannot look at images");
+        }
+        try {
+            ObjectNode body = mapper.createObjectNode();
+            body.put("model", model);
+            body.put("temperature", 0.3);
+            if (maxTokens > 0 && maxTokens < Integer.MAX_VALUE) {
+                body.put("max_tokens", maxTokens);
+            }
+            ArrayNode messages = body.putArray("messages");
+            messages.addObject().put("role", "system").put("content", systemPrompt);
+            ObjectNode user = messages.addObject();
+            user.put("role", "user");
+            ArrayNode parts = user.putArray("content");
+            parts.addObject().put("type", "text").put("text", prompt);
+            for (ImageInput image : images) {
+                ObjectNode part = parts.addObject();
+                part.put("type", "image_url");
+                part.putObject("image_url").put("url", "data:" + image.mimeType() + ";base64," + image.base64());
+            }
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .timeout(callTimeout)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
+            if (!apiKey.isBlank()) {
+                builder.header("Authorization", "Bearer " + apiKey);
+            }
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 429) {
+                throw new QuotaExceededException();
+            }
+            if (response.statusCode() >= 400) {
+                log.warn("LLM vision HTTP {}: {}", response.statusCode(), shorten(response.body()));
+                throw new IllegalStateException("LLM vision request failed with HTTP " + response.statusCode());
+            }
+            return mapper.readTree(response.body()).path("choices").path(0).path("message").path("content").asText("");
+        } catch (QuotaExceededException | UnsupportedOperationException e) {
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("LLM call interrupted", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("LLM vision call failed: " + e.getMessage(), e);
+        }
+    }
+
     @Override
     public String complete(String systemPrompt, String userPrompt) {
         if (!isAvailable()) {

@@ -8,6 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
+    <link rel="stylesheet" th:href="@{/css/home-chat.css}"/>
     <style>
         .btn.generate-bot { background: var(--accent, #1f5f6b); color: #fff; border: 1px solid var(--accent-strong, #174a54); font-weight: 700; font-size: .95rem; padding: .6rem 1.2rem; cursor: pointer; box-shadow: 0 2px 8px rgba(31, 95, 107, .3); }
         .btn.generate-bot:hover:not(:disabled) { filter: brightness(1.1); }
@@ -89,7 +90,7 @@
             <div class="avatar-sm">B</div>
             <div class="bubble">
                 <p>Hi — I’m <strong>BOT</strong>.</p>
-                <p>Send a prompt in any domain and any language, or start from one of these:</p>
+                <p>Tell me what you want in plain words, in any domain and language. I build it, then we keep talking: ask for changes like <em>“make the hero shorter”</em> or <em>“add a chatbot agent”</em>, or ask me a question. Or start from one of these:</p>
                 <nav class="welcome-links" aria-label="Where to start">
                     <a href="/code"><strong>User stories + code</strong><span>Read the stories and the generated code</span></a>
                     <a href="/convert"><strong>Code converter</strong><span>Translate code or a whole project</span></a>
@@ -139,14 +140,6 @@ if __name__ == &quot;__main__&quot;:
         <form id="chatForm" th:action="@{/run}" method="post" th:object="${request}">
             <input type="hidden" name="runUnitTests" value="true"/>
             <input type="hidden" name="runFunctionalTests" value="true"/>
-            <div class="system-prompt-wrap">
-                <button type="button" class="system-toggle" id="systemToggle" aria-expanded="false">
-                    System prompt <span>(optional · widens BOT model)</span>
-                </button>
-                <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
-                          placeholder="Example: Prefer calm palettes. Keep the brand name clean. Always add a chatbot agent to websites…"
-                          th:field="*{systemPrompt}"></textarea>
-            </div>
             <div class="attach-tray" id="attachTray" hidden>
                 <div class="attach-head">
                     <strong id="attachSummary">Attachments</strong>
@@ -160,12 +153,30 @@ if __name__ == &quot;__main__&quot;:
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
             </div>
+            <div class="image-tray" id="imageTray" hidden>
+                <ul class="thumbs" id="thumbs" aria-label="Attached images"></ul>
+                <p class="image-note" id="imageNote">BOT looks at your pictures when the connected model can see images; otherwise it uses them as the site's own images.</p>
+            </div>
             <div class="composer-tools">
                 <label class="tool-btn" title="Upload file: its text is pasted into the box and BOT then builds the user stories, the code and a website from it automatically (or press Generate with BOT). Several files are added one after another.">
                     <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
                     Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
                 </label>
+                <div class="system-menu" id="systemMenu">
+                    <button type="button" class="tool-btn system-toggle" id="systemToggle" aria-expanded="false"
+                            aria-controls="systemPanel" title="System prompt (optional): widens the BOT model with your standing instructions">
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4"/></svg>
+                        System prompt
+                    </button>
+                    <div class="system-panel" id="systemPanel" role="dialog" aria-label="System prompt" hidden>
+                        <label for="systemPrompt">System prompt <small>(optional &middot; widens BOT model)</small></label>
+                        <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
+                                  placeholder="Example: Prefer calm palettes. Keep the brand name clean. Always add a chatbot agent to websites…"
+                                  th:field="*{systemPrompt}"></textarea>
+                        <button type="button" class="btn ghost small" id="systemDone">Done</button>
+                    </div>
+                </div>
                 <label class="tool-select" title="Backend language for generated websites. Auto uses the language named in your prompt.">
                     <span>Language</span>
                     <select id="langPick">
@@ -183,21 +194,25 @@ if __name__ == &quot;__main__&quot;:
             </div>
             <p class="bot-status" id="botStatus" role="status" aria-live="polite" hidden></p>
             <div class="composer-box" id="composerBox">
-                <textarea id="userStory" name="userStory" rows="1"
-                          placeholder="Describe a website, app or conversion, or upload a file of user stories and BOT builds the website. Name a language and say “with a chatbot agent” if you want one…"></textarea>
-                <button type="submit" class="send" id="sendBtn" title="Send">
-                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <textarea id="userStory" name="userStory" rows="2"
+                          placeholder="Describe a website, app or conversion — or paste / drop a screenshot to show the look you want. Add “with a chatbot agent” if you want one…"></textarea>
+                <button type="submit" class="send" id="sendBtn" title="Send" aria-label="Send">
+                    <svg class="ico-send" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                    </svg>
+                    <svg class="ico-stop" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box and BOT starts on its own after a 2 s countdown (type to stop and edit first, or press Generate with BOT)</p>
+            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box and BOT starts on its own after a 2 s countdown (type to stop and edit first, or press Generate with BOT) · Paste (Ctrl+V) or drop an image to show the look you want · Keep chatting to change the result</p>
         </form>
     </footer>
 </div>
 
 <script th:src="@{/js/runtimer.js}"></script>
 <script th:src="@{/js/runcontrol.js}"></script>
+<script th:src="@{/js/homechat.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
 <script th:src="@{/js/upload.js}"></script>
 <script th:src="@{/js/menu.js}"></script>
@@ -213,11 +228,39 @@ if __name__ == &quot;__main__&quot;:
   var historyEmpty = document.getElementById('historyEmpty');
   var activeHistoryId = null;
 
-  systemToggle.addEventListener('click', function () {
-    var open = document.body.classList.toggle('system-open');
+  // The system prompt lives in a small menu next to Upload file, so the main view stays a clean conversation.
+  var systemPanel = document.getElementById('systemPanel');
+  var systemMenu = document.getElementById('systemMenu');
+  function setSystemOpen(open) {
+    systemPanel.hidden = !open;
     systemToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) systemPrompt.focus();
+  }
+  systemToggle.addEventListener('click', function () { setSystemOpen(systemPanel.hidden); });
+  document.getElementById('systemDone').addEventListener('click', function () { setSystemOpen(false); });
+  document.addEventListener('click', function (e) {
+    if (!systemPanel.hidden && !systemMenu.contains(e.target)) setSystemOpen(false);
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !systemPanel.hidden) { setSystemOpen(false); systemToggle.focus(); }
+  });
+
+  // The conversation so far (what the server gets as context for follow-ups and questions).
+  var conversation = [];
+  var builtOnce = false;
+  function remember(role, content) {
+    content = String(content || '').trim();
+    if (content) conversation.push({ role: role, content: content.slice(0, 2000) });
+    if (conversation.length > 40) conversation = conversation.slice(-40);
+  }
+
+  /** Only keep following the thread when the reader has not scrolled up. */
+  function nearBottom() {
+    return thread.scrollHeight - thread.scrollTop - thread.clientHeight < 90;
+  }
+  function scrollDown(force) {
+    if (force || nearBottom()) thread.scrollTop = thread.scrollHeight;
+  }
 
   function el(html) {
     var t = document.createElement('template');
@@ -229,11 +272,22 @@ if __name__ == &quot;__main__&quot;:
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function addUser(text) {
+  function addUser(text, thumbUrls) {
     thread.appendChild(el(
       '<div class="msg user"><div class="bubble"><p></p></div></div>'
     ));
     thread.lastChild.querySelector('p').textContent = text;
+    if (thumbUrls && thumbUrls.length) {
+      var strip = document.createElement('div');
+      strip.className = 'user-thumbs';
+      thumbUrls.forEach(function (u) {
+        var img = document.createElement('img');
+        img.src = u;
+        img.alt = 'Attached image';
+        strip.appendChild(img);
+      });
+      thread.lastChild.querySelector('.bubble').appendChild(strip);
+    }
     thread.scrollTop = thread.scrollHeight;
   }
 
@@ -309,21 +363,16 @@ if __name__ == &quot;__main__&quot;:
     BotShare.saveText(BotShare.companionName(name), BotShare.logicMarkdown(name, c.businessLogic), 'text/markdown;charset=utf-8');
   }
 
-  function renderConversionBubble(c, fromHistory) {
-    if (!c.success) {
-      addBot('<p>I could not convert that code: ' + escapeHtml(c.message || 'Unknown error') + '</p>' +
-        '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>');
-      return;
-    }
-    var title = escapeHtml(c.sourceLanguage || 'Code') + ' → ' + escapeHtml(c.targetLanguage || '');
+  /** The converted code with its Copy / Download buttons (without the sentence about it). */
+  function conversionCard(c) {
     var run = c.runCommand
       ? '<p class="muted-note" style="margin:.5rem 0 .25rem">Run it</p><pre class="convert-run"><code>' + escapeHtml(c.runCommand) + '</code></pre>'
       : '';
     var saved = c.outputFile
       ? '<p class="muted-note">Saved to <code>generated-app/' + escapeHtml(c.outputFile) + '</code></p>'
       : '';
-    addBot(
-      '<p>' + (fromHistory ? 'Saved conversion: ' : '') + '<strong>' + title + '</strong> — ' + escapeHtml(c.message || '') + '</p>' +
+    var box = document.createElement('div');
+    box.innerHTML =
       '<div class="convert-snippet"><div class="convert-tools">' +
         '<button type="button" class="convert-copy convert-download">&#11015; Download</button>' +
         '<button type="button" class="convert-copy convert-logic">&#11015; Business logic</button>' +
@@ -331,21 +380,28 @@ if __name__ == &quot;__main__&quot;:
         '<pre><code>' + escapeHtml(c.convertedCode || '') + '</code></pre></div>' +
       (c.explanation ? '<details class="story-details"><summary>Explanation</summary><pre class="story-snip">' + escapeHtml(c.explanation) + '</pre></details>' : '') +
       run + saved +
-      '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>'
-    );
-    thread.lastChild.querySelector('.convert-download').addEventListener('click', function () {
-      downloadConverted(c);
-    });
-    thread.lastChild.querySelector('.convert-logic').addEventListener('click', function () {
-      downloadLogic(c);
-    });
-    var copyBtn = thread.lastChild.querySelector('.convert-copy:not(.convert-download):not(.convert-logic)');
+      '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>';
+    box.querySelector('.convert-download').addEventListener('click', function () { downloadConverted(c); });
+    box.querySelector('.convert-logic').addEventListener('click', function () { downloadLogic(c); });
+    var copyBtn = box.querySelector('.convert-copy:not(.convert-download):not(.convert-logic)');
     copyBtn.addEventListener('click', function () {
       copyText(c.convertedCode || '').then(function (ok) {
         copyBtn.textContent = ok ? 'Copied' : 'Copy failed';
         setTimeout(function () { copyBtn.textContent = 'Copy'; }, 1500);
       });
     });
+    return box;
+  }
+
+  function renderConversionBubble(c, fromHistory) {
+    if (!c.success) {
+      addBot('<p>I could not convert that code: ' + escapeHtml(c.message || 'Unknown error') + '</p>' +
+        '<p class="actions"><a class="btn ghost" href="/convert">Open code converter</a></p>');
+      return;
+    }
+    var title = escapeHtml(c.sourceLanguage || 'Code') + ' → ' + escapeHtml(c.targetLanguage || '');
+    addBot('<p>' + (fromHistory ? 'Saved conversion: ' : '') + '<strong>' + title + '</strong> — ' + escapeHtml(c.message || '') + '</p>');
+    thread.lastChild.querySelector('.bubble').appendChild(conversionCard(c));
   }
 
   var STAGE_LABELS = {
@@ -477,6 +533,9 @@ if __name__ == &quot;__main__&quot;:
       ));
       addUser(item.userStory || '');
       renderResultBubble(item, true);
+      conversation = [];
+      remember('user', item.userStory || '');
+      remember('assistant', 'Here is the saved result for that request.');
       input.value = item.userStory || '';
       autoSize();
     } catch (e) {
@@ -502,9 +561,159 @@ if __name__ == &quot;__main__&quot;:
     return 'run-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
 
+  /** What is being worked on right now: { ctl: AbortController, intent, runId }. */
+  var current = null;
+
+  /** The assistant's message: a thinking row, live steps, the streamed answer and, last, cards and links. */
+  function startAnswer() {
+    var node = el(
+      '<div class="msg bot gpt"><div class="avatar-sm">B</div><div class="bubble">' +
+        '<div class="think" role="status"><span class="dots"><i></i><i></i><i></i></span>' +
+          '<span class="think-text">Thinking\u2026</span><span class="think-time"></span></div>' +
+        '<ul class="live-steps" hidden></ul>' +
+        '<div class="answer md" hidden></div>' +
+        '<div class="extras"></div>' +
+      '</div></div>');
+    thread.appendChild(node);
+    scrollDown(true);
+    return {
+      node: node,
+      bubble: node.querySelector('.bubble'),
+      think: node.querySelector('.think'),
+      thinkText: node.querySelector('.think-text'),
+      time: node.querySelector('.think-time'),
+      steps: node.querySelector('.live-steps'),
+      answer: node.querySelector('.answer'),
+      extras: node.querySelector('.extras'),
+      stepNodes: {}
+    };
+  }
+
+  function showStep(ui, ev) {
+    ui.steps.hidden = false;
+    var key = String(ev.index || 1);
+    var li = ui.stepNodes[key];
+    if (!li) {
+      li = el('<li class="running"><span class="mark"></span><span class="lab"></span><span class="t"></span><span class="sum"></span></li>');
+      ui.steps.appendChild(li);
+      ui.stepNodes[key] = li;
+    }
+    if (ev.state === 'start') {
+      li.className = 'running';
+      li.querySelector('.lab').textContent = (ev.label || 'Working') + '\u2026';
+      if (ev.total > 1) ui.thinkText.textContent = 'Step ' + ev.index + ' of ' + ev.total + ': ' + (ev.label || 'working') + '\u2026';
+      else ui.thinkText.textContent = (ev.label || 'Working') + '\u2026';
+    } else {
+      li.className = ev.state === 'failed' ? 'failed' : 'done';
+      li.querySelector('.lab').textContent = ev.label || 'Finished';
+      li.querySelector('.t').textContent = ev.durationMs > 0 ? RunTimer.format(ev.durationMs) : '';
+      li.querySelector('.sum').textContent = truncate(ev.summary || '', 160);
+    }
+    scrollDown(false);
+  }
+
+  function showAnswer(ui, text, streaming) {
+    ui.think.hidden = true;
+    ui.answer.hidden = false;
+    ui.answer.innerHTML = HomeChat.markdown(text);
+    ui.answer.classList.toggle('streaming', !!streaming);
+    scrollDown(false);
+  }
+
+  /** Cards, details and buttons under the written answer, once the result is in. */
+  function showExtras(ui, data, ms) {
+    if (data.conversion && data.conversion.success) {
+      ui.extras.appendChild(conversionCard(data.conversion));
+    }
+    if (data.stopped || (!data.success && data.resumable)) {
+      var row = el('<p class="actions"><button type="button" class="btn resume-inline">&#9654; Resume</button></p>');
+      row.querySelector('button').addEventListener('click', function () { BotRun.resumeNow(); });
+      ui.extras.appendChild(row);
+    }
+    if (data.success && !data.conversion) {
+      var story = data.refinedUserStory
+        ? '<details class="story-details"><summary>User story (Business Analyst)</summary><pre class="story-snip">' +
+          escapeHtml(String(data.refinedUserStory).slice(0, 1800)) +
+          (String(data.refinedUserStory).length > 1800 ? '\u2026' : '') + '</pre></details>'
+        : '';
+      var files = (data.generatedCodeFiles || []).slice(0, 8).map(function (f) {
+        return '<li><code>' + escapeHtml(f) + '</code></li>';
+      }).join('');
+      var filesBlock = files
+        ? '<details class="story-details"><summary>Generated code files</summary><ul class="step-list">' + files + '</ul></details>'
+        : '';
+      if (story || filesBlock) ui.extras.appendChild(el('<div>' + story + filesBlock + '</div>'));
+    }
+    var total = el('<p class="answer-time">' + RunTimer.badge(data.durationMs != null ? data.durationMs : ms, 'Total time:') + '</p>');
+    ui.extras.appendChild(total);
+  }
+
+  /** Folds the live progress list into a quiet "Show steps" line, like a finished reasoning trace. */
+  function foldSteps(ui, ms) {
+    if (ui.steps.hidden || !ui.steps.children.length) return;
+    var details = document.createElement('details');
+    details.className = 'work-log';
+    var summary = document.createElement('summary');
+    summary.textContent = 'Show steps \u00b7 ' + RunTimer.format(ms);
+    details.appendChild(summary);
+    ui.steps.parentNode.insertBefore(details, ui.steps);
+    details.appendChild(ui.steps);
+  }
+
+  function addCopyTool(ui, text) {
+    if (!text) return;
+    var tools = el('<div class="msg-tools"><button type="button" class="mini-btn">Copy</button></div>');
+    var btn = tools.querySelector('button');
+    btn.addEventListener('click', function () {
+      copyText(text).then(function (ok) {
+        btn.textContent = ok ? 'Copied' : 'Copy failed';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1500);
+      });
+    });
+    ui.bubble.appendChild(tools);
+  }
+
+  /** Stop button inside the composer: stops a chat answer at once, or a build after the bot that is running. */
+  function stopCurrent() {
+    if (!running) return;
+    if (current && (!current.intent || current.intent === 'chat') && current.ctl) {
+      current.ctl.abort();
+      return;
+    }
+    var rs = document.getElementById('runStop');
+    if (rs && !rs.disabled) { rs.click(); return; }
+    var id = BotRun.current().runId;
+    if (id) {
+      fetch('/api/pipeline/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId: id }) }).catch(function () { /* ignore */ });
+    }
+  }
+
+  /** Old servers (or browsers) that cannot stream: one JSON answer at the end, as before. */
+  async function viaPlainRequest(payload, ui) {
+    ui.think.hidden = false;
+    ui.thinkText.textContent = 'BOT is working\u2026 this can take a minute or two';
+    var res = await fetch('/api/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userStory: payload.message, systemPrompt: payload.systemPrompt, runUnitTests: true,
+        runFunctionalTests: true, runId: payload.runId, resume: payload.resume })
+    });
+    var data = await res.json().catch(function () { return null; });
+    if (!data) throw new Error('HTTP ' + res.status);
+    var text;
+    if (data.stopped) text = '**Stopped.** ' + (data.message || '');
+    else if (!data.success) text = 'I hit a problem: ' + (data.message || 'Unknown error');
+    else text = (data.conversion ? 'Here is your conversion.' : 'Done \u2014 the user story and the website code are ready.') +
+      (data.previewUrl ? '\n\n- [Open the website](' + data.previewUrl + ')\n- [User stories + code](' + (data.codeUrl || '/code') + ')\n- [Edit the site](/edit)' : '');
+    return { data: data, text: text };
+  }
+
   /**
+   * Sends one message to BOT and shows the answer the way ChatGPT does: a "thinking" row, live progress while it builds
+   * (Business Analyst, Developer, Tester ...), then the written answer streaming in, then links and cards.
    * opts.resume: continue a stopped run (same runId) from its next unfinished bot.
-   * opts.fromUpload: the story came from uploaded files (adds a line about it to the result).
+   * opts.fromUpload: the story came from uploaded files.
    */
   async function runPipeline(story, shown, opts) {
     opts = opts || {};
@@ -515,105 +724,123 @@ if __name__ == &quot;__main__&quot;:
     document.body.classList.add('is-running');
     try { localStorage.setItem(PENDING_KEY, shown || story); } catch (e) { /* ignore */ }
     try { sessionStorage.setItem(CHAT_RUN_KEY, JSON.stringify({ runId: runId, story: story, shown: shown || story, fromUpload: !!opts.fromUpload })); } catch (e) { /* ignore */ }
-    BotRun.running(resume ? 'resuming' : 'starting', runId);
-    if (!resume) addUser(shown || story);
+    var payload = {
+      message: story,
+      systemPrompt: (systemPrompt.value || '').trim(),
+      runId: runId,
+      resume: resume,
+      history: conversation.slice()
+    };
+    if (opts.images && opts.images.length) payload.images = opts.images;
+    if (!resume) {
+      addUser(shown || story, opts.thumbs);
+      remember('user', shown || story);
+    }
     input.value = '';
     autoSize();
-    sendBtn.disabled = true;
     generateBtn.disabled = true;
     cancelAutoStart();
-    setStatus('BOT is generating\u2026 ' + (opts.fromUpload ? 'user stories \u2192 code \u2192 website' : 'this can take a minute or two'), 'busy');
-    addTyping();
-    var pipeStart = Date.now();
-    if (resume) {
-      addBot('<p>Resuming from the last finished step\u2026</p>');
-    } else if (opts.fromUpload) {
-      addBot('<p>Reading your uploaded file(s) as user stories \u2192 writing the stories, the code and the website\u2026</p>');
-    } else if (/^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite|show|give me)\b[^\n]*\b(?:to|into|in)\s/i.test(story)) {
-      addBot('<p>Code Converter is translating your code… (a local AI model can take a minute or two)</p>');
-    } else {
-      addBot('<p>BOT pipeline starting — Business Analyst → Developer → Tester → Trainer…</p>');
+    setStatus('');
+
+    var ui = startAnswer();
+    var started = Date.now();
+    var rt = RunTimer.start(ui.time, { startedAt: started, running: '\u00b7' });
+    var text = '';
+    var result = null;
+    var finished = false;
+    current = { ctl: ('AbortController' in window) ? new AbortController() : null, intent: '', runId: runId };
+    if (resume) ui.thinkText.textContent = 'Resuming from the last finished step\u2026';
+    else if (opts.fromUpload) ui.thinkText.textContent = 'Reading your file as user stories\u2026';
+    else if (payload.images) ui.thinkText.textContent = 'Looking at your image' + (payload.images.length > 1 ? 's' : '') + '\u2026';
+
+    function onEvent(ev) {
+      if (ev.type === 'meta') {
+        current.intent = ev.intent || '';
+        if (current.intent && current.intent !== 'chat') {
+          BotRun.running(resume ? 'resuming' : 'starting', runId);
+        }
+      } else if (ev.type === 'status') {
+        if (ui.answer.hidden && ev.text) ui.thinkText.textContent = ev.text;
+      } else if (ev.type === 'step') {
+        showStep(ui, ev);
+      } else if (ev.type === 'delta') {
+        text += ev.text || '';
+        showAnswer(ui, text, true);
+      } else if (ev.type === 'error') {
+        text += (text ? '\n\n' : '') + (ev.text || 'Something went wrong.');
+        showAnswer(ui, text, false);
+      } else if (ev.type === 'result') {
+        result = ev.data;
+      } else if (ev.type === 'done') {
+        finished = true;
+      }
     }
-    var liveTimer = document.createElement('p');
-    liveTimer.style.margin = '.4rem 0 0';
-    var liveBadge = document.createElement('span');
-    liveTimer.appendChild(liveBadge);
-    thread.lastChild.querySelector('.bubble').appendChild(liveTimer);
-    var rt = RunTimer.start(liveBadge, { startedAt: pipeStart });
 
     try {
-      var res = await fetch('/api/pipeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userStory: story,
-          systemPrompt: (systemPrompt.value || '').trim(),
-          runUnitTests: true,
-          runFunctionalTests: true,
-          runId: runId,
-          resume: resume
-        })
-      });
-      var data = await res.json().catch(function () { return null; });
-      if (!data) {
-        removeTyping();
-        rt.stop('Failed after', true);
-        addBot('<p>BOT answered with an error (HTTP ' + res.status + '). Please try again in a moment.</p>');
-        return;
+      try {
+        await HomeChat.stream('/api/chat/stream', payload, { signal: current.ctl ? current.ctl.signal : undefined, onEvent: onEvent });
+      } catch (err) {
+        if (err && err.unsupported && !text && !result) {
+          var plain = await viaPlainRequest(payload, ui);
+          text = plain.text;
+          result = plain.data;
+          finished = true;
+        } else {
+          throw err;
+        }
       }
-      removeTyping();
-      if (data.stopped) {
-        rt.stop('Stopped after', false);
-        addBot('<p><strong>Stopped.</strong> ' + escapeHtml(data.message || '') + '</p>' +
-          '<p class="actions"><button type="button" class="btn" id="resumeInline">&#9654; Resume</button></p>');
-        var ri = document.getElementById('resumeInline');
-        if (ri) ri.addEventListener('click', function () { BotRun.resumeNow(); });
-        BotRun.stopped(data.message || 'Stopped', runId, true);
-        return;
-      }
-      rt.stop(data && data.success === false ? 'Failed after' : 'Done in', data && data.success === false);
+      if (!finished && !result) throw new Error('connection closed');
 
-      if (data.historyId) {
-        setActiveHistory(data.historyId);
-      }
-      await loadHistory();
-      renderResultBubble(data, false);
-      if (data.success) {
-        BotRun.idle();
-        try { sessionStorage.removeItem(CHAT_RUN_KEY); } catch (e) { /* ignore */ }
-      } else if (data.resumable) {
-        BotRun.stopped('A step failed. Resume retries it from the last finished step', runId, true);
+      var ms = rt.stop('', false);
+      ui.think.hidden = true;
+      if (text) showAnswer(ui, text, false);
+      else if (!result) showAnswer(ui, 'I have nothing to add to that.', false);
+      foldSteps(ui, ms);
+      if (result) {
+        showExtras(ui, result, ms);
+        if (result.historyId) setActiveHistory(result.historyId);
+        await loadHistory();
+        if (result.stopped) {
+          BotRun.stopped(result.message || 'Stopped', runId, true);
+        } else if (result.success) {
+          BotRun.idle();
+          builtOnce = builtOnce || !result.conversion;
+          try { sessionStorage.removeItem(CHAT_RUN_KEY); } catch (e) { /* ignore */ }
+        } else if (result.resumable) {
+          BotRun.stopped('A step failed. Resume retries it from the last finished step', runId, true);
+        } else {
+          BotRun.idle();
+        }
       } else {
         BotRun.idle();
       }
-      var lastBubble = thread.lastChild && thread.lastChild.querySelector('.bubble');
-      if (lastBubble && opts.fromUpload && data.success) {
-        var upNote = document.createElement('p');
-        upNote.className = 'muted-note';
-        upNote.innerHTML = 'Built from your uploaded file(s): the user stories and code are in <a href="/code">User stories + code</a>, the website is at <a href="' + escapeHtml(data.previewUrl || '/site/home') + '">' + escapeHtml(data.previewUrl || '/site/home') + '</a>.';
-        lastBubble.appendChild(upNote);
-      }
-      if (lastBubble) {
-        var total = document.createElement('p');
-        total.style.margin = '.6rem 0 0';
-        total.innerHTML = RunTimer.badge(data.durationMs != null ? data.durationMs : Date.now() - pipeStart, 'Total time:');
-        lastBubble.appendChild(total);
-      }
-
-      // Stay in chat so you can open View Java code; site still one click away
-      if (data.success && data.previewUrl) {
-        /* no auto-redirect — user chooses website or code */
-      }
+      remember('assistant', text);
+      addCopyTool(ui, text);
     } catch (e) {
-      removeTyping();
-      rt.stop('Failed after', true);
-      addBot('<p>Network error. Your progress is saved on the server: press <strong>Resume</strong> to continue from the last finished step.</p>');
-      BotRun.stopped('Connection lost. Resume continues from the last finished step', runId, true);
+      var aborted = e && e.name === 'AbortError';
+      var ms2 = rt.stop('', true);
+      ui.think.hidden = true;
+      foldSteps(ui, ms2);
+      if (aborted) {
+        if (text) showAnswer(ui, text, false);
+        ui.extras.appendChild(el('<p class="muted-note">Stopped.</p>'));
+        remember('assistant', text);
+        BotRun.idle();
+      } else if (current && current.intent && current.intent !== 'chat') {
+        showAnswer(ui, (text ? text + '\n\n' : '') + 'I lost the connection. Your progress is saved on the server: press **Resume** to continue from the last finished step.', false);
+        var row = el('<p class="actions"><button type="button" class="btn resume-inline">&#9654; Resume</button></p>');
+        row.querySelector('button').addEventListener('click', function () { BotRun.resumeNow(); });
+        ui.extras.appendChild(row);
+        BotRun.stopped('Connection lost. Resume continues from the last finished step', runId, true);
+      } else {
+        showAnswer(ui, (text ? text + '\n\n' : '') + 'I could not reach BOT just now. Please try again in a moment.', false);
+        BotRun.idle();
+      }
     } finally {
       running = false;
+      current = null;
       document.body.classList.remove('is-running');
       try { localStorage.removeItem(PENDING_KEY); } catch (e) { /* ignore */ }
-      sendBtn.disabled = false;
       generateBtn.disabled = false;
       setStatus('');
       input.focus();
@@ -630,11 +857,13 @@ if __name__ == &quot;__main__&quot;:
   var CONVERT_INTENT = /^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite)\b/i;
   var SITE_INTENT = /\b(?:website|web ?site|web ?page|landing page|site)\b/i;
   var EDIT_INTENT = /^\s*(?:change|update|edit|make|use)\b/i;
+  var NEW_SITE_ASK = /\b(?:build|create|generate|develop|design|make)\s+(?:me\s+)?(?:a|an|my|our|another|new)\b[^.\n]{0,80}?\b(?:web\s?site|web\s?page|landing page|site|portal)\b/i;
 
   /** Adds "Backend language: X" for website prompts when a language is picked and the prompt names none. */
   function withLanguage(story) {
     var lang = langPick.value;
     if (!lang || CONVERT_INTENT.test(story) || EDIT_INTENT.test(story) || !SITE_INTENT.test(story)) return story;
+    if (builtOnce && !NEW_SITE_ASK.test(story)) return story; // a follow-up on the site that already exists
     if (/backend language\s*[:=]/i.test(story)) return story;
     return story.replace(/\s+$/, '') + ' Backend language: ' + lang + '.';
   }
@@ -773,9 +1002,101 @@ if __name__ == &quot;__main__&quot;:
   ['attachFiles'].forEach(function (id) {
     var inp = document.getElementById(id);
     inp.addEventListener('change', function () {
-      addAttachments(BotUpload.collect(inp));
+      routeFiles(Array.prototype.slice.call(inp.files || []));
       inp.value = ''; // the same choice can be made again
     });
+  });
+
+  // ---- pictures: paste (Ctrl+V), drop or pick; shown as thumbnails and sent with the next message ---------------------
+  var MAX_IMAGES = 4;
+  var MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  var IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+  var images = [];   // { file, url, name }
+  var imageTray = document.getElementById('imageTray');
+  var thumbs = document.getElementById('thumbs');
+  var pastedCount = 0;
+
+  function isImageFile(f) {
+    return f && (/^image\//.test(f.type || '') || /\.(png|jpe?g|webp|gif)$/i.test(f.name || ''));
+  }
+
+  function renderThumbs() {
+    imageTray.hidden = images.length === 0;
+    thumbs.innerHTML = '';
+    images.forEach(function (img, i) {
+      var li = el('<li class="thumb"><img alt=""/><button type="button" class="thumb-x" aria-label="Remove image">&times;</button>' +
+        '<span class="thumb-size"></span></li>');
+      li.querySelector('img').src = img.url;
+      li.querySelector('img').alt = img.name;
+      li.querySelector('.thumb-size').textContent = BotUpload.size(img.file.size);
+      li.querySelector('.thumb-x').addEventListener('click', function () {
+        URL.revokeObjectURL(img.url);
+        images.splice(i, 1);
+        renderThumbs();
+      });
+      thumbs.appendChild(li);
+    });
+  }
+
+  function addImages(files) {
+    var problems = [];
+    files.forEach(function (f) {
+      var type = f.type || '';
+      if (IMAGE_TYPES.indexOf(type) < 0) { problems.push((f.name || 'image') + ': only png, jpeg, webp and gif'); return; }
+      if (f.size > MAX_IMAGE_BYTES) { problems.push((f.name || 'image') + ': larger than 5 MB'); return; }
+      if (images.length >= MAX_IMAGES) { problems.push((f.name || 'image') + ': at most ' + MAX_IMAGES + ' images per message'); return; }
+      images.push({ file: f, url: URL.createObjectURL(f), name: f.name || 'image' });
+    });
+    renderThumbs();
+    if (problems.length) setStatus('Image not added \u2014 ' + escapeHtml(problems.join('; ')), 'tip');
+    else if (files.length && !running) setStatus('');
+  }
+
+  /** Pictures go to the thumbnail tray; every other file keeps the text-upload path. */
+  function routeFiles(files) {
+    var pics = files.filter(isImageFile);
+    var rest = files.filter(function (f) { return !isImageFile(f); });
+    if (pics.length) addImages(pics);
+    if (rest.length) addAttachments(BotUpload.collect(rest));
+  }
+
+  /** Reads the chosen pictures as base64 for the request; the tray is emptied afterwards. */
+  function takeImages() {
+    var batch = images.slice();
+    var thumbUrls = batch.map(function (i) { return i.url; });
+    return Promise.all(batch.map(function (img) {
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function () { resolve({ name: img.name, type: img.file.type, data: String(r.result) }); };
+        r.onerror = function () { reject(r.error); };
+        r.readAsDataURL(img.file);
+      });
+    })).then(function (payload) {
+      images = []; // the object URLs live on in the sent message's thumbnails
+      renderThumbs();
+      return { payload: payload, thumbs: thumbUrls };
+    });
+  }
+
+  /** Ctrl+V / Cmd+V with a screenshot or copied image on the clipboard. */
+  document.addEventListener('paste', function (e) {
+    var t = e.target;
+    var inOtherField = t && t !== input && /^(?:INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '');
+    if (inOtherField || !e.clipboardData) return;
+    var found = [];
+    Array.prototype.forEach.call(e.clipboardData.items || [], function (item) {
+      if (item.kind === 'file' && /^image\//.test(item.type)) {
+        var f = item.getAsFile();
+        if (f) {
+          var ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+          found.push((f.name && f.name !== 'image.png') ? f : new File([f], 'pasted-image-' + (++pastedCount) + '.' + ext, { type: f.type }));
+        }
+      }
+    });
+    if (!found.length) return;
+    if (!e.clipboardData.getData('text/plain')) e.preventDefault(); // a screenshot has no text to paste
+    addImages(found);
+    input.focus();
   });
 
   document.getElementById('attachClear').addEventListener('click', function () {
@@ -809,7 +1130,7 @@ if __name__ == &quot;__main__&quot;:
     composerBox.classList.remove('drag');
     if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
     e.preventDefault();
-    addAttachments(BotUpload.collect(e.dataTransfer.files));
+    routeFiles(Array.prototype.slice.call(e.dataTransfer.files));
   });
 
   /** The prompt with the attached text / code files added as context (or as the code to convert). */
@@ -858,8 +1179,13 @@ if __name__ == &quot;__main__&quot;:
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     var text = (input.value || '').trim();
-    if (!text && !attached.some(function (a) { return !a.pasted; })) return;
+    if (!text && !images.length && !attached.some(function (a) { return !a.pasted; })) return;
     if (running) return;
+    if (!text && images.length && !attached.some(function (a) { return !a.pasted; })) {
+      text = images.length > 1
+        ? 'Build a website that matches the look of the attached images.'
+        : 'Build a website that matches the look of the attached image.';
+    }
     var composed = await composeStory(text);
     if (composed.story === null) {
       setStatus('');
@@ -882,11 +1208,23 @@ if __name__ == &quot;__main__&quot;:
     attached = [];
     pastedStories = false;
     renderTray();
-    runPipeline(composed.story, composed.shown, { fromUpload: !!composed.fromUpload });
+    var sentImages = { payload: [], thumbs: [] };
+    if (images.length) {
+      try { sentImages = await takeImages(); }
+      catch (err) { setStatus('Could not read the image. Remove it and paste it again.', 'tip'); return; }
+    }
+    runPipeline(composed.story, composed.shown, {
+      fromUpload: !!composed.fromUpload, images: sentImages.payload, thumbs: sentImages.thumbs
+    });
+  });
+
+  // While BOT is answering, the Send button turns into Stop (like ChatGPT).
+  sendBtn.addEventListener('click', function (e) {
+    if (running) { e.preventDefault(); stopCurrent(); }
   });
 
   input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       form.requestSubmit();
     }
