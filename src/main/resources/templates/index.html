@@ -50,8 +50,8 @@
     <nav class="rail-links">
         <a href="/">Home</a>
         <a href="/code">User stories + code</a>
-        <a href="/stages">5-stage pipeline: BA → Dev → Test → Deploy → Train</a>
         <a href="/convert">Code converter</a>
+        <a href="/stages">5-stage pipeline: BA → Dev → Test → Deploy → Train</a>
         <a href="/edit">Edit generated site</a>
     </nav>
     <div class="rail-foot">
@@ -81,9 +81,26 @@
                 <p>Send a prompt in any domain and any language, or start from one of these:</p>
                 <nav class="welcome-links" aria-label="Where to start">
                     <a href="/code"><strong>User stories + code</strong><span>Read the stories and the generated code</span></a>
-                    <a href="/stages"><strong>5-stage pipeline: BA → Dev → Test → Deploy → Train</strong><span>Run each stage on its own</span></a>
                     <a href="/convert"><strong>Code converter</strong><span>Translate code or a whole project</span></a>
+                    <a href="/stages"><strong>5-stage pipeline: BA → Dev → Test → Deploy → Train</strong><span>Run each stage on its own</span></a>
                 </nav>
+                <p class="chip-label">Code conversion</p>
+                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), upload a file, or ask for a sample.</p>
+                <div class="suggestions">
+                    <button type="button" class="chip" data-story="Convert this Python code to Java:
+def factorial(n: int) -&gt; int:
+    if n &lt;= 1:
+        return 1
+    return n * factorial(n - 1)
+
+
+if __name__ == &quot;__main__&quot;:
+    n = 10
+    print(f&quot;{n}! = {factorial(n)}&quot;)">Python → Java</button>
+                    <button type="button" class="chip" data-story="Show FizzBuzz in COBOL">FizzBuzz in COBOL</button>
+                    <button type="button" class="chip" data-story="Translate binary search from Java to Rust">Binary search → Rust</button>
+                    <button type="button" class="chip" data-story="Show Hello World in PL/SQL">Hello World in PL/SQL</button>
+                </div>
                 <p class="muted-note">Pick a language, upload a file, or try an example. Every site gets its own name, headings, palette and fonts.</p>
                 <p class="chip-label">Websites in your language of choice</p>
                 <div class="suggestions">
@@ -102,23 +119,6 @@
                     <button type="button" class="chip" data-story="Create a travel website called SkyTrail Travels with a chatbot agent that recommends destinations and packages. Backend language: JavaScript.">Travel + agent (JavaScript)</button>
                     <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with an AI assistant chatbot that explains services, prices and books visits. Backend language: C#.">Clinic + agent (C#)</button>
                     <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with a chatbot agent that helps couples choose venues and photographers. Backend language: Kotlin.">Wedding + agent (Kotlin)</button>
-                </div>
-                <p class="chip-label">Code conversion</p>
-                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), upload a file, or ask for a sample.</p>
-                <div class="suggestions">
-                    <button type="button" class="chip" data-story="Convert this Python code to Java:
-def factorial(n: int) -&gt; int:
-    if n &lt;= 1:
-        return 1
-    return n * factorial(n - 1)
-
-
-if __name__ == &quot;__main__&quot;:
-    n = 10
-    print(f&quot;{n}! = {factorial(n)}&quot;)">Python → Java</button>
-                    <button type="button" class="chip" data-story="Show FizzBuzz in COBOL">FizzBuzz in COBOL</button>
-                    <button type="button" class="chip" data-story="Translate binary search from Java to Rust">Binary search → Rust</button>
-                    <button type="button" class="chip" data-story="Show Hello World in PL/SQL">Hello World in PL/SQL</button>
                 </div>
             </div>
         </div>
