@@ -27,6 +27,8 @@
         <a class="btn ghost" href="/code" aria-current="page">User stories + code</a>
         <a class="btn ghost" href="/edit">Edit site</a>
         <a class="btn ghost" href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
+        <a class="btn" th:if="${hasCode or hasUserStory}" href="/download/site.zip" id="downloadZip"
+           title="User stories + code + website in one ZIP">&#11015; Download ZIP</a>
         <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
     </nav>
 </header>
@@ -51,6 +53,7 @@
             <span class="bot-links">
                 <a th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
                 <a href="/edit">Edit site</a>
+                <a th:if="${hasCode or hasUserStory}" href="/download/site.zip">&#11015; Download ZIP</a>
                 <a href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
             </span>
         </div>
@@ -64,18 +67,38 @@
     </div>
 </section>
 
+<section class="downloads-panel" id="downloads" th:if="${hasCode or hasUserStory}">
+    <div class="downloads-inner">
+        <p class="pipe-label">Download · generated in <strong th:text="${siteLanguage}">Java</strong></p>
+        <p class="downloads-run" th:if="${bundle.runCommand}">Run it: <code th:text="${bundle.runCommand}">mvn spring-boot:run</code></p>
+        <p class="downloads-actions">
+            <a class="btn ghost" th:if="${hasUserStory}" href="/code/download/stories" id="dlStories">&#11015; User stories (.md)</a>
+            <a class="btn ghost" th:if="${hasCode}" href="/code/download/code.zip" id="dlCode">&#11015; <span th:text="${siteLanguage}">Java</span> code (ZIP)</a>
+            <a class="btn" th:if="${hasCode or hasUserStory}" href="/code/download/site.zip" id="dlSite">&#11015; Whole site ZIP (stories + code + pages)</a>
+            <a class="btn ghost" th:if="${selected}" th:href="@{/code/download/file(file=${selected})}" id="dlFile">&#11015; This file</a>
+        </p>
+    </div>
+</section>
+
 <main class="code-layout" id="code-bot" th:if="${hasCode}">
     <aside class="code-files">
         <p class="pipe-label">Code bot · generated files</p>
-        <a th:each="f : ${files}"
-           class="file-link"
-           th:classappend="${f == selected} ? ' active' : ''"
-           th:href="@{/code(file=${f})}"
-           th:text="${f}">src/…</a>
+        <div th:each="g : ${groups}" class="file-group" th:attr="data-group=${g.id}">
+            <p class="group-title" th:attr="title=${g.hint}">
+                <span th:text="${g.title}">Group</span>
+                <small th:text="${#lists.size(g.files)}">1</small>
+            </p>
+            <a th:each="f : ${g.files}"
+               class="file-link"
+               th:classappend="${f == selected} ? ' active' : ''"
+               th:href="@{/code(file=${f})}"
+               th:text="${f}">src/…</a>
+        </div>
     </aside>
     <section class="code-pane">
         <div class="code-meta">
             <span class="lang" th:text="${language}">java</span>
+            <span class="lang site-lang" th:text="${siteLanguage} + ' site'">Java site</span>
             <code th:text="${selected}">file</code>
         </div>
         <p class="code-error" th:if="${error}" th:text="${error}">Error</p>

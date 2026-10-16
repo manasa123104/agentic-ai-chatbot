@@ -31,7 +31,10 @@ public class HomeChatService {
     public enum Intent {
         /** A new website / app: run the whole pipeline on it. */
         BUILD,
-        /** A follow-up change to the current site ("add a chatbot agent"): rebuild from the earlier brief plus the change. */
+        /**
+         * A follow-up change to the current site ("make the hero shorter", "add a chatbot agent"): edited in place on
+         * the generated files when possible, otherwise rebuilt from the site's own brief plus the change.
+         */
         REFINE,
         /** A colour / font / image change: patch the current site. */
         EDIT,
@@ -62,6 +65,8 @@ public class HomeChatService {
                     + "(add|include|insert|put|remove|delete|drop|replace|shorten|lengthen|rename|move|hide|enable|give|"
                     + "with an?|with the|make|show|use)\\b");
 
+    public static final String DOWNLOAD_URL = "/download/site.zip";
+    public static final String DOWNLOAD_LABEL = "Download ZIP (user stories + code + website)";
     private static final String FOLLOW_UP_HEADER = "Follow-up changes requested in the conversation (apply all of them):";
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -109,7 +114,8 @@ public class HomeChatService {
                 || (m.length() < 300 && REFINE_START.matcher(m).find())
                 || (m.length() < 200 && SiteAgent.wantsAgent(m));
         if (refinement) {
-            return hasBrief ? Intent.REFINE : (edit ? Intent.EDIT : Intent.BUILD);
+            // a site exists, so the change is made on it; without a stored brief it is still patched in place
+            return hasBrief || !edit ? Intent.REFINE : Intent.EDIT;
         }
         return Intent.BUILD;
     }
@@ -133,12 +139,14 @@ public class HomeChatService {
     /** Brand of the site on disk: from the chatbot agent file, else the page title; blank when unknown. */
     public String siteBrand() {
         try {
-            Path agent = outputDir.resolve("SITE_AGENT.json");
-            if (Files.exists(agent)) {
-                JsonNode n = JSON.readTree(Files.readString(agent, StandardCharsets.UTF_8));
-                String brand = n.path("brand").asText("").trim();
-                if (!brand.isEmpty()) {
-                    return brand;
+            for (String file : List.of("SITE_META.json", "SITE_AGENT.json")) {
+                Path json = outputDir.resolve(file);
+                if (Files.exists(json)) {
+                    JsonNode n = JSON.readTree(Files.readString(json, StandardCharsets.UTF_8));
+                    String brand = n.path("brand").asText("").trim();
+                    if (!brand.isEmpty()) {
+                        return brand;
+                    }
                 }
             }
             Path home = outputDir.resolve("src/main/resources/templates/home.html");
@@ -248,8 +256,16 @@ public class HomeChatService {
         String preview = r.getPreviewUrl() == null ? "/site/home" : r.getPreviewUrl();
         sb.append("\n**Take a look**\n")
                 .append("- [Open the website](").append(preview).append(")\n")
-                .append("- [User stories + code](").append(r.getCodeUrl() == null ? "/code" : r.getCodeUrl()).append(")\n")
-                .append("- [Edit the site](/edit)\n\n");
+                .append("- [User stories + code](").append(r.getCodeUrl() == null ? "/code" : r.getCodeUrl()).append(")")
+                .append(r.getLanguageLabel() == null ? "" : " \u2014 the code is in " + r.getLanguageLabel()).append('\n')
+                .append("- [").append(DOWNLOAD_LABEL).append("](").append(DOWNLOAD_URL).append(")\n");
+        if (r.getLanguageLabel() != null) {
+            sb.append("- [Download the ").append(r.getLanguageLabel()).append(" code](")
+                    .append(r.getCodeDownloadUrl() == null ? SiteCodeService.CODE_ZIP_URL : r.getCodeDownloadUrl()).append(")\n")
+                    .append("- [Download the user stories](")
+                    .append(r.getStoriesDownloadUrl() == null ? SiteCodeService.STORIES_URL : r.getStoriesDownloadUrl()).append(")\n");
+        }
+        sb.append("- [Edit the site](/edit)\n\n");
         String examples = withAgent
                 ? "*\"make the hero shorter\"* or *\"change the colours to blue\"*"
                 : "*\"make the hero shorter\"*, *\"add a chatbot agent\"* or *\"change the colours to blue\"*";
@@ -262,8 +278,30 @@ public class HomeChatService {
         String preview = r.getPreviewUrl() == null ? "/site/home" : r.getPreviewUrl();
         return "Done \u2014 I've applied that to your website.\n\n"
                 + "- [Open the website](" + preview + ")\n"
+                + "- [" + DOWNLOAD_LABEL + "](" + DOWNLOAD_URL + ")\n"
                 + "- [Edit the site](/edit)\n\n"
                 + "Anything else? You can keep refining it by chatting with me.";
+    }
+
+    /** After surgical edits of the site on disk: says what changed, in the first person like a assistant would. */
+    public static String narratePatch(List<String> changes, String preview, String brand, String lookAfter) {
+        StringBuilder sb = new StringBuilder("Done \u2014 I ");
+        for (int i = 0; i < changes.size(); i++) {
+            if (i > 0) {
+                sb.append(i == changes.size() - 1 ? " and " : ", ");
+            }
+            sb.append(changes.get(i));
+        }
+        sb.append(brand == null || brand.isBlank() ? "" : " on your **" + brand.trim() + "** site").append(".\n\n");
+        if (lookAfter != null && !lookAfter.isBlank()) {
+            sb.append(lookAfter.strip()).append("\n\n");
+        }
+        sb.append("Everything else on the site stays as it was.\n\n**Take a look**\n")
+                .append("- [Open the website](").append(preview == null || preview.isBlank() ? "/site/home" : preview).append(")\n")
+                .append("- [").append(DOWNLOAD_LABEL).append("](").append(DOWNLOAD_URL).append(")\n")
+                .append("- [Edit the site](/edit)\n\n")
+                .append("Anything else? Keep telling me what to change \u2014 each change builds on the last one.");
+        return sb.toString();
     }
 
     /** A conversion request: the code itself is shown as a card below this text. */
@@ -377,7 +415,7 @@ public class HomeChatService {
                 never invent features or links you were not told about. If the user wants something built or changed, \
                 tell them they can simply describe it (for example "build a bakery website called Crumb Hearth with a \
                 chatbot agent, backend language Python") and you will build it.
-                Useful links: [User stories + code](/code), [Edit the site](/edit), [Code converter](/convert), \
+                Useful links: [User stories + code](/code), [Download ZIP of stories + code + site](/download/site.zip), [Edit the site](/edit), [Code converter](/convert), \
                 [5-stage pipeline](/stages).
                 """);
         if (Files.exists(outputDir.resolve("SITE_META.json"))) {

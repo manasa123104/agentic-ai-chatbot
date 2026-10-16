@@ -1,5 +1,6 @@
 package com.agentic.chatbot.web;
 
+import com.agentic.chatbot.service.SiteCodeService;
 import com.agentic.chatbot.service.SiteStyleService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -9,22 +10,22 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Stream;
 
 /**
- * Browse Java + HTML source for the website the user asked BOT to create.
+ * "User stories + code": the user stories and the generated project in the language that was generated, with the site
+ * pages and business-logic files, and download links (stories, code ZIP, whole-site ZIP, single files).
  */
 @Controller
 public class CodeViewerController {
 
     private final SiteStyleService styleService;
+    private final SiteCodeService siteCode;
 
-    public CodeViewerController(SiteStyleService styleService) {
+    public CodeViewerController(SiteStyleService styleService, SiteCodeService siteCode) {
         this.styleService = styleService;
+        this.siteCode = siteCode;
     }
 
     @GetMapping("/code")
@@ -39,9 +40,14 @@ public class CodeViewerController {
             model.addAttribute("lastRunMs", pr.getDurationMs());
         }
         Path root = styleService.outputDir().toAbsolutePath().normalize();
-        List<String> files = listSourceFiles(root);
+        SiteCodeService.Bundle bundle = SiteCodeService.describe(root);
+        List<String> files = bundle.allFiles();
+        model.addAttribute("bundle", bundle);
+        model.addAttribute("groups", bundle.getGroups());
         model.addAttribute("files", files);
         model.addAttribute("hasCode", !files.isEmpty());
+        model.addAttribute("siteLanguage", bundle.getLanguageLabel());
+        model.addAttribute("zipLanguage", bundle.getLanguageLabel());
         model.addAttribute("previewUrl", resolvePreviewUrl(root));
 
         String userStoryText = "";
@@ -54,18 +60,17 @@ public class CodeViewerController {
 
         String selected = file;
         if ((selected == null || selected.isBlank()) && !files.isEmpty()) {
-            selected = files.stream()
-                    .filter(f -> f.equalsIgnoreCase("USER_STORY.md"))
-                    .findFirst()
-                    .orElse(files.stream()
-                            .filter(f -> f.endsWith(".java"))
-                            .findFirst()
-                            .orElse(files.get(0)));
+            // open the main file of the generated language first: its own code, not the stories
+            SiteCodeService.Group codeGroup = bundle.group("code");
+            selected = codeGroup != null && !codeGroup.getFiles().isEmpty()
+                    ? codeGroup.getFiles().stream().filter(f -> !f.toLowerCase(Locale.ROOT).contains("readme")
+                            && !f.equals("pom.xml")).findFirst().orElse(codeGroup.getFiles().get(0))
+                    : files.get(0);
         }
 
         if (selected != null && !selected.isBlank()) {
             Path resolved = root.resolve(selected).normalize();
-            if (!resolved.startsWith(root) || !Files.isRegularFile(resolved)) {
+            if (!resolved.startsWith(root) || !Files.isRegularFile(resolved) || !files.contains(selected.replace('\\', '/'))) {
                 model.addAttribute("error", "File not found or outside generated project.");
                 model.addAttribute("selected", null);
                 model.addAttribute("content", "");
@@ -87,41 +92,6 @@ public class CodeViewerController {
         }
         return "code";
     }
-
-    private static List<String> listSourceFiles(Path root) throws Exception {
-        if (!Files.isDirectory(root)) {
-            return List.of();
-        }
-        List<String> out = new ArrayList<>();
-        try (Stream<Path> walk = Files.walk(root)) {
-            walk.filter(Files::isRegularFile)
-                    .filter(p -> {
-                        String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
-                        String rel = root.relativize(p).toString().replace('\\', '/').toLowerCase(Locale.ROOT);
-                        boolean serverFile = rel.startsWith("server/") && !rel.contains("/public/");
-                        return name.endsWith(".java") || name.endsWith(".html")
-                                || name.endsWith(".css") || name.equals("pom.xml")
-                                || name.equals("user_story.md") || name.equals("bot_model.json")
-                                || name.equals("workflow.md")
-                                || name.equals("site_meta.json") || name.equals("site_style.json")
-                                || name.equals("site_agent.json") || serverFile;
-                    })
-                    .filter(p -> {
-                        String rel = root.relativize(p).toString().replace('\\', '/');
-                        return !rel.contains("/target/") && !rel.startsWith("target/")
-                                && !rel.contains("/uploads/") && !rel.contains("node_modules/")
-                                && !(rel.startsWith("server/") && rel.contains("/public/"));
-                    })
-                    .map(p -> root.relativize(p).toString().replace('\\', '/'))
-                    .sorted(Comparator
-                            .comparing((String s) -> !s.endsWith(".java"))
-                            .thenComparing(s -> !s.contains("/templates/"))
-                            .thenComparing(String::compareToIgnoreCase))
-                    .forEach(out::add);
-        }
-        return out;
-    }
-
     private static String resolvePreviewUrl(Path root) {
         try {
             Path meta = root.resolve("SITE_META.json");

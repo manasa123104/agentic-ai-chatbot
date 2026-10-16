@@ -421,6 +421,14 @@ if __name__ == &quot;__main__&quot;:
     return name.replace(/^Bot \d+\s*-\s*/, '');
   }
 
+  /** Download links for the stories and for the code in the language that was generated. */
+  function downloadLinks(data) {
+    var lang = data.languageLabel ? escapeHtml(data.languageLabel) + ' code' : 'Code';
+    return '<p class="actions download-row">' +
+      '<a class="btn ghost" href="' + escapeHtml(data.storiesDownloadUrl || '/code/download/stories') + '">&#11015; User stories</a>' +
+      '<a class="btn ghost" href="' + escapeHtml(data.codeDownloadUrl || '/code/download/code.zip') + '">&#11015; ' + lang + ' (ZIP)</a></p>';
+  }
+
   function renderResultBubble(data, fromHistory) {
     if (data.conversion) {
       renderConversionBubble(data.conversion, fromHistory);
@@ -448,8 +456,10 @@ if __name__ == &quot;__main__&quot;:
       : '';
     var preview = data.previewUrl
       ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
-        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code</a>' +
-        '<a class="btn ghost" href="/edit">Edit site</a></p>'
+        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code' +
+          (data.languageLabel ? ' (' + escapeHtml(data.languageLabel) + ')' : '') + '</a>' +
+        '<a class="btn" href="/download/site.zip">&#11015; Download site ZIP</a>' +
+        '<a class="btn ghost" href="/edit">Edit site</a></p>' + downloadLinks(data)
       : '<p class="actions"><a class="btn ghost" href="/code">User stories + code</a></p>';
     var label = fromHistory
       ? '<p>Saved result from your history.</p>'
@@ -640,9 +650,17 @@ if __name__ == &quot;__main__&quot;:
         return '<li><code>' + escapeHtml(f) + '</code></li>';
       }).join('');
       var filesBlock = files
-        ? '<details class="story-details"><summary>Generated code files</summary><ul class="step-list">' + files + '</ul></details>'
+        ? '<details class="story-details"><summary>Generated ' + escapeHtml(data.languageLabel || '') + ' code files</summary><ul class="step-list">' + files + '</ul></details>'
         : '';
-      if (story || filesBlock) ui.extras.appendChild(el('<div>' + story + filesBlock + '</div>'));
+      var buttons = (data.languageLabel || data.generatedCodeFiles && data.generatedCodeFiles.length)
+        ? '<p class="actions">' +
+          (data.previewUrl ? '<a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' : '') +
+          '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code' +
+            (data.languageLabel ? ' (' + escapeHtml(data.languageLabel) + ')' : '') + '</a>' +
+          '<a class="btn" href="' + escapeHtml(data.siteDownloadUrl || '/download/site.zip') + '">&#11015; Download site ZIP</a></p>' +
+          downloadLinks(data)
+        : '';
+      if (story || filesBlock || buttons) ui.extras.appendChild(el('<div>' + story + filesBlock + buttons + '</div>'));
     }
     var total = el('<p class="answer-time">' + RunTimer.badge(data.durationMs != null ? data.durationMs : ms, 'Total time:') + '</p>');
     ui.extras.appendChild(total);
@@ -705,7 +723,7 @@ if __name__ == &quot;__main__&quot;:
     if (data.stopped) text = '**Stopped.** ' + (data.message || '');
     else if (!data.success) text = 'I hit a problem: ' + (data.message || 'Unknown error');
     else text = (data.conversion ? 'Here is your conversion.' : 'Done \u2014 the user story and the website code are ready.') +
-      (data.previewUrl ? '\n\n- [Open the website](' + data.previewUrl + ')\n- [User stories + code](' + (data.codeUrl || '/code') + ')\n- [Edit the site](/edit)' : '');
+      (data.previewUrl ? '\n\n- [Open the website](' + data.previewUrl + ')\n- [User stories + code](' + (data.codeUrl || '/code') + ')\n- [Download ZIP (stories + code + site)](/download/site.zip)\n- [Edit the site](/edit)' : '');
     return { data: data, text: text };
   }
 

@@ -7,6 +7,8 @@ import com.agentic.chatbot.model.PipelineRequest;
 import com.agentic.chatbot.model.PipelineResponse;
 import com.agentic.chatbot.service.GitService;
 import com.agentic.chatbot.service.RunControl;
+import com.agentic.chatbot.service.SiteCodeService;
+import com.agentic.chatbot.stage.StageLanguage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -279,8 +281,25 @@ public class PipelineOrchestrator {
             response.setRefinedUserStory(refined);
             response.setGeneratedCodeFiles(codeFiles);
             response.setRedirectPath(analysis.redirectPath());
+            StageLanguage siteLanguage = SiteCodeService.language(outputDir);
+            // the stories first, then the code in the generated language, then the rest (the chat shows the first few)
+            boolean javaSite = siteLanguage == StageLanguage.JAVA;
+            codeFiles.sort(java.util.Comparator.comparingInt((String f) -> {
+                String lower = f.toLowerCase();
+                if (lower.endsWith("user_story.md")) {
+                    return 0;
+                }
+                boolean own = javaSite ? (lower.endsWith(".java") || lower.endsWith("pom.xml")) : lower.startsWith("server/");
+                return own ? 1 : 2;
+            }));
+            response.setGeneratedCodeFiles(codeFiles);
+            response.setLanguage(siteLanguage.id());
+            response.setLanguageLabel(siteLanguage.label());
+            response.setStoriesDownloadUrl(SiteCodeService.STORIES_URL);
+            response.setCodeDownloadUrl(SiteCodeService.CODE_ZIP_URL);
+            response.setSiteDownloadUrl(SiteCodeService.SITE_ZIP_URL);
             response.setMessage(allOk
-                    ? "All 5 agents done. User story + Java website code ready — preview "
+                    ? "All 5 agents done. User story + " + siteLanguage.label() + " website code ready — preview "
                     + previewUrl + " · code /code"
                     : "Pipeline finished with one or more failures.");
             response.setSteps(steps);

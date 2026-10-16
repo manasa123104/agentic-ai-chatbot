@@ -276,3 +276,34 @@ a.bot-card:hover { border-color: #2c5d68; background: #eef3f4; }
 @media (max-width: 860px) {
   .bot-trio { grid-template-columns: 1fr; }
 }
+/* Downloads: stories, code in the generated language, whole-site ZIP */
+.downloads-panel { padding: .85rem 1.25rem 0; }
+.downloads-inner {
+  background: #fff;
+  border: 1px solid var(--line, #d8d3c8);
+  border-radius: 14px;
+  padding: .85rem 1rem 1rem;
+  box-shadow: 0 6px 18px rgba(30, 36, 46, .06);
+}
+.downloads-inner .pipe-label {
+  margin: 0 0 .45rem;
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #2c5d68;
+  font-weight: 600;
+}
+.downloads-run { margin: 0 0 .6rem; font-size: .85rem; color: #3a4550; }
+.downloads-run code { font: 500 12px "IBM Plex Mono", Consolas, monospace; background: #f6f3ee; padding: .15rem .4rem; border-radius: 6px; }
+.downloads-actions { margin: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+.file-group { margin-bottom: .9rem; }
+.file-group .group-title {
+  margin: 0 .4rem .3rem;
+  font: 600 .7rem var(--font-ui);
+  color: #c9d3dc;
+  display: flex;
+  justify-content: space-between;
+  gap: .5rem;
+}
+.file-group .group-title small { color: #8b97a3; }
+.code-meta .lang.site-lang { background: #efe6d8; color: #6b4a1f; }

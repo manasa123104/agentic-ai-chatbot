@@ -17,6 +17,13 @@ public class PipelineResponse {
     private String refinedUserStory;
     /** Relative paths of generated Java / key source files. */
     private List<String> generatedCodeFiles = new ArrayList<>();
+    /** Backend language of the generated site: id ("python") and label ("Python"); null when unknown. */
+    private String language;
+    private String languageLabel;
+    /** Downloads of the generated site (user stories, code in the language, whole site). */
+    private String storiesDownloadUrl;
+    private String codeDownloadUrl;
+    private String siteDownloadUrl;
     private List<BotStepLog> steps = new ArrayList<>();
     /** Set when the chat message was a code-conversion request instead of a website story. */
     private ConversionResponse conversion;
@@ -133,4 +140,15 @@ public class PipelineResponse {
     public void setConversion(ConversionResponse conversion) {
         this.conversion = conversion;
     }
+
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
+    public String getLanguageLabel() { return languageLabel; }
+    public void setLanguageLabel(String languageLabel) { this.languageLabel = languageLabel; }
+    public String getStoriesDownloadUrl() { return storiesDownloadUrl; }
+    public void setStoriesDownloadUrl(String storiesDownloadUrl) { this.storiesDownloadUrl = storiesDownloadUrl; }
+    public String getCodeDownloadUrl() { return codeDownloadUrl; }
+    public void setCodeDownloadUrl(String codeDownloadUrl) { this.codeDownloadUrl = codeDownloadUrl; }
+    public String getSiteDownloadUrl() { return siteDownloadUrl; }
+    public void setSiteDownloadUrl(String siteDownloadUrl) { this.siteDownloadUrl = siteDownloadUrl; }
 }

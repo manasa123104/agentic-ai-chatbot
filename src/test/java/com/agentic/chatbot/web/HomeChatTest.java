@@ -12,6 +12,7 @@ import com.agentic.chatbot.service.CodeConversionService;
 import com.agentic.chatbot.service.HomeChatService;
 import com.agentic.chatbot.service.HomeChatService.Intent;
 import com.agentic.chatbot.service.SiteEditService;
+import com.agentic.chatbot.service.SitePatcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -141,7 +142,7 @@ class HomeChatTest {
         var history = new ChatHistoryService(dir.resolve("history.json").toString());
         var model = new Model();
         var controller = new HomeChatApiController(orchestrator, history, site, conversion,
-                new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), model, 0);
+                new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), model), model, 0);
         var session = new MockHttpSession();
 
         when(orchestrator.run(any(PipelineRequest.class), any(PipelineListener.class))).thenAnswer(inv -> {
@@ -192,7 +193,7 @@ class HomeChatTest {
         var orchestrator = mock(PipelineOrchestrator.class);
         var model = new Model();
         var controller = new HomeChatApiController(orchestrator, new ChatHistoryService(dir.resolve("h.json").toString()),
-                mock(SiteEditService.class), mock(CodeConversionService.class), new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), model, 0);
+                mock(SiteEditService.class), mock(CodeConversionService.class), new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), model), model, 0);
 
         List<String> events = lines(controller, Map.of(
                 "message", "Where is it?",
@@ -215,7 +216,7 @@ class HomeChatTest {
         model.available = false;
         var controller = new HomeChatApiController(mock(PipelineOrchestrator.class),
                 new ChatHistoryService(dir.resolve("h.json").toString()), mock(SiteEditService.class),
-                mock(CodeConversionService.class), new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), model, 0);
+                mock(CodeConversionService.class), new HomeChatService(dir.toString()), new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), model), model, 0);
 
         List<String> events = lines(controller, Map.of("message", "hello"), new MockHttpSession());
 
@@ -280,7 +281,7 @@ class HomeChatTest {
         var model = new Seeing();
         var controller = new HomeChatApiController(orchestrator, new ChatHistoryService(dir.resolve("h.json").toString()),
                 site, mock(CodeConversionService.class), new HomeChatService(dir.toString()),
-                new ChatImageService(dir.toString()), model, 0);
+                new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), model), model, 0);
         when(orchestrator.run(any(PipelineRequest.class), any(PipelineListener.class))).thenReturn(okRun());
 
         List<String> events = lines(controller, Map.of(
@@ -310,7 +311,7 @@ class HomeChatTest {
         when(site.apply(any(), any())).thenReturn(placed);
         var controller = new HomeChatApiController(orchestrator, new ChatHistoryService(dir.resolve("h.json").toString()),
                 site, mock(CodeConversionService.class), new HomeChatService(dir.toString()),
-                new ChatImageService(dir.toString()), new Model(), 0);
+                new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), null), new Model(), 0);
         when(orchestrator.run(any(PipelineRequest.class), any(PipelineListener.class))).thenReturn(okRun());
 
         List<String> events = lines(controller, Map.of(
@@ -323,6 +324,45 @@ class HomeChatTest {
         String text = joinedText(events);
         assertTrue(text.contains("can't look at pictures") && text.contains("hero and card images"), text);
         assertTrue(events.stream().anyMatch(l -> l.contains("Placing your images on the site")), events.toString());
+    }
+
+    // ------------------------------------------------------------------ editing the generated site
+
+    @Test
+    void followUpsEditTheGeneratedSiteInPlaceAndStack(@TempDir Path dir) throws Exception {
+        var templates = java.nio.file.Files.createDirectories(dir.resolve("src/main/resources/templates"));
+        java.nio.file.Files.writeString(templates.resolve("home.html"), com.agentic.chatbot.service.SitePatcherTest.HOME);
+        java.nio.file.Files.writeString(dir.resolve("SITE_META.json"), "{\"brand\":\"Crumb Hearth\",\"language\":\"java\"}");
+        java.nio.file.Files.writeString(dir.resolve("USER_STORY.md"), "# Big site generated\n\nBuild a bakery website called Crumb Hearth\n");
+        var orchestrator = mock(PipelineOrchestrator.class);
+        var site = mock(SiteEditService.class);
+        when(site.hasGeneratedSite()).thenReturn(true);
+        var controller = new HomeChatApiController(orchestrator, new ChatHistoryService(dir.resolve("h.json").toString()),
+                site, mock(CodeConversionService.class), new HomeChatService(dir.toString()),
+                new ChatImageService(dir.toString()), new SitePatcher(dir.toString(), null), new Model(), 0);
+        var session = new MockHttpSession();
+
+        // a fresh session (the server restarted): the brief comes from the site on disk
+        List<String> first = lines(controller, Map.of("message", "make the hero shorter"), session);
+        assertTrue(first.get(0).contains("\"intent\":\"refine\""), first.toString());
+        String text = joinedText(first);
+        assertTrue(text.contains("updated the hero") && text.contains("Crumb Hearth"), text);
+        assertTrue(text.contains("(/site/home)") && text.contains("(/download/site.zip)"), text);
+        assertTrue(first.stream().anyMatch(l -> l.contains("\"type\":\"result\"")), first.toString());
+        String afterFirst = java.nio.file.Files.readString(templates.resolve("home.html"));
+        assertTrue(afterFirst.contains("min-height:170px"));
+
+        // the next edit builds on the latest state of the site
+        List<String> second = lines(controller, Map.of("message", "rename Plans to Pricing"), session);
+        assertTrue(joinedText(second).contains("renamed \u201cPlans\u201d to \u201cPricing\u201d"), joinedText(second));
+        String afterSecond = java.nio.file.Files.readString(templates.resolve("home.html"));
+        assertTrue(afterSecond.contains("min-height:170px") && afterSecond.contains(">Pricing<"), "both edits are on the site");
+
+        // a question back instead of a blind rebuild
+        List<String> third = lines(controller, Map.of("message", "rename the menu"), session);
+        assertTrue(joinedText(third).contains("Which menu item"), joinedText(third));
+
+        verify(orchestrator, never()).run(any(PipelineRequest.class), any(PipelineListener.class));
     }
 
     private static int indexOf(List<String> events, String needle) {

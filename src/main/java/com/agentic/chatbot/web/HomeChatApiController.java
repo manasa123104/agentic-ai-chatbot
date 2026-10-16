@@ -16,6 +16,7 @@ import com.agentic.chatbot.service.HomeChatService;
 import com.agentic.chatbot.service.HomeChatService.Intent;
 import com.agentic.chatbot.service.RunControl;
 import com.agentic.chatbot.service.SiteEditService;
+import com.agentic.chatbot.service.SitePatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
@@ -56,8 +57,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * {@code result} (the full result of a build, edit or conversion, for the cards and links), {@code ping} (keeps the
  * connection open through proxies) and finally {@code done}.
  *
- * <p>Follow-ups work: "add a chatbot agent" or "make the hero shorter" rebuilds the earlier site from its brief plus the
- * change, a colour or font change patches the current site, and plain questions are answered by the connected model
+ * <p>Follow-ups edit the site that was generated: "make the hero shorter" or "rename Plans to Pricing" is applied to the
+ * pages on disk ({@link SitePatcher}), a colour or font change patches the theme, and only a structural request
+ * ("add a chatbot agent") rebuilds the site from its own stored brief, keeping its look and the earlier edits. Plain
+ * questions are answered by the connected model
  * with the conversation so far. Builds keep running on the server if the browser goes away, as before.
  * {@code /api/pipeline} (one JSON answer at the end) is unchanged.
  */
@@ -78,6 +81,7 @@ public class HomeChatApiController {
     private final CodeConversionService conversionService;
     private final HomeChatService chat;
     private final ChatImageService images;
+    private final SitePatcher patcher;
     private final LlmClient llm;
     private final ExecutorService workers = Executors.newCachedThreadPool(r -> {
         Thread t = new Thread(r, "home-chat");
@@ -95,8 +99,9 @@ public class HomeChatApiController {
             CodeConversionService conversionService,
             HomeChatService chat,
             ChatImageService images,
+            SitePatcher patcher,
             LlmClient llm) {
-        this(orchestrator, historyService, siteEditService, conversionService, chat, images, llm, 25);
+        this(orchestrator, historyService, siteEditService, conversionService, chat, images, patcher, llm, 25);
     }
 
     HomeChatApiController(
@@ -106,8 +111,10 @@ public class HomeChatApiController {
             CodeConversionService conversionService,
             HomeChatService chat,
             ChatImageService images,
+            SitePatcher patcher,
             LlmClient llm,
             int pieceDelayMs) {
+        this.patcher = patcher;
         this.orchestrator = orchestrator;
         this.historyService = historyService;
         this.siteEditService = siteEditService;
@@ -282,13 +289,21 @@ public class HomeChatApiController {
         switch (intent) {
             case CHAT -> talk(turn, pictures, sink);
             case EDIT -> {
+                if (pictures.saved().isEmpty() && patch(message, false, base, session, sink, started)) {
+                    return;
+                }
                 String instruction = pictures.saved().isEmpty() ? message
                         : message + " Use this image: " + String.join(" ", pictures.urls());
                 edit(instruction, message, base, pictures, session, sink, started);
+                patcher.replay(); // earlier edits survive a colour/image change that had to rebuild the pages
             }
             case REFINE -> {
-                sink.send(ev("type", "status", "text", "Adding that to your brief and rebuilding the site\u2026"));
-                String brief = HomeChatService.refinedBrief(base, List.of(message));
+                if (pictures.saved().isEmpty() && patch(message, true, base, session, sink, started)) {
+                    return;
+                }
+                sink.send(ev("type", "status", "text",
+                        "That needs a rebuild \u2014 I'll rebuild from your site's own brief and keep its look and your edits\u2026"));
+                String brief = base.isBlank() ? message : HomeChatService.refinedBrief(base, List.of(message));
                 pictures = lookAt(pictures, message, sink);
                 brief = brief + pictureContext(pictures, message);
                 request.setUserStory(brief);
@@ -395,6 +410,44 @@ public class HomeChatApiController {
         }
     }
 
+    /**
+     * Edits the generated pages in place ("make the hero shorter", "rename Plans to Pricing"). Returns false when the
+     * request is not one the patcher can do, so the caller falls back to the theme editor or a rebuild.
+     */
+    private boolean patch(String message, boolean allowModel, String base, HttpSession session, Sink sink, long started) {
+        if (!patcher.hasPages()) {
+            return false;
+        }
+        sink.send(ev("type", "status", "text", "Looking at your current site\u2026"));
+        SitePatcher.Outcome outcome = patcher.apply(message, allowModel);
+        if (!outcome.handled()) {
+            return false;
+        }
+        if (!outcome.changed()) {
+            narrate(outcome.clarify(), sink); // a question back, nothing was changed
+            return true;
+        }
+        sink.send(ev("type", "step", "state", "start", "label", HomeChatService.activeLabel("Site editor"), "index", 1, "total", 1));
+        String preview = "/site/" + (outcome.page() == null ? "home" : outcome.page());
+        BotStepLog step = new BotStepLog("Site editor \u2014 edit generated pages", true,
+                "Edited " + String.join("; ", outcome.changes()), outcome.files(), System.currentTimeMillis() - started);
+        sink.send(stepEvent(step, 1, 1));
+        PipelineResponse response = new PipelineResponse();
+        response.setSuccess(true);
+        response.setPreviewUrl(preview);
+        response.setCodeUrl("/code");
+        response.setMessage("Applied your edit: " + String.join("; ", outcome.changes()));
+        response.setSteps(new ArrayList<>(List.of(step)));
+        response.setDurationMs(System.currentTimeMillis() - started);
+        if (base != null && !base.isBlank()) {
+            session.setAttribute("baseUserStory", base);
+        }
+        remember(response, message, session);
+        narrate(HomeChatService.narratePatch(outcome.changes(), preview, patcher.brand(), outcome.lead()), sink);
+        sink.send(ev("type", "result", "data", response));
+        return true;
+    }
+
     /** A colour / font / image change of the current site. */
     private void edit(String instruction, String message, String base, Pictures pictures, HttpSession session,
                       Sink sink, long started) {
@@ -430,7 +483,18 @@ public class HomeChatApiController {
                 sink.send(stepEvent(step, index, total));
             }
         };
+        // a rebuild of the existing site keeps its look and the edits made on it; a new site starts clean
+        SitePatcher.Look look = refined ? patcher.snapshotLook() : null;
         PipelineResponse response = orchestrator.run(request, live);
+        boolean kept = false;
+        if (response.isSuccess() && !response.isStopped()) {
+            if (refined) {
+                patcher.restoreLook(look);
+                kept = patcher.replay() > 0 || look != null && !look.pages().isEmpty();
+            } else {
+                patcher.resetEdits();
+            }
+        }
         // pictures nobody could look at become the site's own images: hero + cards
         boolean placed = false;
         if (response.isSuccess() && !response.isStopped() && !pictures.looked() && !pictures.saved().isEmpty()) {
@@ -453,6 +517,9 @@ public class HomeChatApiController {
             text = HomeChatService.narrateStopped(response);
         } else if (response.isSuccess()) {
             text = HomeChatService.narrateBuild(response, chat.siteBrand(), refined, chat.siteHasAgent());
+            if (kept) {
+                text = text.replace("Here's what I did:", "I kept your colours, fonts, pictures and earlier edits.\n\nHere's what I did:");
+            }
         } else {
             text = HomeChatService.narrateFailure(response);
         }
@@ -523,6 +590,11 @@ public class HomeChatApiController {
         Object base = session.getAttribute("baseUserStory");
         if (base instanceof String s && !s.isBlank()) {
             return s;
+        }
+        // the site on disk is the truth: its own stored brief beats whatever an older session remembers
+        String stored = patcher.storedBrief();
+        if (!stored.isBlank()) {
+            return stored;
         }
         Object last = session.getAttribute("lastUserStory");
         if (last instanceof String s && !s.isBlank() && !SiteEditService.isEditMessage(s)) {

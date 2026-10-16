@@ -245,6 +245,7 @@ public class GeneratedSiteController {
                 <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem;font:13px 'Public Sans',Segoe UI,Arial,sans-serif">
                   <a href="/code" style="background:#fbf9f5;color:#244a54;border:1px solid #d8d3c8;padding:.45rem .75rem;border-radius:8px;text-decoration:none">User stories + code</a>
                   <a href="/edit/%s" style="background:#2c5d68;color:#fff;border:1px solid #2c5d68;padding:.45rem .75rem;border-radius:8px;text-decoration:none">Edit site</a>
+                  <a href="/download/site.zip" style="background:#fbf9f5;color:#244a54;border:1px solid #d8d3c8;padding:.45rem .75rem;border-radius:8px;text-decoration:none">&#11015; Download ZIP</a>
                   <a href="#" data-site-push data-host="%s" style="background:#222a33;color:#fff;border:1px solid #222a33;padding:.45rem .75rem;border-radius:8px;text-decoration:none">&#11014; Push to GitHub</a>
                   <a href="/" style="background:#fbf9f5;color:#244a54;border:1px solid #d8d3c8;padding:.45rem .75rem;border-radius:8px;text-decoration:none">New story</a>
                 </div>

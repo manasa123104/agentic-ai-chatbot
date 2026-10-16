@@ -8,7 +8,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,6 +51,7 @@ public class ScreenCodeGenerator {
                 written.addAll(writeFromLlmFences(content, projectDir));
                 if (!written.isEmpty()) {
                     injectAgent(written, projectDir, userStory);
+                    written.addAll(writeBackend(userStory, projectDir, StoryDetails.brandOf(userStory), "home", true));
                     ensurePom(projectDir, written);
                     return written;
                 }
@@ -268,21 +271,56 @@ public class ScreenCodeGenerator {
                   "pagePath": "%s",
                   "redirectPath": %s,
                   "featureName": "%s",
-                  "previewUrl": "/site%s"
+                  "previewUrl": "/site%s",
+                  "language": "%s"
                 }
                 """.formatted(
                 a.pagePath(),
                 a.redirectPath() == null ? "null" : "\"" + a.redirectPath() + "\"",
                 a.featureName(),
-                a.pagePath()
+                a.pagePath(),
+                SiteBackends.detect(userStory).id()
         ), StandardCharsets.UTF_8);
         paths.add(meta);
+
+        // the language the user picked also applies to a single screen: write its server next to the Spring Boot project
+        paths.addAll(writeBackend(userStory, projectDir, a.headline(), view, false));
 
         Path readme = projectDir.resolve("USER_STORY.md");
         Files.writeString(readme, "# Generated from user story\n\n" + userStory + "\n", StandardCharsets.UTF_8);
         paths.add(readme);
 
         return paths;
+    }
+
+    /**
+     * Writes {@code server/<language>/} (the pages of the Thymeleaf templates plus a small server) when the story asks
+     * for a language other than Java. {@code onlyIfMissing}: keep a server the model already wrote.
+     */
+    private static List<Path> writeBackend(String userStory, Path projectDir, String brand, String mainView,
+                                           boolean onlyIfMissing) throws IOException {
+        var language = SiteBackends.detect(userStory);
+        if (language == com.agentic.chatbot.stage.StageLanguage.JAVA) {
+            return List.of();
+        }
+        if (onlyIfMissing && Files.isDirectory(projectDir.resolve("server").resolve(language.id()))) {
+            return List.of();
+        }
+        Map<String, String> pages = new LinkedHashMap<>();
+        Path templates = projectDir.resolve("src/main/resources/templates");
+        if (Files.isDirectory(templates)) {
+            try (var files = Files.list(templates)) {
+                for (Path p : files.filter(f -> f.getFileName().toString().endsWith(".html")).sorted().toList()) {
+                    String name = p.getFileName().toString();
+                    pages.put(name.substring(0, name.length() - ".html".length()), Files.readString(p, StandardCharsets.UTF_8));
+                }
+            }
+        }
+        if (!pages.isEmpty() && !pages.containsKey("home")) {
+            // "/" and "/site/home" open the main screen of the story
+            pages.put("home", pages.containsKey(mainView) ? pages.get(mainView) : pages.values().iterator().next());
+        }
+        return SiteBackends.write(language, projectDir, brand, pages, SiteAgent.wantsAgent(userStory));
     }
 
     private static boolean wantsBigSite(String userStory, StoryAnalyzer.Analysis a) {
@@ -301,7 +339,7 @@ public class ScreenCodeGenerator {
                 || s.contains("wedding") || s.contains("bridal") || s.contains("pet") || s.contains("bookstore")
                 || s.contains("library") || s.contains("garden") || s.contains("nursery") || s.contains("florist")
                 || s.contains("gaming") || s.contains("esport") || s.contains("planetarium") || s.contains("astronomy")
-                || s.contains("cleaning") || s.contains("surf")) {
+                || s.contains("cleaning") || s.contains("surf") || s.contains("bakery")) {
             return true;
         }
         return a.domain() == StoryAnalyzer.Domain.LANDING;
