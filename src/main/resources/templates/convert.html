@@ -430,6 +430,9 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   }
 
   const LARGE_PASTE = 15000;
+  const PASTE_RUN = 'paste-conversion';
+  let pasteAbort = null;
+  let pasteStopped = false;
 
   async function convert() {
     if ($('convertBtn').disabled) return; // a conversion is already running (Ctrl+Enter must not start a second one)
@@ -457,9 +460,15 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     setMessage('Converting to ' + langLabel(targetLang) + '…', '');
     const convRt = RunTimer.start('convertTimer');
     let convOk = false;
+    let wasStopped = false;
+    pasteStopped = false;
+    pasteAbort = new AbortController();
+    const abort = pasteAbort;
+    BotRun.running('converting to ' + langLabel(targetLang), PASTE_RUN);
     try {
       const res = await fetch('/api/convert', {
         method: 'POST',
+        signal: abort.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sourceLanguage: langValue(sourceLang),
@@ -474,12 +483,31 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       convOk = !!convData.success;
       renderResult(convData);
     } catch (e) {
-      renderResult({ success: false, message: netError(e) });
+      if (e && e.name === 'AbortError' && pasteStopped) {
+        wasStopped = true;
+        renderResult({ success: false, message: '' });
+        setMessage('Stopped. Press Resume to convert this code again.', '');
+      } else {
+        renderResult({ success: false, message: netError(e) });
+      }
     } finally {
-      convRt.stop(convOk ? 'Done in' : 'Failed after', !convOk);
+      if (wasStopped) convRt.stop('Stopped after', true);
+      else convRt.stop(convOk ? 'Done in' : 'Failed after', !convOk);
       btn.disabled = false;
       btn.textContent = 'Convert';
+      if (pasteAbort === abort) pasteAbort = null;
+      // a snippet is one request, so there is no half-done state: Resume simply converts it again
+      if (wasStopped) BotRun.stopped('Paste conversion stopped. Resume converts it again', PASTE_RUN, true);
+      else if (BotRun.current().runId === PASTE_RUN) BotRun.idle();
     }
+  }
+
+  /** Stop for a paste conversion: gives up waiting for the answer (the page is free again straight away). */
+  function stopPaste() {
+    if (!pasteAbort) return false;
+    pasteStopped = true;
+    pasteAbort.abort();
+    return true;
   }
 
   async function copyText(text, button) {
@@ -868,9 +896,30 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     }
   }
 
+  /** The shared Stop button: a paste conversion is cancelled in the browser, a project job on the server. */
+  async function stopRun() {
+    if (BotRun.current().runId === PASTE_RUN && stopPaste()) return;
+    return stopJob();
+  }
+
+  /** The shared Resume button: converts the pasted code again, or the remaining files of a stopped project job. */
+  async function resumeRun() {
+    const cur = BotRun.current();
+    if (cur.runId !== PASTE_RUN && (cur.runId || (currentJob && currentJob.status === 'STOPPED'))) return resumeJob();
+    // paste conversion (also after a refresh, when the pasted code was restored into the box)
+    setMode('paste');
+    if (!sourceCode.value.trim()) {
+      setMessage('Nothing to resume: paste the code and press Convert.', 'error');
+      BotRun.idle();
+      return;
+    }
+    BotRun.idle();
+    return convert();
+  }
+
   async function stopJob() {
     const id = BotRun.current().runId || (currentJob && currentJob.id);
-    if (!id) return;
+    if (!id || id === PASTE_RUN) return;
     try {
       const res = await fetch('/api/convert/jobs/' + id + '/stop', { method: 'POST' });
       if (res.ok && currentJob && currentJob.id === id) { currentJob = await res.json(); renderJob(currentJob); }
@@ -878,7 +927,8 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   }
 
   async function resumeJob() {
-    const id = BotRun.current().runId || (currentJob && currentJob.id);
+    const cur = BotRun.current().runId;
+    const id = cur && cur !== PASTE_RUN ? cur : (currentJob && currentJob.id);
     if (!id) return;
     try {
       const res = await fetch('/api/convert/jobs/' + id + '/resume', { method: 'POST' });
@@ -1243,12 +1293,12 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   document.addEventListener('change', saveSoon);
   window.addEventListener('pagehide', saveState);
 
-  BotRun.register({ key: 'convert', label: 'Code converter', url: '/convert', onStop: stopJob, onResume: resumeJob });
+  BotRun.register({ key: 'convert', label: 'Code converter', url: '/convert', onStop: stopRun, onResume: resumeRun });
   renderGallery();
   restoreState().then(async () => {
     // a stopped conversion from before a refresh: open it so Resume has its job on screen
     const saved = BotRun.current();
-    if (saved.key === 'convert' && saved.runId && (!currentJob || currentJob.id !== saved.runId)) {
+    if (saved.key === 'convert' && saved.runId && saved.runId !== PASTE_RUN && (!currentJob || currentJob.id !== saved.runId)) {
       try {
         const res = await fetch('/api/convert/jobs/' + saved.runId);
         if (res.ok) openJob(await res.json(), true); else BotRun.idle();

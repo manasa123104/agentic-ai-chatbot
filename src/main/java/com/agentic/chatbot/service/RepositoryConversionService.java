@@ -381,7 +381,8 @@ public class RepositoryConversionService {
     }
 
     private void process(ConversionJob job, boolean resume) throws IOException {
-        stops.remove(job.getId());
+        // a Stop pressed while the job was still queued or cloning is kept: it is honoured before the first file
+        // (resume() and a new job both start with no pending stop)
         Path sourceDir = sourceDir(job.getId());
         Path root = job.getSourceFolder().isEmpty() ? sourceDir : safeResolve(sourceDir, job.getSourceFolder());
         if (!Files.isDirectory(root)) {

@@ -954,18 +954,34 @@
 
   const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 
+  const inflight = new Set(); // requests of the stage that is running now: Stop cancels them
+  let resumeStage = null;     // a single stage that was stopped part-way: Resume runs it again
+
+  /** Stop: end the run after the current step; the request being waited for is cancelled so the page is free at once. */
+  function stopRun() {
+    stopRequested = true;
+    inflight.forEach((a) => a.abort());
+  }
+
   async function post(url, body) {
     const abort = new AbortController();
+    inflight.add(abort);
     const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
     let res;
     try {
       res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body), signal: abort.signal });
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error('BOT did not answer within ' + REQUEST_TIMEOUT_MS / 60000 + ' minutes; try again or run offline.');
+      if (e.name === 'AbortError') {
+        const err = new Error(stopRequested ? 'Stopped.'
+          : 'BOT did not answer within ' + REQUEST_TIMEOUT_MS / 60000 + ' minutes; try again or run offline.');
+        err.stopped = stopRequested;
+        throw err;
+      }
       throw e;
     } finally {
       clearTimeout(timer);
+      inflight.delete(abort);
     }
     const data = await res.json().catch(() => null);
     if (!res.ok || !data) throw new Error((data && data.error) || 'BOT answered with an error (HTTP ' + res.status + '). Try again in a moment.');
@@ -1012,6 +1028,7 @@
     const endTimer = beginTimer(stage);
     persist();
     let ok = false;
+    let cancelled = false;
     setMessage(stage, $('useModel').checked
       ? 'Running with the AI model… a small local model can take a minute or more.'
       : 'Running offline…', '');
@@ -1023,6 +1040,12 @@
       ok = true;
       return data;
     } catch (e) {
+      if (e.stopped) {
+        cancelled = true;
+        setMessage(stage, 'Stopped before this stage finished. Press Resume to run it again.', '');
+        setStep(stage, '');
+        return null;
+      }
       setMessage(stage, e.message.startsWith('Failed to fetch') ? 'Could not reach BOT: ' + e.message : e.message, 'error');
       setStep(stage, 'failed');
       return null;
@@ -1033,7 +1056,15 @@
       btn.textContent = 'Run';
       applyLock();
       persist();
-      if (!busy) BotRun.idle(); // a single stage cannot be half done: it finished, so there is nothing to resume
+      if (!busy) { // inside Run all, the loop reports the state itself
+        if (cancelled) {
+          resumeStage = stage; // a stage is one request: Resume runs it again, the earlier stages stay as they are
+          BotRun.stopped('Stopped during the ' + stage + ' stage. Resume runs it again', runId, true);
+        } else {
+          resumeStage = null;
+          BotRun.idle();
+        }
+      }
     }
   }
 
@@ -1044,10 +1075,12 @@
     const id = typed || runId;
     locks++;
     applyLock();
+    if (!busy && !internal) { stopRequested = false; BotRun.running('trainer stage', runId); }
     setStep(stage, 'running');
     const endTimer = beginTimer(stage);
     persist();
     let ok = false;
+    let cancelled = false;
     try {
       const wanted = [...document.querySelectorAll('.save-stage:checked')].map((c) => c.value);
       const data = await post('/api/stages/trainer', {
@@ -1067,6 +1100,12 @@
       } catch (e2) { /* the report is already shown; the counters refresh on the next visit */ }
       return data;
     } catch (e) {
+      if (e.stopped) {
+        cancelled = true;
+        setMessage(stage, 'Stopped before the report was ready. Press Resume to run it again.', '');
+        setStep(stage, '');
+        return null;
+      }
       setMessage(stage, e.message, 'error');
       setStep(stage, 'failed');
       return null;
@@ -1075,6 +1114,15 @@
       locks--;
       applyLock();
       persist();
+      if (!busy && !internal) {
+        if (cancelled) {
+          resumeStage = stage;
+          BotRun.stopped('Stopped during the trainer stage. Resume runs it again', runId, true);
+        } else {
+          resumeStage = null;
+          BotRun.idle();
+        }
+      }
     }
   }
 
@@ -1146,6 +1194,7 @@
     }
     busy = true;
     stopRequested = false;
+    resumeStage = null;
     const btn = $('runAllBtn');
     applyLock();
     if (!resume) {
@@ -1165,7 +1214,7 @@
         BotRun.running('stage ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + ': ' + stage, runId);
         card(stage).scrollIntoView({ behavior: 'smooth', block: 'start' });
         const data = await runStage(stage, true);
-        if (!data) { ended = 'failed'; break; }
+        if (!data) { ended = stopRequested ? 'stopped' : 'failed'; break; }
         handOff(stage);
         if (stopRequested && STAGES.some((s) => !results[s])) { ended = 'stopped'; break; }
       }
@@ -1565,8 +1614,16 @@
   $('runAllBtn').addEventListener('click', () => runAll(false));
   BotRun.register({
     key: 'stages', label: 'Stage bots', url: '/stages',
-    onStop: () => { stopRequested = true; },
-    onResume: () => runAll(true)
+    onStop: stopRun,
+    onResume: () => {
+      if (resumeStage) { // a single stage was stopped: run that one again
+        const s = resumeStage;
+        resumeStage = null;
+        runStage(s);
+      } else {
+        runAll(true);
+      }
+    }
   });
   $('newRunBtn').addEventListener('click', newRun);
   $('runZipBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });

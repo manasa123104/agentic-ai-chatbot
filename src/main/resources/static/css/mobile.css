@@ -304,6 +304,8 @@ table { max-width: 100%; }
   .run-bar { top: auto; bottom: 10px; right: 8px; left: 8px; max-width: none; justify-content: space-between; }
   body.chat-app .run-bar { bottom: auto; top: 64px; }
   .rc-btn { min-height: 40px; }
+  /* the bar sits at the bottom edge: leave room so it never covers Convert / Run all / the last controls */
+  body:not(.chat-app) { padding-bottom: 76px; }
 }
 /* Upload file -> user stories + website (home composer) */
 .tool-arrow { font-weight: 500; opacity: .8; }
