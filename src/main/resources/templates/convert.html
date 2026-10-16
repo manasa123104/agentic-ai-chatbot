@@ -97,6 +97,7 @@
                     <span class="badge" id="modeBadge" hidden></span>
                     <button type="button" class="link-btn" id="copyBtn" disabled>Copy</button>
                     <button type="button" class="link-btn dl-btn" id="downloadBtn" disabled>&#11015; Download</button>
+                    <button type="button" class="link-btn dl-btn" id="logicBtn" disabled title="Download the business logic as Markdown">&#11015; Business logic</button>
                 </div>
                 <pre class="output" id="output"><code id="outputCode" class="placeholder">Converted code will appear here.</code></pre>
             </div>
@@ -120,6 +121,7 @@
                 <code class="run-cmd" id="runCommand"></code>
                 <p class="saved" id="savedFile"></p>
                 <button type="button" class="btn small dl-main" id="downloadBtn2">&#11015; Download converted code</button>
+                <button type="button" class="btn ghost small" id="logicBtn2">&#11015; Download business logic</button>
             </div>
         </div>
         <div class="business" id="businessBox" hidden>
@@ -213,11 +215,12 @@
                         <span class="saved" id="fileNotes"></span>
                         <button type="button" class="btn ghost small" id="saveFileBtn" disabled>Save changes</button>
                         <button type="button" class="btn ghost small" id="downloadFileBtn" disabled>&#11015; Download file</button>
+                        <button type="button" class="btn ghost small" id="downloadLogicBtn" disabled>&#11015; Download business logic</button>
                     </div>
                 </div>
             </div>
 
-            <div class="push-box" th:hidden="${!isHost}">
+            <div class="push-box">
                 <p class="pipe-label">Upload to your code repository</p>
                 <div class="push-fields">
                     <label class="field wide"><span>Repository URL</span>
@@ -230,10 +233,13 @@
                         <input type="text" id="pushFolder" placeholder="converted/python"/></label>
                     <label class="field wide"><span>Commit message (optional)</span>
                         <input type="text" id="pushMessage" placeholder="Convert project to Python"/></label>
-                    <button type="button" class="btn convert-btn" id="pushBtn">Push to branch</button>
+                    <label class="field wide"><span th:text="${isHost} ? 'GitHub token (optional here: the saved Git login of this computer is used if blank)' : 'Your GitHub token (required)'">Token</span>
+                        <input type="password" id="pushToken" autocomplete="off" placeholder="ghp_... or github_pat_..."/></label>
+                    <label class="check wide"><input type="checkbox" id="pushPull" checked="checked"/>
+                        Pull first: start from the latest code on that branch, then add these files</label>
+                    <button type="button" class="btn convert-btn" id="pushBtn">&#11014; Push to GitHub</button>
                 </div>
-                <p class="field-help">Uses this computer's saved Git login (or GITHUB_TOKEN) and is only available on the host machine. A new branch is created so your main branch is not changed;
-                    open the link to review it and raise a pull request.</p>
+                <p class="field-help" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged. A new branch is created so your main branch is not changed; open the link to review it and raise a pull request.' : 'Needs a GitHub personal access token with repo access. It is used for this push only and is never saved or logged. A new branch is created so your main branch is not changed; open the link to review it and raise a pull request.'">Note</p>
                 <p class="convert-message" id="pushMessageOut"></p>
             </div>
         </div>
@@ -262,6 +268,7 @@
 </main>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/botshare.js}"></script>
 <script th:inline="javascript">
   const LANGUAGES = /*[[${allLanguages}]]*/ [];
 const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
@@ -330,6 +337,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     const out = $('outputCode');
     $('copyBtn').disabled = !data.success;
     $('downloadBtn').disabled = !data.success;
+    $('logicBtn').disabled = !data.success;
     if (!data.success) {
       out.textContent = 'Converted code will appear here.';
       out.className = 'placeholder';
@@ -508,18 +516,22 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
 
   function downloadResult() {
     if (!lastResult) return;
+    // the code, plus converted.business-logic.md next to it when the logic was explained
+    BotShare.saveCodeWithLogic(resultFileName(), lastResult.convertedCode + '\n', lastResult.businessLogic);
+  }
+  function resultFileName() {
     const lang = langById(lastResult.targetLanguageId);
-    const blob = new Blob([lastResult.convertedCode + '\n'], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'converted.' + (lang ? lang.extension : 'txt');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    return 'converted.' + (lang ? lang.extension : 'txt');
+  }
+  function downloadResultLogic() {
+    if (!lastResult) return;
+    const name = resultFileName();
+    BotShare.saveText(BotShare.companionName(name), BotShare.logicMarkdown(name, lastResult.businessLogic), 'text/markdown;charset=utf-8');
   }
   $('downloadBtn').addEventListener('click', downloadResult);
   $('downloadBtn2').addEventListener('click', downloadResult);
+  $('logicBtn').addEventListener('click', downloadResultLogic);
+  $('logicBtn2').addEventListener('click', downloadResultLogic);
 
   $('swapBtn').addEventListener('click', () => {
     const from = sourceLang.value === 'auto' && lastResult ? lastResult.sourceLanguageId : sourceLang.value;
@@ -712,6 +724,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     $('fileNotes').textContent = '';
     $('saveFileBtn').disabled = true;
     $('downloadFileBtn').disabled = true;
+    $('downloadLogicBtn').disabled = true;
     $('jobStatus').textContent = '';
     $('jobStatus').className = 'job-status';
     $('jobBar').style.width = '0%';
@@ -748,6 +761,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     $('fileNotes').textContent = '';
     $('saveFileBtn').disabled = true;
     $('downloadFileBtn').disabled = true;
+    $('downloadLogicBtn').disabled = true;
     $('pushMessageOut').textContent = '';
     $('pushRepo').value = /^(https:|git@)/.test(job.sourceLabel) ? job.sourceLabel.replace(/ \(.*\)$/, '') : $('pushRepo').value;
     renderJob(job);
@@ -910,6 +924,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     $('fileEditor').value = '';
     $('saveFileBtn').disabled = true;
     $('downloadFileBtn').disabled = true;
+    $('downloadLogicBtn').disabled = true;
   }
 
   async function openFile(path) {
@@ -927,6 +942,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       $('fileEditor').value = netError(e);
       $('saveFileBtn').disabled = true;
       $('downloadFileBtn').disabled = true;
+    $('downloadLogicBtn').disabled = true;
       return;
     }
     $('fileEditor').value = res.ok ? data.content : (data.error || 'Could not open the file.');
@@ -937,6 +953,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       : (path.endsWith('.md') ? 'Report written by BOT' : 'Copied or generated project file');
     $('saveFileBtn').disabled = !res.ok || currentJob.status === 'RUNNING';
     $('downloadFileBtn').disabled = !res.ok;
+    $('downloadLogicBtn').disabled = !res.ok || !info;
     showView('converted');
   }
 
@@ -1015,7 +1032,9 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       branch: $('pushBranch').value.trim() || $('pushBranch').placeholder,
       baseBranch: $('pushBase').value.trim(),
       folder: folder === '/' ? '' : (folder || $('pushFolder').placeholder),
-      commitMessage: $('pushMessage').value.trim()
+      commitMessage: $('pushMessage').value.trim(),
+      token: $('pushToken').value.trim(),
+      pull: $('pushPull').checked
     };
     const btn = $('pushBtn');
     btn.disabled = true;
@@ -1030,16 +1049,17 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       if (!res.ok) {
         $('pushMessageOut').className = 'convert-message error';
         $('pushMessageOut').textContent = data.error || (res.status === 403
-          ? 'Pushing is only available on the machine that hosts BOT.' : 'Push failed (HTTP ' + res.status + ').');
+          ? 'Paste your own GitHub token to push from this site.' : 'Push failed (HTTP ' + res.status + ').');
         return;
       }
       showPush(data, false);
+      $('pushToken').value = ''; // the token is for one push only
     } catch (e) {
       $('pushMessageOut').className = 'convert-message error';
       $('pushMessageOut').textContent = netError(e);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Push to branch';
+      btn.innerHTML = '&#11014; Push to GitHub';
     }
   }
 
@@ -1136,7 +1156,13 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   $('startJobBtn').addEventListener('click', startProject);
   $('saveFileBtn').addEventListener('click', saveFile);
   $('downloadFileBtn').addEventListener('click', () => {
-    if (currentFile) location.href = jobUrl('/download?side=output&path=' + encodeURIComponent(currentFile));
+    if (!currentFile) return;
+    BotShare.saveUrl(jobUrl('/download?side=output&path=' + encodeURIComponent(currentFile)));
+    // converted source files come with their business-logic companion
+    if (fileInfo(currentFile)) BotShare.saveUrl(jobUrl('/logic?path=' + encodeURIComponent(currentFile)), 400);
+  });
+  $('downloadLogicBtn').addEventListener('click', () => {
+    if (currentFile) BotShare.saveUrl(jobUrl('/logic?path=' + encodeURIComponent(currentFile)));
   });
   $('fileEditor').addEventListener('input', () => { fileDirty = true; });
   $('fileEditor').addEventListener('keydown', (e) => {

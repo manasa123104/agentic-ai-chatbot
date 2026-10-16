@@ -92,6 +92,7 @@
             <div class="setup-buttons">
                 <button type="button" class="btn ghost small" id="newRunBtn" title="Start a new run folder">New run</button>
                 <a class="btn ghost small disabled" id="runZipBtn" href="#">&#11015; Whole run (ZIP)</a>
+                <a class="btn ghost small disabled" id="runLogicBtn" href="#" title="Business logic of the whole run as Markdown">&#11015; Business logic</a>
                 <button type="button" class="btn convert-btn" id="runAllBtn">Run all stages</button>
             </div>
         </div>
@@ -214,6 +215,7 @@
             <span class="spacer"></span>
             <select class="file-select" disabled><option>No files yet</option></select>
             <button type="button" class="btn ghost small file-btn" disabled>&#11015; File</button>
+            <button type="button" class="btn ghost small logic-btn" disabled title="Business logic of the selected code file, or of the whole stage">&#11015; Business logic</button>
             <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
         </div>
         <div class="gh-panel" hidden th:if="${s.id == 'developer' or s.id == 'tester' or s.id == 'deploy'}"
@@ -297,6 +299,7 @@
             <span class="spacer"></span>
             <select class="file-select" disabled><option>No files yet</option></select>
             <button type="button" class="btn ghost small file-btn" disabled>&#11015; File</button>
+            <button type="button" class="btn ghost small logic-btn" disabled title="Business logic of the selected code file, or of the whole stage">&#11015; Business logic</button>
             <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
         </div>
 
@@ -320,6 +323,7 @@
 </main>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/botshare.js}"></script>
 <script th:inline="javascript">
   const STAGE_LIST = /*[[${stageList}]]*/ [];
   let stats = /*[[${trainingStats}]]*/ {};
@@ -550,6 +554,9 @@
     runId = id;
     const zip = $('runZipBtn');
     zip.href = id ? '/api/stages/runs/' + id + '/zip' : '#';
+    const logic = $('runLogicBtn');
+    logic.href = id ? '/api/stages/runs/' + id + '/logic' : '#';
+    logic.classList.toggle('disabled', !id);
     zip.classList.toggle('disabled', !id);
     $('trainerRun').placeholder = id || 'e.g. 20261015-101500-a1b2c3';
     $('runInfo').textContent = id
@@ -585,6 +592,7 @@
     select.disabled = !hasFiles;
     q(stage, '.file-btn').disabled = !hasFiles;
     q(stage, '.zip-btn').disabled = !hasFiles;
+    q(stage, '.logic-btn').disabled = !hasFiles;
     q(stage, '.copy-btn').disabled = false;
     const approve = q(stage, '.approve-btn');
     if (approve && stage !== 'trainer') approve.disabled = false;
@@ -631,6 +639,7 @@
     select.disabled = true;
     q(stage, '.file-btn').disabled = true;
     q(stage, '.zip-btn').disabled = true;
+    q(stage, '.logic-btn').disabled = true;
     q(stage, '.copy-btn').disabled = true;
     const approve = q(stage, '.approve-btn');
     if (approve && stage !== 'trainer') approve.disabled = true;
@@ -1119,6 +1128,10 @@
     }
   }
 
+  function isCodeFile(path) {
+    return /\.(java|py|js|ts|tsx|jsx|cs|rb|go|php|kt|scala|swift|rs|cpp|c|sql)$/i.test(path || '') && !/^training\//.test(path);
+  }
+
   function download(url) {
     if (url) location.href = url;
   }
@@ -1169,7 +1182,17 @@
     q(stage, '.file-btn').addEventListener('click', () => {
       const path = q(stage, '.file-select').value;
       const id = (results[stage] && results[stage].runId) || runId;
-      if (id && path) download('/api/stages/runs/' + id + '/file?path=' + encodeURIComponent(path));
+      if (!id || !path) return;
+      BotShare.saveUrl('/api/stages/runs/' + id + '/file?path=' + encodeURIComponent(path));
+      // a code file comes with its business-logic companion (Foo.java -> Foo.business-logic.md)
+      if (isCodeFile(path)) BotShare.saveUrl('/api/stages/runs/' + id + '/logic?path=' + encodeURIComponent(path), 400);
+    });
+    q(stage, '.logic-btn').addEventListener('click', () => {
+      const id = (results[stage] && results[stage].runId) || runId;
+      if (!id) return;
+      const path = q(stage, '.file-select').value;
+      BotShare.saveUrl('/api/stages/runs/' + id + '/logic?' + (isCodeFile(path)
+        ? 'path=' + encodeURIComponent(path) : 'stage=' + stage));
     });
     q(stage, '.zip-btn').addEventListener('click', () => {
       const id = (results[stage] && results[stage].runId) || runId;
@@ -1313,6 +1336,7 @@
   $('runAllBtn').addEventListener('click', runAll);
   $('newRunBtn').addEventListener('click', newRun);
   $('runZipBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });
+  $('runLogicBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });
   document.addEventListener('input', persistSoon);
   document.addEventListener('change', persistSoon);
   window.addEventListener('pagehide', () => { persist(true); leaving = true; });

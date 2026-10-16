@@ -173,6 +173,7 @@ if __name__ == &quot;__main__&quot;:
 </div>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/botshare.js}"></script>
 <script th:inline="javascript">
 (function () {
   var thread = document.getElementById('thread');
@@ -271,13 +272,14 @@ if __name__ == &quot;__main__&quot;:
   function downloadConverted(c) {
     var fromFile = /\.([A-Za-z0-9]+)$/.exec(c.outputFile || '');
     var ext = fromFile ? fromFile[1] : (CONVERT_EXT[c.targetLanguageId] || 'txt');
-    var link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([(c.convertedCode || '') + '\n'], { type: 'text/plain' }));
-    link.download = 'converted.' + ext;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+    // the code, plus converted.business-logic.md next to it when the logic was explained
+    BotShare.saveCodeWithLogic('converted.' + ext, (c.convertedCode || '') + '\n', c.businessLogic);
+  }
+
+  function downloadLogic(c) {
+    var fromFile = /\.([A-Za-z0-9]+)$/.exec(c.outputFile || '');
+    var name = 'converted.' + (fromFile ? fromFile[1] : (CONVERT_EXT[c.targetLanguageId] || 'txt'));
+    BotShare.saveText(BotShare.companionName(name), BotShare.logicMarkdown(name, c.businessLogic), 'text/markdown;charset=utf-8');
   }
 
   function renderConversionBubble(c, fromHistory) {
@@ -297,6 +299,7 @@ if __name__ == &quot;__main__&quot;:
       '<p>' + (fromHistory ? 'Saved conversion: ' : '') + '<strong>' + title + '</strong> — ' + escapeHtml(c.message || '') + '</p>' +
       '<div class="convert-snippet"><div class="convert-tools">' +
         '<button type="button" class="convert-copy convert-download">&#11015; Download</button>' +
+        '<button type="button" class="convert-copy convert-logic">&#11015; Business logic</button>' +
         '<button type="button" class="convert-copy">Copy</button></div>' +
         '<pre><code>' + escapeHtml(c.convertedCode || '') + '</code></pre></div>' +
       (c.explanation ? '<details class="story-details"><summary>Explanation</summary><pre class="story-snip">' + escapeHtml(c.explanation) + '</pre></details>' : '') +
@@ -306,7 +309,10 @@ if __name__ == &quot;__main__&quot;:
     thread.lastChild.querySelector('.convert-download').addEventListener('click', function () {
       downloadConverted(c);
     });
-    var copyBtn = thread.lastChild.querySelector('.convert-copy:not(.convert-download)');
+    thread.lastChild.querySelector('.convert-logic').addEventListener('click', function () {
+      downloadLogic(c);
+    });
+    var copyBtn = thread.lastChild.querySelector('.convert-copy:not(.convert-download):not(.convert-logic)');
     copyBtn.addEventListener('click', function () {
       copyText(c.convertedCode || '').then(function (ok) {
         copyBtn.textContent = ok ? 'Copied' : 'Copy failed';

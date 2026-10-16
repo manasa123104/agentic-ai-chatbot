@@ -126,6 +126,18 @@ class RepositoryConversionServiceTest {
         ByteArrayOutputStream zipped = new ByteArrayOutputStream();
         service.writeZip(job.getId(), zipped);
         assertTrue(zipped.size() > 200);
+
+        // the ZIP carries a business-logic companion for every converted file plus the project summary
+        java.util.Set<String> entries = new java.util.HashSet<>();
+        try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zipped.toByteArray()))) {
+            for (java.util.zip.ZipEntry e; (e = in.getNextEntry()) != null; ) {
+                entries.add(e.getName());
+            }
+        }
+        assertTrue(entries.contains("com/shop/billing/billing.business-logic.md"), entries.toString());
+        assertTrue(entries.contains("com/shop/app.business-logic.md"), entries.toString());
+        assertTrue(entries.contains("BUSINESS_LOGIC.md"), entries.toString());
+        assertTrue(service.logicMarkdown(job.getId(), "com/shop/billing/billing.py").contains("10% off"));
     }
 
     @Test
