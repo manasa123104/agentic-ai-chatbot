@@ -12,7 +12,7 @@ Starts BOT on port 8080 if needed, starts a Cloudflare quick tunnel, and prints 
 - The link **changes every time the tunnel restarts** (reboot, script re-run). Run the script again and share the new one.
 - The laptop must stay on and awake. Uses the local Ollama model (`qwen2.5-coder:1.5b`), which is slow when several people convert at once.
 - Stop the tunnel: `Get-Process cloudflared | Stop-Process`.
-- Safe by design: through the link, "Folder on this computer" and "Push to branch" are blocked (HTTP 403); remote users use a GitHub https URL, upload, or paste code. Those two features still work when you open BOT on the laptop itself (`http://localhost:8080`). The Stage bots page (`/stages`) is the exception for pushing: visitors can push generated code to their own repo by pasting their own GitHub token (used for that one push only, never stored or logged; the server's `GITHUB_TOKEN` is never used for them).
+- Safe by design: through the link, "Folder on this computer" is blocked (HTTP 403); remote users use a GitHub https URL, upload, or paste code. That feature still works when you open BOT on the laptop itself (`http://localhost:8080`). Pushing works everywhere (the code converter and the Stage bots page): visitors can push to their own repo by pasting their own GitHub token (used for that one push only, never stored or logged; the server's `GITHUB_TOKEN` is never used for them).
 
 ## 2. Permanent free link on Render + free Google Gemini AI (recommended)
 
@@ -40,7 +40,7 @@ OpenAI-compatible endpoint `https://generativelanguage.googleapis.com/v1beta/ope
 selected model. With a cloud model, large files are split into bigger parts (about 12,000 characters) than with a small local model.
 
 Public mode (`PUBLIC_MODE=true`) is on in `render.yaml`: all traffic arrives through Render's proxy, so "Folder on this
-computer" and "Push to GitHub" are disabled for everyone, and each visitor only sees their own jobs.
+computer" is disabled for everyone, "Push to GitHub" needs the visitor's own token, and each visitor only sees their own jobs.
 
 Limits of the free setup
 - The service **sleeps after ~15 minutes idle**; the first visit afterwards takes **about a minute** to wake up.
@@ -84,7 +84,7 @@ How the Space works
   `java -jar app.jar --server.port=7860 --agentic.converter.allow-local-paths=false --agentic.public-mode=true`.
 - `agentic.public-mode=true` (env `PUBLIC_MODE`) makes **every** request count as a remote visitor, because on a Space all
   traffic arrives through Hugging Face's proxy. "Folder on this computer", `file://` / `git@` repository links and
-  "Push to GitHub" are therefore refused (HTTP 403) and hidden, and the page shows an explanatory message. Each visitor still
+  "Push to GitHub" without a pasted token are therefore refused (HTTP 403) and the page shows an explanatory message. Each visitor still
   only sees their own jobs (the `bot_visitor` cookie is `SameSite=None; Secure; Partitioned` in public mode so it also works
   when the Space is opened inside the huggingface.co page iframe).
 - Optional: add a Space **secret** `OPENAI_API_KEY` (Settings -> Variables and secrets) to use OpenAI instead of the local model.
