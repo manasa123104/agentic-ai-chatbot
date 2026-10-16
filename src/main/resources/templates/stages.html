@@ -430,14 +430,16 @@
 
     <p class="convert-message error" id="runGone" role="alert" hidden></p>
 
-    <section class="convert-card final-push" id="finalPush" hidden aria-labelledby="finalPushTitle">
+    <!-- Always visible at the bottom of /stages: enabled once BA → Developer → Tester → Deploy → Trainer have finished. -->
+    <section class="convert-card final-push" id="finalPush" aria-labelledby="finalPushTitle">
         <div class="final-push-head">
             <span class="final-push-badge" aria-hidden="true">&#10003;</span>
             <div>
                 <h2 id="finalPushTitle">All 5 stages done &mdash; Push to GitHub</h2>
-                <p>Business Analyst, Developer, Tester, Deploy and Trainer are finished. Push the <strong>whole run</strong> (stories, code, tests and deployment files from every stage) to a <strong>new branch</strong> of your repository and get a new GitHub link to open it.</p>
+                <p id="finalPushBlurb">Finish <strong>Business Analyst, Developer, Tester, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.</p>
             </div>
         </div>
+        <p class="final-push-status" id="finalPushStatus" role="status">Waiting: run all 5 stages first, then you can push.</p>
         <div class="gh-panel gh-complete" id="pipelineComplete" data-scope="run">
             <div class="gh-grid">
                 <label class="field"><span>Repository URL</span>
@@ -453,12 +455,12 @@
                 <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
                     Pull first: start from the latest code on that branch, then add these files</label>
                 <button type="button" class="btn ghost gh-test-btn" title="Asks GitHub whether this token can write to the repository; pushes nothing">Test token</button>
-                <button type="button" class="btn convert-btn gh-push-btn">&#11014; Push whole run to GitHub</button>
+                <button type="button" class="btn convert-btn gh-push-btn" id="finalPushBtn" disabled>&#11014; Push whole run to GitHub</button>
             </div>
             <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
                 : 'Needs a GitHub personal access token with repo access. It is used for this push only and is never saved or logged.'">Note</p>
             <p class="gh-result" role="status" aria-live="polite"></p>
-            <div class="gh-newlink" hidden>
+            <div class="gh-newlink" id="finalPushLink" hidden>
                 <strong>Your new GitHub link</strong>
                 <a class="gh-newlink-url" href="#" target="_blank" rel="noopener"></a>
                 <a class="gh-newlink-pr" href="#" target="_blank" rel="noopener" hidden>Compare / open pull request</a>
@@ -808,37 +810,57 @@
     if (await checkRun(id) === false && !busy && locks === 0 && currentRunId() === id) runGone(id);
   }
 
-  /** True when the celebratory whole-run push panel should appear. */
+  /** True when the whole-run push is allowed (all five stages done this session, or Trainer finished on a known run). */
   function pipelineComplete() {
     return STAGES.every((s) => results[s]) || (!!results.trainer && !!currentRunId());
   }
 
   /**
-   * The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished
-   * AND the server still has the run (a quick status GET), so it never claims completion for a run that no longer exists.
+   * The end-of-page push panel is always on screen. It switches between waiting / ready, and checks the server still
+   * has the run so we never claim completion for a run that was wiped by a hosting restart.
    */
   async function updateFinalPush() {
     const panel = $('finalPush');
     if (!panel) return;
-    if (!pipelineComplete()) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const status = $('finalPushStatus');
+    const blurb = $('finalPushBlurb');
+    const btn = panel.querySelector('.gh-push-btn');
     const id = currentRunId();
-    if (!id || id === verifiedRun) { panel.hidden = false; return; }
-    const seq = ++verifySeq;
-    const state = await checkRun(id);
-    if (seq !== verifySeq) return; // a newer update (or a clear) took over
-    if (state === false) { runGone(id); return; }
-    panel.hidden = !pipelineComplete();
+    let ready = pipelineComplete() && !!id;
+
+    if (ready && id && id !== verifiedRun) {
+      const seq = ++verifySeq;
+      const state = await checkRun(id);
+      if (seq !== verifySeq) return;
+      if (state === false) {
+        runGone(id);
+        ready = false;
+      }
+    }
+
+    panel.classList.toggle('is-ready', ready);
+    panel.classList.toggle('is-waiting', !ready);
+    if (btn) btn.disabled = !ready || locks > 0 || busy;
+    if (status) {
+      status.textContent = ready
+        ? ('Ready: push whole run ' + id + ' to a new GitHub branch and get your link below.')
+        : 'Waiting: run all 5 stages first (or press Run all stages), then you can push.';
+    }
+    if (blurb) {
+      blurb.innerHTML = ready
+        ? 'Business Analyst, Developer, Tester, Deploy and Trainer are finished. Push the <strong>whole run</strong> (stories, code, tests and deployment files) to a <strong>new branch</strong> and get a new GitHub link to open it.'
+        : 'Finish <strong>Business Analyst, Developer, Tester, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.';
+    }
   }
 
-  /** Show the whole-run push panel and bring it into view (after Run all, or after Trainer finishes the pipeline). */
+  /** Bring the always-visible push panel into view once the pipeline is ready. */
   async function revealFinalPush() {
-    if (!pipelineComplete()) return;
     await updateFinalPush();
     const panel = $('finalPush');
-    if (panel && !panel.hidden) {
-      setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel below.', 'ok');
-      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (!panel || !pipelineComplete()) return;
+    setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel below.', 'ok');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function render(stage, data) {
@@ -903,10 +925,10 @@
       fin.querySelector('.gh-result').textContent = '';
       fin.querySelector('.gh-result').className = 'gh-result';
       fin.querySelector('.gh-newlink').hidden = true;
-      $('finalPush').hidden = true;
     }
     setStep(stage, '');
     updateTotal();
+    updateFinalPush();
   }
 
   // ---- Locking: one run at a time, so nothing can be submitted twice ------------------------------
@@ -916,6 +938,9 @@
     const on = locks > 0 || busy;
     document.querySelectorAll('.run-btn, #runAllBtn, #newRunBtn, #saveRunBtn, .import-btn, .gh-push-btn').forEach((b) => { b.disabled = on; });
     ['domain', 'language'].forEach((id) => { $(id).disabled = on; });
+    // whole-run push stays disabled until all 5 stages are done (even when the page is idle)
+    const finalBtn = $('finalPushBtn');
+    if (finalBtn && !on) finalBtn.disabled = !(pipelineComplete() && !!currentRunId());
   }
 
   // ---- Keep the page across refreshes (this browser only) ------------------------------------------

@@ -22,8 +22,12 @@ class StagesTemplateTest {
         assertTrue(html.contains("bot-training.json"));
         assertTrue(html.contains("All 5 stages done &mdash; Push to GitHub"));
         assertTrue(html.contains("id=\"pipelineComplete\""));
+        assertTrue(html.contains("id=\"finalPushStatus\""));
+        assertTrue(html.contains("id=\"finalPushBtn\""));
         assertTrue(html.contains("data-scope=\"run\""));
         assertTrue(html.contains("Your new GitHub link"));
+        // always on the page (not gated by a hidden attribute on the section)
+        assertFalse(html.contains("id=\"finalPush\" hidden"), "final push must be visible without waiting for JS");
     }
 
     @Test
