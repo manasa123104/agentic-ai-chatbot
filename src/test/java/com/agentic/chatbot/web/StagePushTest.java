@@ -164,6 +164,24 @@ class StagePushTest {
         assertTrue(missing.contains("Repository not found") && missing.contains("no trailing dot"), missing);
         assertTrue(denied.contains("read but not write") && denied.contains("Test token"), denied);
         assertEquals("git push failed: something else", StageApiController.friendlyGitError("git push failed: something else", url));
+        String workflow = StageApiController.friendlyGitError(
+                "git push failed: ! [remote rejected] HEAD -> bot/x (refusing to allow a Personal Access Token to create "
+                        + "or update workflow `.github/workflows/ci-cd.yml` without `workflow` scope)", url);
+        assertTrue(workflow.contains("workflow") && workflow.contains("repo"), workflow);
+        assertTrue(StageApiController.workflowScopeDenied(
+                "refusing to allow a Personal Access Token to create or update workflow `.github/workflows/ci-cd.yml` "
+                        + "without `workflow` scope"));
+    }
+
+    @Test
+    void relocateGithubWorkflowsMovesCiFilesOutOfDotGithub() throws Exception {
+        Path export = Files.createDirectories(tmp.resolve("export-wf"));
+        Path wf = Files.createDirectories(export.resolve(".github").resolve("workflows"));
+        Files.writeString(wf.resolve("ci-cd.yml"), "name: ci\n", StandardCharsets.UTF_8);
+        assertTrue(StageApiController.relocateGithubWorkflows(export));
+        assertFalse(Files.exists(export.resolve(".github").resolve("workflows").resolve("ci-cd.yml")));
+        assertTrue(Files.isRegularFile(export.resolve("deploy").resolve("github-workflows").resolve("ci-cd.yml")));
+        assertTrue(Files.isRegularFile(export.resolve("deploy").resolve("github-workflows").resolve("README.md")));
     }
 
     @Test

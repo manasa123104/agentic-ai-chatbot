@@ -1641,6 +1641,14 @@
           out.append(a, ' ');
         }
       });
+      if (data.note) {
+        const tip = document.createElement('p');
+        tip.className = 'gh-note';
+        tip.style.marginTop = '0.5rem';
+        tip.style.fontSize = '0.9rem';
+        tip.textContent = data.note;
+        out.appendChild(tip);
+      }
       if (newLink) {
         const main = newLink.querySelector('.gh-newlink-url');
         const pr = newLink.querySelector('.gh-newlink-pr');

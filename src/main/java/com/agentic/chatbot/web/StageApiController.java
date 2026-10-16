@@ -166,8 +166,27 @@ public class StageApiController {
             if (copied == 0) {
                 throw new IllegalArgumentException(emptyPushMessage(runId, stage));
             }
-            GitService.PushResult result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
-                    work, token, body.pull() == null || body.pull());
+            boolean pullFirst = body.pull() == null || body.pull();
+            GitService.PushResult result;
+            String note = null;
+            try {
+                result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
+                        work.resolve("push-1"), token, pullFirst);
+            } catch (IllegalStateException e) {
+                // Classic PATs need the "workflow" scope to create .github/workflows/*; retry without that folder.
+                if (!workflowScopeDenied(e.getMessage())) {
+                    throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
+                }
+                if (!relocateGithubWorkflows(export)) {
+                    throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
+                }
+                result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
+                        work.resolve("push-2"), token, pullFirst);
+                note = "Pushed without enabling GitHub Actions: your token lacks the classic \"workflow\" scope, so "
+                        + "CI files were moved to deploy/github-workflows/ instead of .github/workflows/. "
+                        + "Copy them into .github/workflows/ on GitHub if you want Actions, or create a new classic "
+                        + "token with both the repo and workflow scopes and push again.";
+            }
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("repoUrl", repoUrl);
             out.put("branch", result.branch());
@@ -176,12 +195,71 @@ public class StageApiController {
             out.put("branchUrl", result.branchUrl());
             out.put("compareUrl", result.compareUrl());
             out.put("files", copied);
+            if (note != null) {
+                out.put("note", note);
+            }
             return out;
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
         } finally {
             GitService.deleteQuietly(work);
         }
+    }
+
+    /** True when GitHub rejected the push because the PAT cannot write Action workflow files. */
+    static boolean workflowScopeDenied(String raw) {
+        String lower = raw == null ? "" : raw.toLowerCase(Locale.ROOT);
+        return lower.contains("workflow") && (lower.contains("scope") || lower.contains(".github/workflows"));
+    }
+
+    /**
+     * Moves {@code .github/workflows/*} to {@code deploy/github-workflows/} so a push can succeed with only the
+     * {@code repo} scope. Returns true when at least one workflow file was moved.
+     */
+    static boolean relocateGithubWorkflows(Path export) throws IOException {
+        Path workflows = export.resolve(".github").resolve("workflows");
+        if (!Files.isDirectory(workflows)) {
+            return false;
+        }
+        Path target = export.resolve("deploy").resolve("github-workflows");
+        Files.createDirectories(target);
+        boolean moved = false;
+        try (var stream = Files.list(workflows)) {
+            for (Path file : stream.toList()) {
+                if (!Files.isRegularFile(file)) {
+                    continue;
+                }
+                Files.move(file, target.resolve(file.getFileName().toString()));
+                moved = true;
+            }
+        }
+        // drop empty .github/workflows (and .github if empty)
+        try (var left = Files.list(workflows)) {
+            if (left.findAny().isEmpty()) {
+                Files.deleteIfExists(workflows);
+            }
+        }
+        Path github = export.resolve(".github");
+        if (Files.isDirectory(github)) {
+            try (var left = Files.list(github)) {
+                if (left.findAny().isEmpty()) {
+                    Files.deleteIfExists(github);
+                }
+            }
+        }
+        Path readme = target.resolve("README.md");
+        if (moved && !Files.exists(readme)) {
+            Files.writeString(readme, """
+                    # GitHub Actions workflows (from BOT Deploy)
+
+                    These files were saved here because a Personal Access Token without the classic `workflow`
+                    scope cannot create `.github/workflows/` on GitHub.
+
+                    To enable Actions: copy `*.yml` into `.github/workflows/` in this repository, or push again
+                    with a classic token that has both the `repo` and `workflow` scopes.
+                    """.stripIndent());
+        }
+        return moved;
     }
 
     /** Why a run (or one stage of it) has nothing to push: names the run so a wrong/stale run id is easy to spot. */
@@ -213,6 +291,12 @@ public class StageApiController {
                 || lower.contains("could not read username") || lower.contains("bad credentials")) {
             return "GitHub rejected the token (bad, expired or revoked). Create a new personal access token with repo "
                     + "access and paste it again.";
+        }
+        if (workflowScopeDenied(m)) {
+            return "GitHub refused to create .github/workflows/ci-cd.yml: a classic personal access token needs the "
+                    + "\"workflow\" scope as well as \"repo\". On https://github.com/settings/tokens tick both repo and "
+                    + "workflow, generate a new token, paste it here and push again. "
+                    + "(BOT will also retry the push with CI files under deploy/github-workflows/ instead.)";
         }
         if (lower.contains("permission denied") || lower.contains("403") || lower.contains("write access")) {
             return "GitHub refused the write to " + repoUrl + ". Token can read but not write, or its account has no write "
