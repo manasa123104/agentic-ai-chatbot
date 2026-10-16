@@ -3,6 +3,7 @@ package com.agentic.chatbot.web;
 import com.agentic.chatbot.llm.LlmClient;
 import com.agentic.chatbot.service.BotModelTrainingService;
 import com.agentic.chatbot.service.GitService;
+import com.agentic.chatbot.stage.RunNotFoundException;
 import com.agentic.chatbot.stage.StageLlm;
 import com.agentic.chatbot.stage.StageRequest;
 import com.agentic.chatbot.stage.StageResponse;
@@ -101,9 +102,29 @@ class StagePushTest {
     @Test
     void unknownRunIsReportedAsNotFound() {
         StageApiController controller = controller(stages());
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        IllegalArgumentException e = assertThrows(RunNotFoundException.class,
                 () -> controller.push("20261015-000000-ffffff", push("https://github.com/manasa123104/tester"), local()));
-        assertTrue(e.getMessage().contains("not found"), e.getMessage());
+        assertTrue(e.getMessage().contains("not found") && e.getMessage().contains("hosting restarted")
+                && e.getMessage().contains("New run"), e.getMessage());
+        // the web layer answers 404 + a code, so the page can clear its stale "All 5 stages done" state
+        var response = controller.runNotFound((RunNotFoundException) e);
+        assertEquals(404, response.getStatusCode().value());
+        assertEquals("run_not_found", response.getBody().get("code"));
+    }
+
+    @Test
+    void runStatusIsOkForARealRunAndNotFoundOnceTheFolderIsGone() throws Exception {
+        StageService stages = stages();
+        StageApiController controller = controller(stages);
+        String id = stages.runAll(new StageRequest("banking", "fund transfer between accounts", Map.of(), null)).get(0).runId();
+        Map<String, Object> status = controller.runStatus(id);
+        assertEquals(true, status.get("exists"));
+        assertTrue((Integer) status.get("files") > 5, status.toString());
+
+        // what a Render restart does: the ephemeral run folder disappears
+        GitService.deleteQuietly(stages.runDir(id));
+        assertThrows(RunNotFoundException.class, () -> controller.runStatus(id));
+        assertThrows(RunNotFoundException.class, () -> controller.runStatus("not-a-run-id"));
     }
 
     @Test

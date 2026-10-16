@@ -1616,6 +1616,27 @@ public class StageService {
                 + String.format("%06x", ThreadLocalRandom.current().nextInt(0x1000000));
     }
 
+    /**
+     * Number of files a run holds on this server; throws {@link RunNotFoundException} when the run folder is gone (a
+     * malformed id counts as gone). Lightweight check the stages page uses before it claims a run is complete.
+     */
+    public int runFileCount(String runId) {
+        Path dir;
+        try {
+            dir = runDir(runId);
+        } catch (IllegalArgumentException e) {
+            throw new RunNotFoundException(String.valueOf(runId));
+        }
+        if (!Files.isDirectory(dir)) {
+            throw new RunNotFoundException(runId);
+        }
+        try (Stream<Path> walk = Files.walk(dir)) {
+            return (int) walk.filter(Files::isRegularFile).count();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read the run: " + e.getMessage(), e);
+        }
+    }
+
     public Path runDir(String runId) {
         if (runId == null || !RUN_ID.matcher(runId).matches()) {
             throw new IllegalArgumentException("Unknown run id.");
@@ -1704,7 +1725,7 @@ public class StageService {
     public byte[] zip(String runId, StageType stage) {
         Path dir = runDir(runId);
         if (!Files.isDirectory(dir)) {
-            throw new IllegalArgumentException("Run " + runId + " not found.");
+            throw new RunNotFoundException(runId);
         }
         Set<String> only = stage == null ? null : stageFiles(runId, stage);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -1759,7 +1780,7 @@ public class StageService {
     public String businessLogic(String runId, StageType stage, String path) {
         Path dir = runDir(runId);
         if (!Files.isDirectory(dir)) {
-            throw new IllegalArgumentException("Run " + runId + " not found.");
+            throw new RunNotFoundException(runId);
         }
         if (path != null && !path.isBlank()) {
             Path file = resolveInside(dir, path);
@@ -1791,7 +1812,7 @@ public class StageService {
     public int exportFiles(String runId, StageType stage, Path target) {
         Path dir = runDir(runId);
         if (!Files.isDirectory(dir)) {
-            throw new IllegalArgumentException("Run " + runId + " not found.");
+            throw new RunNotFoundException(runId);
         }
         Set<String> only = stage == null ? null : stageFiles(runId, stage);
         int copied = 0;

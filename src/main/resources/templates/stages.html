@@ -427,6 +427,8 @@
         </div>
     </section>
 
+    <p class="convert-message error" id="runGone" role="alert" hidden></p>
+
     <section class="convert-card final-push" id="finalPush" hidden aria-labelledby="finalPushTitle">
         <div class="final-push-head">
             <span class="final-push-badge" aria-hidden="true">&#10003;</span>
@@ -699,6 +701,7 @@
 
   function setRun(id) {
     if (!id) resetTimes();
+    else $('runGone').hidden = true;
     runId = id;
     const zip = $('runZipBtn');
     zip.href = id ? '/api/stages/runs/' + id + '/zip' : '#';
@@ -752,16 +755,78 @@
   }
 
   /** The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished. */
-  function updateFinalPush() {
+  const RUN_GONE_MSG = 'This run is no longer on the server (hosting restarted). Press New run, then Run all stages, then push again.';
+  let verifiedRun = null; // the run id the server confirmed this session: no need to ask again
+  let verifySeq = 0;
+
+  /** Does the server still hold this run? true / false (gone, 404) / null (could not tell: offline, server error). */
+  async function checkRun(id) {
+    if (!id) return null;
+    if (id === verifiedRun) return true;
+    try {
+      const res = await fetch('/api/stages/runs/' + encodeURIComponent(id) + '/status', { headers: { Accept: 'application/json' } });
+      if (res.status === 404) return false;
+      if (!res.ok) return null;
+      verifiedRun = id;
+      return true;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** The run's files are gone from the server: clear results, the Trainer run box and the "All 5 stages done" panel. */
+  function runGone(id) {
+    verifiedRun = null;
+    verifySeq++;
+    WORK.forEach((s) => resetStage(s));
+    resetStage('trainer');
+    $('trainerRun').value = '';
+    $('trainerFeedback').value = '';
+    setRun(null);
+    $('runInfo').textContent = 'Run ' + (id || '') + ' is gone. ' + RUN_GONE_MSG;
+    const banner = $('runGone');
+    banner.textContent = (id ? 'Run ' + id + ': ' : '') + RUN_GONE_MSG;
+    banner.hidden = false;
+    setMessage('ba', RUN_GONE_MSG, 'error');
+    if (!busy && BotRun.current().key === 'stages') BotRun.idle();
+    persist();
+  }
+
+  /** The run the final push panel would push (the Trainer's result, else the current run, else the Trainer's run box). */
+  function currentRunId() {
+    return (results.trainer && results.trainer.runId) || runId || $('trainerRun').value.trim()
+      || (STAGES.map((s) => results[s] && results[s].runId).find(Boolean)) || '';
+  }
+
+  /** On page load / tab focus: if this page remembers a run the server no longer has, drop it instead of pretending. */
+  async function verifyCurrentRun() {
+    if (busy || locks > 0) return;
+    const id = currentRunId();
+    if (!id) return;
+    if (await checkRun(id) === false && !busy && locks === 0 && currentRunId() === id) runGone(id);
+  }
+
+  /**
+   * The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished
+   * AND the server still has the run (a quick status GET), so it never claims completion for a run that no longer exists.
+   */
+  async function updateFinalPush() {
     const panel = $('finalPush');
     if (!panel) return;
-    const allDone = STAGES.every((s) => results[s]);
-    const trainerDone = !!results.trainer && !!(runId || $('trainerRun').value.trim());
-    panel.hidden = !(allDone || trainerDone);
+    const wanted = () => STAGES.every((s) => results[s]) || (!!results.trainer && !!currentRunId());
+    if (!wanted()) { panel.hidden = true; return; }
+    const id = currentRunId();
+    if (!id || id === verifiedRun) { panel.hidden = false; return; }
+    const seq = ++verifySeq;
+    const state = await checkRun(id);
+    if (seq !== verifySeq) return; // a newer update (or a clear) took over
+    if (state === false) { runGone(id); return; }
+    panel.hidden = !wanted();
   }
 
   function render(stage, data) {
     results[stage] = data;
+    if (data.runId) verifiedRun = data.runId; // the server just wrote this run
     setOut(stage, data);
     paintMeta(stage, data);
     if (stage !== 'trainer') {
@@ -987,7 +1052,12 @@
       inflight.delete(abort);
     }
     const data = await res.json().catch(() => null);
-    if (!res.ok || !data) throw new Error((data && data.error) || 'BOT answered with an error (HTTP ' + res.status + '). Try again in a moment.');
+    if (!res.ok || !data) {
+      const err = new Error((data && data.error) || 'BOT answered with an error (HTTP ' + res.status + '). Try again in a moment.');
+      err.status = res.status;
+      err.code = data && data.code;
+      throw err;
+    }
     return data;
   }
 
@@ -1205,6 +1275,7 @@
       WORK.forEach((s) => { resetStage(s); if (s !== 'ba') q(s, '.stage-input').value = ''; });
       resetStage('trainer');
       setRun(null);
+      $('runGone').hidden = true;
       $('trainerRun').value = '';
       document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
     }
@@ -1258,6 +1329,7 @@
     $('baModeField').hidden = true;
     importStatus('');
     setRun(null);
+    $('runGone').hidden = true;
     loadDomainRequirement(false);
     ba.focus();
     persist();
@@ -1581,7 +1653,14 @@
       }
       document.querySelectorAll('.gh-token').forEach((el) => { el.value = ''; });
     } catch (e) {
-      show(e.message, 'error');
+      if (e.code === 'run_not_found' || (e.status === 404 && /not found/i.test(e.message))) {
+        // the server lost this run (hosting restarted): do not keep claiming "All 5 stages done" for a dead run id
+        show('', '');
+        runGone(id);
+        $('runGone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        show(e.message, 'error');
+      }
     } finally {
       btn.disabled = false;
       applyLock();
@@ -1650,6 +1729,8 @@
   window.addEventListener('pageshow', (e) => { if (e.persisted) leaving = false; });
 
   restore();
+  verifyCurrentRun(); // a run remembered from before a hosting restart may be gone from the server
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifyCurrentRun(); });
   if (BotRun.current().key === 'stages' && BotRun.current().state === 'stopped' && !runId && !Object.keys(results).length) {
     BotRun.idle(); // nothing was saved to resume from
   }

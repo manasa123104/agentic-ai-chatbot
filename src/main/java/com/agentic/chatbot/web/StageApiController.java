@@ -1,6 +1,7 @@
 package com.agentic.chatbot.web;
 
 import com.agentic.chatbot.service.GitService;
+import com.agentic.chatbot.stage.RunNotFoundException;
 import com.agentic.chatbot.stage.StageAutomation;
 import com.agentic.chatbot.stage.StageRequest;
 import com.agentic.chatbot.stage.StageResponse;
@@ -233,6 +234,16 @@ public class StageApiController {
                 request.feedback(), request.runId());
     }
 
+    /** Lightweight "does this run still exist?" check: 200 with the file count, or 404 (code run_not_found). */
+    @GetMapping("/runs/{runId}/status")
+    public Map<String, Object> runStatus(@PathVariable String runId) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("runId", runId);
+        body.put("exists", true);
+        body.put("files", stages.runFileCount(runId));
+        return body;
+    }
+
     @GetMapping("/runs/{runId}/file")
     public ResponseEntity<byte[]> file(@PathVariable String runId, @RequestParam String path) throws IOException {
         Path file = stages.file(runId, path).orElseThrow(() -> new IllegalArgumentException("File not found: " + path));
@@ -289,6 +300,13 @@ public class StageApiController {
     private static StageType stageOf(String id) {
         return StageType.fromId(id).orElseThrow(() -> new IllegalArgumentException(
                 "Unknown stage '" + id + "'. Use ba, developer, tester, deploy or trainer."));
+    }
+
+    /** The run folder is gone (e.g. hosting restarted): 404 with a code the page uses to clear its stale run. */
+    @ExceptionHandler(RunNotFoundException.class)
+    public ResponseEntity<Map<String, String>> runNotFound(RunNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", e.getMessage(), "code", RunNotFoundException.CODE));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
