@@ -4,10 +4,11 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT · Code converter</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
     <link rel="stylesheet" th:href="@{/css/convert.css}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="code-app">
@@ -20,9 +21,10 @@
         </div>
     </div>
     <nav class="code-actions">
-        <a class="btn ghost" href="/">Back to BOT</a>
-        <a class="btn ghost" href="/code">User stories + Java code</a>
+        <a class="btn ghost" href="/">Home</a>
         <a class="btn ghost" href="/stages">Stage bots</a>
+        <a class="btn ghost" href="/convert" aria-current="page">Code converter</a>
+        <a class="btn ghost" href="/code">User stories + code</a>
     </nav>
 </header>
 
@@ -145,10 +147,25 @@
                         <input type="text" id="repoBranch" placeholder="main"/></label>
                 </div>
                 <div class="kind-fields" data-kind="upload" hidden>
-                    <label class="field"><span>Files or a ZIP</span>
-                        <input type="file" id="uploadFiles" multiple/></label>
-                    <label class="field"><span>Or a whole folder</span>
-                        <input type="file" id="uploadFolder" webkitdirectory directory multiple/></label>
+                    <div class="upload-picks">
+                        <div class="upload-pick">
+                            <label class="upload-btn" for="uploadFiles">
+                                <span class="u-title">Upload files or a ZIP</span>
+                                <span class="u-sub">One or more source files, or a .zip of the project</span>
+                            </label>
+                            <input type="file" id="uploadFiles" class="u-input" multiple="multiple"/>
+                            <span class="u-count">Nothing chosen yet</span>
+                        </div>
+                        <div class="upload-pick">
+                            <label class="upload-btn" for="uploadFolder">
+                                <span class="u-title">Upload a whole folder</span>
+                                <span class="u-sub">Keeps sub-folders; node_modules, .git and build output are skipped</span>
+                            </label>
+                            <input type="file" id="uploadFolder" class="u-input" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                            <span class="u-count">Nothing chosen yet</span>
+                        </div>
+                    </div>
+                    <p class="handoff-note" id="handoffNote" hidden></p>
                 </div>
                 <div class="kind-fields" data-kind="local" hidden th:if="${allowLocalPaths}">
                     <label class="field wide"><span>Folder path on the machine running BOT</span>
@@ -269,6 +286,7 @@
 
 <script th:src="@{/js/runtimer.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
+<script th:src="@{/js/upload.js}"></script>
 <script th:inline="javascript">
   const LANGUAGES = /*[[${allLanguages}]]*/ [];
 const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
@@ -587,6 +605,8 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
 
   // ---- Project / repository mode -------------------------------------------------------------
   let sourceKind = 'git';
+  // files attached on the home page and sent here ("Send to Code converter")
+  let handoffEntries = [];
   let currentJob = null;
   let pollTimer = null;
   let jobClosed = false;
@@ -675,9 +695,10 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       if (!path) { setJobMessage('Enter the folder path.', 'error'); return; }
       form.append('localPath', path);
     } else {
-      const files = [...$('uploadFiles').files, ...$('uploadFolder').files];
+      const chosen = BotUpload.collect($('uploadFiles'), $('uploadFolder'));
+      const files = chosen.length ? chosen : handoffEntries;
       if (!files.length) { setJobMessage('Choose files, a folder or a ZIP to upload.', 'error'); return; }
-      files.forEach((f) => form.append('files', f, f.webkitRelativePath || f.name));
+      files.forEach((e) => form.append('files', e.file, e.path));
     }
     startJob(form);
   }
@@ -1178,7 +1199,18 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   window.addEventListener('pagehide', saveState);
 
   renderGallery();
-  restoreState();
+  restoreState().then(async () => {
+    // files attached on the home page: open the upload tab and keep them ready
+    const entries = await BotUpload.take('convert');
+    if (!entries || !entries.length) return;
+    handoffEntries = entries;
+    setMode('project');
+    setSourceKind('upload');
+    const note = $('handoffNote');
+    note.hidden = false;
+    note.textContent = 'From the home page: ' + BotUpload.describe(entries)
+      + ' are ready. Choose the source and target language above, then press Convert project.';
+  });
 </script>
 </body>
 </html>

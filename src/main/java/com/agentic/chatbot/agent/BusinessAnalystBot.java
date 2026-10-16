@@ -1,6 +1,9 @@
 package com.agentic.chatbot.agent;
 
+import com.agentic.chatbot.generator.SiteAgent;
+import com.agentic.chatbot.generator.SiteBackends;
 import com.agentic.chatbot.llm.LlmClient;
+import com.agentic.chatbot.stage.StageLanguage;
 import com.agentic.chatbot.service.SystemPromptService;
 import org.springframework.stereotype.Component;
 
@@ -79,18 +82,27 @@ public class BusinessAnalystBot implements AgentBot {
             role = "wedding couple";
         }
 
+        StageLanguage language = SiteBackends.detect(p);
+        String langLine = language == StageLanguage.JAVA
+                ? "Generate Java website code: Spring Boot controllers, templates, and multi-page HTML (Home, About, Services, Pricing, Blog, Careers, Contact when applicable)."
+                : "Generate the multi-page website (Home, About, Services, Pricing, Blog, Careers, Contact when applicable) with a runnable "
+                + language.label() + " server under server/" + language.id()
+                + "/, plus the Spring Boot project that powers the BOT preview.";
+        String agentLine = SiteAgent.wantsAgent(p)
+                ? "\n6. An on-page chatbot agent (floating chat widget backed by the site-agent endpoint) answers visitor questions about the business."
+                : "";
         return """
-                As a %s, I want BOT to generate Java website code (Spring Boot + Thymeleaf) so developers can run and test it.
+                As a %s, I want BOT to generate website code in %s so developers can run and test it.
 
                 ### Goal
                 %s
 
                 ### Acceptance criteria
-                1. Generate Java website code: Spring Boot controllers, templates, and multi-page HTML (Home, About, Services, Pricing, Blog, Careers, Contact when applicable).
+                1. %s
                 2. Topic-relevant images and styling applied from the story keywords.
-                3. Brand name shown on pages (not the raw prompt dumped as page copy).
+                3. Brand name shown on pages (not the raw prompt dumped as page copy); every site gets its own headings, palette and typography.
                 4. Java unit tests generated for controllers/services.
-                5. Functional (MockMvc) tests cover the main happy path.
-                """.formatted(role, p);
+                5. Functional (MockMvc) tests cover the main happy path.%s
+                """.formatted(role, language.label(), p, langLine, agentLine);
     }
 }

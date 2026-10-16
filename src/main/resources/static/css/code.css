@@ -1,11 +1,11 @@
 body.code-app {
   margin: 0;
   min-height: 100vh;
-  font-family: "IBM Plex Sans", Arial, sans-serif;
-  color: var(--text, #14201a);
+  font-family: var(--font-ui);
+  color: var(--text, #1d2430);
   background:
-    radial-gradient(1000px 420px at 90% -10%, #d4e4d8, transparent 55%),
-    linear-gradient(165deg, #eef4ef, #e8efe9 50%, #dde8e0);
+    radial-gradient(1000px 420px at 90% -10%, #e3ded3, transparent 55%),
+    linear-gradient(165deg, #f3f0ea, #ece8e0 50%, #e4dfd4);
 }
 
 .code-top {
@@ -15,8 +15,8 @@ body.code-app {
   gap: 1rem;
   flex-wrap: wrap;
   padding: .9rem 1.25rem;
-  background: rgba(247, 250, 247, .9);
-  border-bottom: 1px solid var(--line, #c5d4cb);
+  background: rgba(251, 249, 245, .9);
+  border-bottom: 1px solid var(--line, #d8d3c8);
   backdrop-filter: blur(8px);
 }
 
@@ -33,20 +33,20 @@ body.code-app {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  color: #0f1f18;
-  font-family: Sora, sans-serif;
+  color: #222a33;
+  font-family: var(--font-ui);
   font-weight: 700;
-  background: linear-gradient(145deg, #7dcea0, #f0b27a);
+  background: linear-gradient(145deg, #8fb3bc, #c9a27a);
 }
 
 .code-brand strong {
   display: block;
-  font-family: Sora, sans-serif;
+  font-family: var(--font-ui);
   letter-spacing: -.02em;
 }
 
 .code-brand small {
-  color: var(--muted, #5a6b62);
+  color: var(--muted, #5c636b);
   font-size: .78rem;
 }
 
@@ -63,11 +63,11 @@ body.code-app {
 }
 
 .code-files {
-  background: #0f1f18;
-  color: #e7f0eb;
+  background: #222a33;
+  color: #eceff2;
   padding: 1rem .75rem;
   overflow-y: auto;
-  border-right: 1px solid #1c3228;
+  border-right: 1px solid #2d3640;
 }
 
 .code-files .pipe-label {
@@ -75,7 +75,7 @@ body.code-app {
   font-size: .68rem;
   text-transform: uppercase;
   letter-spacing: .08em;
-  color: #9bb0a4;
+  color: #9aa5b1;
   font-weight: 600;
 }
 
@@ -83,16 +83,16 @@ body.code-app {
   display: block;
   padding: .45rem .55rem;
   border-radius: 8px;
-  color: #d5e6dc;
+  color: #dbe1e7;
   text-decoration: none;
   font: 500 12px/1.35 "IBM Plex Mono", Consolas, monospace;
   word-break: break-all;
   margin-bottom: .2rem;
 }
 
-.file-link:hover { background: #1a3328; }
+.file-link:hover { background: #2e3944; }
 .file-link.active {
-  background: #214435;
+  background: #3a4855;
   color: #fff;
 }
 
@@ -110,29 +110,29 @@ body.code-app {
 }
 
 .code-meta .lang {
-  font: 600 11px Sora, sans-serif;
+  font: 600 11px var(--font-ui);
   text-transform: uppercase;
   letter-spacing: .06em;
-  background: #dff0e6;
-  color: #0f6b4c;
+  background: #e7ecef;
+  color: #2c5d68;
   padding: .25rem .55rem;
   border-radius: 999px;
 }
 
 .code-meta code {
   font: 500 13px "IBM Plex Mono", Consolas, monospace;
-  color: #33453c;
+  color: #3a4550;
 }
 
 .code-pane pre {
   margin: 0;
-  background: #10241b;
-  color: #e8f5ee;
+  background: #1d252d;
+  color: #edf2f4;
   border-radius: 14px;
   padding: 1rem 1.1rem;
   overflow: auto;
-  box-shadow: 0 12px 32px rgba(20, 32, 26, .12);
-  border: 1px solid #2a4639;
+  box-shadow: 0 12px 32px rgba(30, 36, 46, .12);
+  border: 1px solid #3b4753;
 }
 
 .code-pane pre code {
@@ -157,19 +157,19 @@ body.code-app {
 .code-empty .bubble {
   max-width: 480px;
   background: #fff;
-  border: 1px solid var(--line, #c5d4cb);
+  border: 1px solid var(--line, #d8d3c8);
   border-radius: 18px;
   padding: 1.5rem 1.6rem;
-  box-shadow: 0 10px 28px rgba(20, 32, 26, .08);
+  box-shadow: 0 10px 28px rgba(30, 36, 46, .08);
 }
 
 .code-empty h1 {
   margin: 0 0 .5rem;
-  font-family: Sora, sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.35rem;
 }
 
-.code-empty p { color: var(--muted, #5a6b62); line-height: 1.5; }
+.code-empty p { color: var(--muted, #5c636b); line-height: 1.5; }
 
 .story-banner {
   padding: .85rem 1.25rem 0;
@@ -182,10 +182,10 @@ body.code-app {
 .story-banner-inner {
   max-width: 100%;
   background: #fff;
-  border: 1px solid var(--line, #c5d4cb);
+  border: 1px solid var(--line, #d8d3c8);
   border-radius: 14px;
   padding: .85rem 1rem 1rem;
-  box-shadow: 0 6px 18px rgba(20, 32, 26, .06);
+  box-shadow: 0 6px 18px rgba(30, 36, 46, .06);
 }
 
 .story-banner .pipe-label {
@@ -193,7 +193,7 @@ body.code-app {
   font-size: .68rem;
   text-transform: uppercase;
   letter-spacing: .08em;
-  color: #0f6b4c;
+  color: #2c5d68;
   font-weight: 600;
 }
 
@@ -202,9 +202,9 @@ body.code-app {
   max-height: 220px;
   overflow: auto;
   white-space: pre-wrap;
-  font: 400 13px/1.5 "IBM Plex Sans", Arial, sans-serif;
-  color: #24352c;
-  background: #f4faf6;
+  font: 400 13px/1.5 var(--font-ui);
+  color: #2b3440;
+  background: #f6f3ee;
   border-radius: 10px;
   padding: .75rem .9rem;
 }

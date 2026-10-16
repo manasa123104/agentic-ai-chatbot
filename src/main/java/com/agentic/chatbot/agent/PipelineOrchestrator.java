@@ -123,8 +123,9 @@ public class PipelineOrchestrator {
                         continue;
                     }
                     String lower = f.toLowerCase();
+                    boolean serverFile = lower.startsWith("server/") && !lower.contains("/public/");
                     if (lower.endsWith(".java") || lower.endsWith(".html")
-                            || lower.endsWith("user_story.md") || lower.endsWith("pom.xml")) {
+                            || lower.endsWith("user_story.md") || lower.endsWith("pom.xml") || serverFile) {
                         if (!codeFiles.contains(f)) {
                             codeFiles.add(f);
                         }

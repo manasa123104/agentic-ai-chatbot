@@ -4,9 +4,10 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="chat-app">
@@ -27,7 +28,7 @@
             <div class="wf-arrow" aria-hidden="true">↓</div>
             <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Any language</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
-            <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + automation</span></a>
+            <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit · automation · manual</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
             <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker · CI/CD · K8s</span></a>
             <div class="wf-arrow" aria-hidden="true">↓</div>
@@ -66,7 +67,7 @@
         </p>
     </div>
     <nav class="rail-links">
-        <a href="/code">User stories + Java code</a>
+        <a href="/code">User stories + code</a>
         <a href="/stages">5-stage pipeline: BA → Dev → Test → Deploy → Train</a>
         <a href="/convert">Code converter</a>
         <a href="/edit">Edit generated site</a>
@@ -103,7 +104,7 @@
                         <div class="wf-arrow" aria-hidden="true">→</div>
                         <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Code in any language</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
-                        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + Selenium/Playwright</span></a>
+                        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit, automation + manual test cases</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
                         <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker, CI/CD, Kubernetes</span></a>
                         <div class="wf-arrow" aria-hidden="true">→</div>
@@ -116,17 +117,29 @@
                 </div>
                 <p class="actions">
                     <a class="btn" href="/stages">Open the 5-stage pipeline</a>
-                    <a class="btn ghost" href="/code">Open User stories + Java code</a>
+                    <a class="btn ghost" href="/code">Open User stories + code</a>
                 </p>
-                <p class="muted-note">Open <em>User stories + Java code</em> after a run, or try an example below.</p>
+                <p class="muted-note">Pick a language, upload a file or folder, or try an example. Every site gets its own name, headings, palette and fonts.</p>
+                <p class="chip-label">Websites in your language of choice</p>
                 <div class="suggestions">
-                    <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant site</button>
-                    <button type="button" class="chip" data-story="Generate Java website code for a travel company called SkyTrail Travels: Spring Boot controllers, Thymeleaf pages (home, destinations, packages, contact), blue colors, Poppins font, and travel-themed images.">Java travel site</button>
-                    <button type="button" class="chip" data-story="Generate Java code for a music academy website called Harmony Notes (Spring Boot + Thymeleaf). Include piano, guitar, and vocals pages with music-themed images and a contact form.">Java music site</button>
-                    <button type="button" class="chip" data-story="As a Java developer prompt: build a wedding planning website called EverAfter with florals, venues, and photography pages. Generate the Java Spring Boot website code and matching wedding images.">Java wedding site</button>
+                    <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant</button>
+                    <button type="button" class="chip" data-story="Build a bakery website called Crumb Hearth with menu, pricing, blog and contact pages. Backend language: Python. Cream and terracotta palette.">Python bakery</button>
+                    <button type="button" class="chip" data-story="Generate a travel company website called SkyTrail Travels with destinations, packages and contact pages. Backend language: TypeScript. Calm blue colors.">TypeScript travel</button>
+                    <button type="button" class="chip" data-story="Create a music academy website called Harmony Notes with piano, guitar and vocals pages and a contact form. Backend language: Go.">Go music academy</button>
+                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with florals, venues and photography pages. Backend language: Kotlin.">Kotlin wedding</button>
+                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with services, pricing, careers and contact pages. Backend language: C#.">C# clinic</button>
+                    <button type="button" class="chip" data-story="Build a coffee roastery website called Ember Oak with a story page, pricing and a blog. Backend language: Rust.">Rust roastery</button>
                     <button type="button" class="chip" data-story="Change the website color to blue and use Poppins font">Edit: blue + Poppins</button>
                 </div>
-                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), or ask for a sample.</p>
+                <p class="chip-label">Websites with an on-page chatbot agent</p>
+                <div class="suggestions">
+                    <button type="button" class="chip" data-story="Build a restaurant website called OliveGrove with an on-page chatbot agent that answers menu, opening hours and reservation questions. Backend language: Python.">Restaurant + agent (Python)</button>
+                    <button type="button" class="chip" data-story="Create a travel website called SkyTrail Travels with a chatbot agent that recommends destinations and packages. Backend language: JavaScript.">Travel + agent (JavaScript)</button>
+                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with an AI assistant chatbot that explains services, prices and books visits. Backend language: C#.">Clinic + agent (C#)</button>
+                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with a chatbot agent that helps couples choose venues and photographers. Backend language: Kotlin.">Wedding + agent (Kotlin)</button>
+                </div>
+                <p class="chip-label">Code conversion</p>
+                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), upload a file, or ask for a sample.</p>
                 <div class="suggestions">
                     <button type="button" class="chip" data-story="Convert this Python code to Java:
 def factorial(n: int) -&gt; int:
@@ -155,25 +168,64 @@ if __name__ == &quot;__main__&quot;:
                     System prompt <span>(optional · widens BOT model)</span>
                 </button>
                 <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
-                          placeholder="Always generate Java website code (Spring Boot controllers + Thymeleaf templates). Match topic images. Keep brand name clean…"
+                          placeholder="Example: Prefer calm palettes. Keep the brand name clean. Always add a chatbot agent to websites…"
                           th:field="*{systemPrompt}"></textarea>
             </div>
-            <div class="composer-box">
+            <div class="attach-tray" id="attachTray" hidden>
+                <div class="attach-head">
+                    <strong id="attachSummary">Attachments</strong>
+                    <button type="button" class="link-btn" id="attachClear">Remove all</button>
+                </div>
+                <ul class="attach-list" id="attachList"></ul>
+                <div class="attach-actions">
+                    <span class="attach-note">Text and code files go into your prompt as context. For a whole project, send it to a converter instead:</span>
+                    <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
+                    <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
+                </div>
+            </div>
+            <div class="composer-tools">
+                <label class="tool-btn" title="Attach one or more files">
+                    <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
+                    Upload file
+                </label>
+                <label class="tool-btn" title="Attach a whole folder (sub-folders included)">
+                    <input type="file" id="attachFolder" class="u-input" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    Upload folder
+                </label>
+                <label class="tool-select" title="Backend language for generated websites. Auto uses the language named in your prompt.">
+                    <span>Language</span>
+                    <select id="langPick">
+                        <option value="">Auto (from prompt)</option>
+                        <option value="Java">Java</option>
+                        <option value="Python">Python</option>
+                        <option value="JavaScript">JavaScript</option>
+                        <option value="TypeScript">TypeScript</option>
+                        <option value="Go">Go</option>
+                        <option value="Kotlin">Kotlin</option>
+                        <option value="C#">C#</option>
+                        <option value="Rust">Rust</option>
+                    </select>
+                </label>
+            </div>
+            <div class="composer-box" id="composerBox">
                 <textarea id="userStory" name="userStory" rows="1"
-                          placeholder="Example: Generate Java code for a music academy website called Harmony Notes…"></textarea>
+                          placeholder="Describe a website, app or conversion. Name a language and say “with a chatbot agent” if you want one…"></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send">
                     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · System prompt is dynamic and trains with each run</p>
+            <p class="hint">Enter to send · Shift+Enter for a new line · Drop files onto the box to attach them</p>
         </form>
     </footer>
 </div>
 
 <script th:src="@{/js/runtimer.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
+<script th:src="@{/js/upload.js}"></script>
 <script th:inline="javascript">
 (function () {
   var thread = document.getElementById('thread');
@@ -365,12 +417,12 @@ if __name__ == &quot;__main__&quot;:
       : '';
     var preview = data.previewUrl
       ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
-        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + Java code</a>' +
+        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code</a>' +
         '<a class="btn ghost" href="/edit">Edit site</a></p>'
-      : '<p class="actions"><a class="btn ghost" href="/code">User stories + Java code</a></p>';
+      : '<p class="actions"><a class="btn ghost" href="/code">User stories + code</a></p>';
     var label = fromHistory
       ? '<p>Saved result from your history.</p>'
-      : '<p>Done — user story + website Java code are ready.</p>';
+      : '<p>Done — user story + website code are ready.</p>';
     addBot(label + '<ul class="step-list">' + steps + '</ul>' + storyBlock + filesBlock + preview);
   }
 
@@ -470,12 +522,12 @@ if __name__ == &quot;__main__&quot;:
   var running = false;
   var PENDING_KEY = 'bot.chat.pending';
 
-  async function runPipeline(story) {
+  async function runPipeline(story, shown) {
     if (running) return; // one run at a time: Enter, a suggestion chip or a double click cannot start a second one
     running = true;
     document.body.classList.add('is-running');
-    try { localStorage.setItem(PENDING_KEY, story); } catch (e) { /* ignore */ }
-    addUser(story);
+    try { localStorage.setItem(PENDING_KEY, shown || story); } catch (e) { /* ignore */ }
+    addUser(shown || story);
     input.value = '';
     autoSize();
     sendBtn.disabled = true;
@@ -549,11 +601,147 @@ if __name__ == &quot;__main__&quot;:
     input.style.height = Math.min(input.scrollHeight, 140) + 'px';
   }
 
-  form.addEventListener('submit', function (e) {
+  // ---- language picker + attachments (files / folder) ----------------------------------------------------------
+  var langPick = document.getElementById('langPick');
+  var CONVERT_INTENT = /^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite)\b/i;
+  var SITE_INTENT = /\b(?:website|web ?site|web ?page|landing page|site)\b/i;
+  var EDIT_INTENT = /^\s*(?:change|update|edit|make|use)\b/i;
+
+  /** Adds "Backend language: X" for website prompts when a language is picked and the prompt names none. */
+  function withLanguage(story) {
+    var lang = langPick.value;
+    if (!lang || CONVERT_INTENT.test(story) || EDIT_INTENT.test(story) || !SITE_INTENT.test(story)) return story;
+    if (/backend language\s*[:=]/i.test(story)) return story;
+    return story.replace(/\s+$/, '') + ' Backend language: ' + lang + '.';
+  }
+
+  var attached = [];
+  var tray = document.getElementById('attachTray');
+  var trayList = document.getElementById('attachList');
+  var traySummary = document.getElementById('attachSummary');
+
+  function renderTray() {
+    tray.hidden = attached.length === 0;
+    traySummary.textContent = attached.length ? 'Attached: ' + BotUpload.describe(attached) : 'Attachments';
+    trayList.innerHTML = '';
+    attached.slice(0, 8).forEach(function (a, i) {
+      var li = el('<li><span class="attach-name"></span><span class="attach-size"></span>' +
+        '<button type="button" class="attach-x" aria-label="Remove">&times;</button></li>');
+      li.querySelector('.attach-name').textContent = a.path;
+      li.querySelector('.attach-size').textContent = BotUpload.size(a.file.size) +
+        (BotUpload.isText(a.path) ? '' : ' \u00b7 not text');
+      li.querySelector('.attach-x').addEventListener('click', function () {
+        attached.splice(i, 1);
+        renderTray();
+      });
+      trayList.appendChild(li);
+    });
+    if (attached.length > 8) {
+      trayList.appendChild(el('<li class="attach-more">+ ' + (attached.length - 8) + ' more</li>'));
+    }
+  }
+
+  function addAttachments(entries) {
+    entries.forEach(function (e) {
+      var dup = attached.some(function (a) { return a.path === e.path && a.file.size === e.file.size; });
+      if (!dup) attached.push(e);
+    });
+    renderTray();
+  }
+
+  ['attachFiles', 'attachFolder'].forEach(function (id) {
+    var inp = document.getElementById(id);
+    inp.addEventListener('change', function () {
+      addAttachments(BotUpload.collect(inp));
+      inp.value = ''; // the same choice can be made again
+    });
+  });
+
+  document.getElementById('attachClear').addEventListener('click', function () {
+    attached = [];
+    renderTray();
+  });
+
+  function handOff(target, url) {
+    if (!attached.length) return;
+    BotUpload.stash(target, attached).then(function () {
+      window.location.href = url;
+    }, function () {
+      addBot('<p>Your browser would not keep the files for the next page. Open <a href="' + url + '">' + url +
+        '</a> and choose them there.</p>');
+    });
+  }
+  document.getElementById('toConvert').addEventListener('click', function () { handOff('convert', '/convert'); });
+  document.getElementById('toStages').addEventListener('click', function () { handOff('stages', '/stages'); });
+
+  var composerBox = document.getElementById('composerBox');
+  composerBox.addEventListener('dragover', function (e) {
+    if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) {
+      e.preventDefault();
+      composerBox.classList.add('drag');
+    }
+  });
+  composerBox.addEventListener('dragleave', function () { composerBox.classList.remove('drag'); });
+  composerBox.addEventListener('drop', function (e) {
+    composerBox.classList.remove('drag');
+    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
     e.preventDefault();
-    var story = (input.value || '').trim();
-    if (!story) return;
-    runPipeline(story);
+    addAttachments(BotUpload.collect(e.dataTransfer.files));
+  });
+
+  /** The prompt with the attached text / code files added as context (or as the code to convert). */
+  async function composeStory(text) {
+    if (!attached.length) return { story: withLanguage(text), shown: text };
+    var read = await BotUpload.readText(attached);
+    var names = attached.slice(0, 3).map(function (a) { return a.path; }).join(', ') +
+      (attached.length > 3 ? ' and ' + (attached.length - 3) + ' more' : '');
+    var note = '\n[Attached: ' + names + ']';
+    var skippedNote = read.skipped.length
+      ? ' (' + read.skipped.length + ' file(s) not added: not text or over the size limit)' : '';
+
+    if (CONVERT_INTENT.test(text)) {
+      if (read.blocks.length === 1) {
+        var header = text.replace(/[\s.:]*$/, '') + ':';
+        return { story: header + '\n' + read.blocks[0].text, shown: text + note };
+      }
+      return { story: null, shown: text + note, convertHint: true };
+    }
+    if (!read.blocks.length) {
+      return { story: null, shown: text + note, noText: true };
+    }
+    var ask = text || 'Use the attached files as the requirements for the site.';
+    var story = withLanguage(ask) + '\n\nAttached files (use them as context):\n' + read.blocks.map(function (b) {
+      return '--- ' + b.path + (b.cut ? ' (truncated)' : '') + ' ---\n' + b.text;
+    }).join('\n\n');
+    return { story: story, shown: ask + note + skippedNote };
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var text = (input.value || '').trim();
+    if (!text && !attached.length) return;
+    if (running) return;
+    var composed = await composeStory(text);
+    if (composed.story === null) {
+      addUser(composed.shown);
+      input.value = '';
+      autoSize();
+      addBot(composed.convertHint
+        ? '<p>To convert several files, use project mode: it keeps every folder and links the converted files together.</p>' +
+          '<p class="actions"><button type="button" class="btn" id="hintConvert">Convert as a project</button></p>'
+        : '<p>None of the attached files are text or code that I can put into a prompt. ' +
+          'Send them to the code converter or import them as user stories instead.</p>' +
+          '<p class="actions"><button type="button" class="btn" id="hintConvert">Convert as a project</button>' +
+          '<button type="button" class="btn ghost" id="hintStages">Import as user stories</button></p>');
+      var b1 = document.getElementById('hintConvert');
+      if (b1) b1.addEventListener('click', function () { handOff('convert', '/convert'); });
+      var b2 = document.getElementById('hintStages');
+      if (b2) b2.addEventListener('click', function () { handOff('stages', '/stages'); });
+      return;
+    }
+    attached = [];
+    renderTray();
+    runPipeline(composed.story, composed.shown);
   });
 
   input.addEventListener('keydown', function (e) {
@@ -566,7 +754,7 @@ if __name__ == &quot;__main__&quot;:
 
   document.querySelectorAll('.chip').forEach(function (chip) {
     chip.addEventListener('click', function () {
-      runPipeline(chip.getAttribute('data-story'));
+      runPipeline(withLanguage(chip.getAttribute('data-story')));
     });
   });
 

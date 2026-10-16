@@ -4,11 +4,12 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT · Stage bots</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
     <link rel="stylesheet" th:href="@{/css/convert.css}"/>
     <link rel="stylesheet" th:href="@{/css/stages.css}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="code-app">
@@ -21,9 +22,10 @@
         </div>
     </div>
     <nav class="code-actions">
-        <a class="btn ghost" href="/">Back to BOT</a>
+        <a class="btn ghost" href="/">Home</a>
+        <a class="btn ghost" href="/stages" aria-current="page">Stage bots</a>
         <a class="btn ghost" href="/convert">Code converter</a>
-        <a class="btn ghost" href="/code">User stories + Java code</a>
+        <a class="btn ghost" href="/code">User stories + code</a>
     </nav>
 </header>
 
@@ -206,10 +208,23 @@
             </div>
             <div class="ba-import-grid">
                 <div class="ba-import-col">
-                    <span class="setup-label">Upload file(s) or a ZIP</span>
-                    <input type="file" id="storyFiles" multiple="multiple" accept=".md,.markdown,.txt,.docx,.csv,.tsv,.feature,.story,.json,.zip"/>
-                    <span class="setup-label">Or a folder</span>
-                    <input type="file" id="storyFolder" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                    <span class="setup-label">From your computer</span>
+                    <div class="upload-pick">
+                        <label class="upload-btn" for="storyFiles">
+                            <span class="u-title">Upload files or a ZIP</span>
+                            <span class="u-sub">.md, .txt, .docx, .csv, .feature, .json or .zip</span>
+                        </label>
+                        <input type="file" id="storyFiles" class="u-input" multiple="multiple" accept=".md,.markdown,.txt,.docx,.csv,.tsv,.feature,.story,.json,.zip"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
+                    <div class="upload-pick">
+                        <label class="upload-btn" for="storyFolder">
+                            <span class="u-title">Upload a whole folder</span>
+                            <span class="u-sub">Every story file inside it, sub-folders included</span>
+                        </label>
+                        <input type="file" id="storyFolder" class="u-input" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
                     <button type="button" class="btn ghost small import-btn" id="importUploadBtn">Import uploaded stories</button>
                 </div>
                 <div class="ba-import-col">
@@ -450,6 +465,7 @@
 
 <script th:src="@{/js/runtimer.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
+<script th:src="@{/js/upload.js}"></script>
 <script th:inline="javascript">
   const STAGE_LIST = /*[[${stageList}]]*/ [];
   let stats = /*[[${trainingStats}]]*/ {};
@@ -1360,15 +1376,18 @@
     el.className = 'import-status' + (kind ? ' ' + kind : '');
   }
 
+  let handoffEntries = [];
+
   async function importStories(kind) {
     if (blocked()) return;
     const form = new FormData();
     form.append('inputType', kind);
     if (runId) form.append('runId', runId);
     if (kind === 'upload') {
-      const files = [...$('storyFiles').files, ...$('storyFolder').files];
+      const chosen = BotUpload.collect($('storyFiles'), $('storyFolder'));
+      const files = chosen.length ? chosen : handoffEntries;
       if (!files.length) { importStatus('Choose story files, a folder or a ZIP first.', 'error'); return; }
-      files.forEach((f) => form.append('files', f, f.webkitRelativePath || f.name));
+      files.forEach((e) => form.append('files', e.file, e.path));
     } else if (kind === 'git') {
       const url = $('storyRepo').value.trim();
       if (!url) { importStatus('Enter the GitHub repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
@@ -1535,6 +1554,14 @@
   loadExamples();
   loadDomainRequirement(false);
   applyLock();
+
+  // files attached on the home page and sent here: import them straight away
+  BotUpload.take('stages').then((entries) => {
+    if (!entries || !entries.length) return;
+    handoffEntries = entries;
+    importStatus('From the home page: ' + BotUpload.describe(entries) + '. Importing...', '');
+    importStories('upload');
+  });
 </script>
 </body>
 </html>

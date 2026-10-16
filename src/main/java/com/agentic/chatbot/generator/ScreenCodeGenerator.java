@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public class ScreenCodeGenerator {
 
     private static final Pattern FILE_BLOCK = Pattern.compile(
-            "(?s)```(?:java|html|xml|thymeleaf)?\\s*\\n?//\\s*FILE:\\s*(.+?)\\n(.*?)```");
+            "(?s)```(?:[A-Za-z0-9#+.-]+)?\\s*\\n?//\\s*FILE:\\s*(.+?)\\n(.*?)```");
 
     private final LlmClient llmClient;
 
@@ -33,7 +33,8 @@ public class ScreenCodeGenerator {
                 String system = """
                         You are a senior Java Spring Boot engineer.
                         Generate a complete minimal web screen for the user story.
-                        Output ONLY markdown code fences. Each fence must start with:
+                        Output ONLY markdown code fences. Each fence must start with this exact first line, whatever
+                        the language (BOT strips it before saving the file):
                         // FILE: relative/path/from/project/root
                         Generate:
                         1) A Spring MVC @Controller under src/main/java/...
@@ -41,10 +42,11 @@ public class ScreenCodeGenerator {
                         3) A simple DTO/model if needed
                         Use package com.generated.app
                         Keep code production-ready but minimal. No explanations outside fences.
-                        """;
+                        """ + "\n" + designBrief(userStory);
                 String content = llmClient.complete(system, "User story:\n" + userStory);
                 written.addAll(writeFromLlmFences(content, projectDir));
                 if (!written.isEmpty()) {
+                    injectAgent(written, projectDir, userStory);
                     ensurePom(projectDir, written);
                     return written;
                 }
@@ -56,6 +58,69 @@ public class ScreenCodeGenerator {
         written.addAll(writeOfflineTemplates(analysis, userStory, projectDir));
         ensurePom(projectDir, written);
         return written;
+    }
+
+    /**
+     * Design brief appended to the model prompt: every site must get its own headings, palette and typography
+     * (seeded from the business name), the requested backend language, and a chatbot agent only when asked for.
+     */
+    static String designBrief(String userStory) {
+        String brand = SiteVariant.brandFrom(userStory, "the business");
+        SiteVariant.Design d = SiteVariant.design(brand, userStory);
+        var lang = SiteBackends.detect(userStory);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Design brief (follow it; every generated website must look and read different from any other):\n");
+        sb.append("- Brand: ").append(brand).append(". Use the brand in the title, header and footer.\n");
+        sb.append("- Write unique H1/H2 headings for this brand and topic. Never reuse generic boilerplate such as ")
+                .append("\"Welcome to our website\" or \"Our services\". Suggested hero H1: \"")
+                .append(d.heroHeadline()).append("\".\n");
+        sb.append("- Palette: accent ").append(d.theme().accent()).append(", soft tint ").append(d.theme().soft())
+                .append(", footer ").append(d.theme().dark())
+                .append(" (unless the user named a colour - then use theirs).\n");
+        sb.append("- Typography: headings in ").append(d.headFont()).append(", body in ").append(d.theme().fontFamily())
+                .append(" (load them from Google Fonts unless the user named a font).\n");
+        sb.append("- Layout accent: hero layout \"").append(d.heroLayout()).append("\", corner radius ")
+                .append(d.radius()).append("px. Write hero and supporting copy that is specific to this business.\n");
+        if (lang != com.agentic.chatbot.stage.StageLanguage.JAVA) {
+            sb.append("- The user asked for ").append(lang.label()).append(". Keep the Thymeleaf templates, and also output ")
+                    .append("a small runnable ").append(lang.label()).append(" server in fences with FILE paths under server/")
+                    .append(lang.id()).append("/ that serves the same pages.\n");
+        }
+        if (SiteAgent.wantsAgent(userStory)) {
+            sb.append("- The user asked for a chatbot agent: add a floating chat widget on every page that POSTs JSON ")
+                    .append("{\"message\": \"...\"} to /api/site-agent and shows the \"reply\" field; keep it grounded in this ")
+                    .append("business. BOT also injects a ready-made widget, so keep the markup simple.\n");
+        } else {
+            sb.append("- Do NOT add a chatbot widget unless the user asks for one.\n");
+        }
+        return sb.toString();
+    }
+
+    /** Adds the chatbot widget to LLM-written pages when the prompt asked for an agent. */
+    private void injectAgent(List<Path> written, Path projectDir, String userStory) throws IOException {
+        if (!SiteAgent.wantsAgent(userStory)) {
+            return;
+        }
+        String brand = SiteVariant.brandFrom(userStory, "NovaTech");
+        var theme = SiteThemePack.fromStory(userStory);
+        var knowledge = SiteAgent.knowledge(brand, theme, null);
+        String widget = SiteAgent.widget(knowledge, 18);
+        for (Path p : new ArrayList<>(written)) {
+            String name = p.getFileName().toString();
+            if (!name.endsWith(".html") || !p.toString().replace('\\', '/').contains("/templates/")) {
+                continue;
+            }
+            String html = Files.readString(p, StandardCharsets.UTF_8);
+            if (html.contains("id=\"sa-fab\"")) {
+                continue;
+            }
+            int body = html.toLowerCase().lastIndexOf("</body>");
+            String updated = body >= 0 ? html.substring(0, body) + widget + html.substring(body) : html + widget;
+            Files.writeString(p, updated, StandardCharsets.UTF_8);
+        }
+        Path agentJson = projectDir.resolve("SITE_AGENT.json");
+        Files.writeString(agentJson, SiteAgent.toJson(knowledge) + "\n", StandardCharsets.UTF_8);
+        written.add(agentJson);
     }
 
     private List<Path> writeFromLlmFences(String content, Path projectDir) throws IOException {
@@ -235,14 +300,13 @@ public class ScreenCodeGenerator {
             brand = "NovaTech";
         }
         // Prefer a readable brand from the story
-        if (userStory != null) {
-            var m = java.util.regex.Pattern.compile("(?i)\\b(?:for|called|named)\\s+([A-Z][A-Za-z0-9]+)").matcher(userStory);
-            if (m.find()) {
-                brand = m.group(1);
-            }
-        }
+        brand = SiteVariant.brandFrom(userStory, brand);
 
-        var theme = BigSiteTemplates.themeFor(userStory);
+        // each brand gets its own palette, fonts, layout and headings; the language picks the extra server
+        var design = BigSiteTemplates.designFor(brand, userStory);
+        var theme = design.theme();
+        var language = SiteBackends.detect(userStory);
+        boolean agent = SiteAgent.wantsAgent(userStory);
         var pages = BigSiteTemplates.generate(brand, userStory);
         Path templatesDir = projectDir.resolve("src/main/resources/templates");
         Files.createDirectories(templatesDir);
@@ -352,13 +416,34 @@ public class ScreenCodeGenerator {
                   "featureName": "home",
                   "previewUrl": "/site/home",
                   "bigSite": true,
+                  "brand": "%s",
+                  "language": "%s",
+                  "agent": %s,
+                  "design": "%s",
                   "pages": [%s]
                 }
-                """.formatted(pageList), StandardCharsets.UTF_8);
+                """.formatted(escapeJava(brand), language.id(), agent, escapeJava(design.signature()), pageList),
+                StandardCharsets.UTF_8);
         paths.add(meta);
 
+        // on-page chatbot agent: only when the prompt asks for one
+        Path agentJson = projectDir.resolve("SITE_AGENT.json");
+        if (agent) {
+            Files.writeString(agentJson, SiteAgent.toJson(SiteAgent.knowledge(brand, theme, null)) + "\n",
+                    StandardCharsets.UTF_8);
+            paths.add(agentJson);
+        } else {
+            Files.deleteIfExists(agentJson);
+        }
+
+        // the same pages as a runnable server in the requested language (Java = the Spring Boot project)
+        paths.addAll(SiteBackends.write(language, projectDir, brand, pages, agent));
+
         Path readme = projectDir.resolve("USER_STORY.md");
-        Files.writeString(readme, "# Big site generated\n\n" + userStory + "\n\nPages: home, about, services, pricing, blog, careers, contact\n",
+        Files.writeString(readme, "# Big site generated\n\n" + userStory
+                        + "\n\nBrand: " + brand + " · language: " + language.label()
+                        + (agent ? " · on-page chatbot agent: yes" : "")
+                        + "\n\nPages: home, about, services, pricing, blog, careers, contact\n",
                 StandardCharsets.UTF_8);
         paths.add(readme);
 

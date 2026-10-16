@@ -14,25 +14,35 @@ final class BigSiteTemplates {
     static Map<String, String> generate(String brand, String story) {
         String b = brand == null || brand.isBlank() ? "NovaTech" : brand;
         String s = story == null ? "" : story;
-        SiteThemePack.Theme theme = SiteThemePack.fromStory(s);
+        // every brand gets its own palette, fonts, layout and wording (see SiteVariant)
+        SiteVariant.Design d = SiteVariant.design(b, s);
+        SiteThemePack.Theme theme = d.theme();
+        String agent = SiteAgent.wantsAgent(s)
+                ? SiteAgent.widget(SiteAgent.knowledge(b, theme, null), d.radius())
+                : "";
         Map<String, String> pages = new LinkedHashMap<>();
-        pages.put("home", page(b, s, theme, "home", "Home", homeBody(b, s, theme)));
-        pages.put("about", page(b, s, theme, "about", "About", aboutBody(b, theme)));
-        pages.put("services", page(b, s, theme, "services", "Services", servicesBody(b, theme)));
-        pages.put("pricing", page(b, s, theme, "pricing", "Pricing", pricingBody(theme)));
-        pages.put("blog", page(b, s, theme, "blog", "Blog", blogBody(b, theme)));
-        pages.put("careers", page(b, s, theme, "careers", "Careers", careersBody(b, theme)));
-        pages.put("contact", page(b, s, theme, "contact", "Contact", contactBody(b, theme)));
+        pages.put("home", page(b, d, "home", "Home", homeBody(b, d) + agent));
+        pages.put("about", page(b, d, "about", "About", aboutBody(b, d) + agent));
+        pages.put("services", page(b, d, "services", "Services", servicesBody(b, d) + agent));
+        pages.put("pricing", page(b, d, "pricing", "Pricing", pricingBody(b, d) + agent));
+        pages.put("blog", page(b, d, "blog", "Blog", blogBody(b, d) + agent));
+        pages.put("careers", page(b, d, "careers", "Careers", careersBody(b, d) + agent));
+        pages.put("contact", page(b, d, "contact", "Contact", contactBody(b, d) + agent));
         return pages;
     }
 
-    /** Expose theme so generator can write SITE_STYLE.json. */
-    static SiteThemePack.Theme themeFor(String story) {
-        return SiteThemePack.fromStory(story);
+    /** Expose the personalised theme so the generator can write SITE_STYLE.json. */
+    static SiteThemePack.Theme themeFor(String brand, String story) {
+        return SiteVariant.design(brand, story).theme();
     }
 
-    private static String page(String brand, String story, SiteThemePack.Theme theme, String current, String title, String body) {
-        String fontLink = theme.googleFontsHref();
+    static SiteVariant.Design designFor(String brand, String story) {
+        return SiteVariant.design(brand, story);
+    }
+
+    private static String page(String brand, SiteVariant.Design d, String current, String title, String body) {
+        SiteThemePack.Theme theme = d.theme();
+        String fontLink = d.fontsHref();
         return """
                 <!DOCTYPE html>
                 <html lang="en">
@@ -45,9 +55,12 @@ final class BigSiteTemplates {
                     :root {
                       --bg:%s; --ink:%s; --muted:%s; --line:#e2e8f0;
                       --accent:%s; --soft:%s; --dark:%s;
+                      --head-font:%s; --hw:%d; --r:%dpx; --rb:%dpx;
                     }
                     * { box-sizing:border-box; }
                     body { margin:0; font-family:%s; color:var(--ink); background:var(--bg); }
+                    h1, h2, h3, .brand, .price { font-family:var(--head-font); }
+                    .hero h1, .section h2 { font-weight:var(--hw); }
                     a { color:inherit; text-decoration:none; }
                     .top {
                       position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
@@ -65,7 +78,7 @@ final class BigSiteTemplates {
                     .nav a { color:var(--muted); font-size:.92rem; font-weight:500; padding:.35rem 0; }
                     .nav a:hover, .nav a.active { color:var(--accent); }
                     .cta {
-                      background:var(--accent); color:#fff !important; padding:.55rem 1rem; border-radius:999px;
+                      background:var(--accent); color:#fff !important; padding:.55rem 1rem; border-radius:var(--rb);
                       font-size:.88rem; font-weight:600;
                     }
                     .hero {
@@ -74,15 +87,20 @@ final class BigSiteTemplates {
                     }
                     .hero h1 { margin:0 0 1rem; font-size:clamp(2.1rem,5vw,3.4rem); line-height:1.08; letter-spacing:-.03em; }
                     .hero p { margin:0 0 1.5rem; color:var(--muted); font-size:1.05rem; line-height:1.65; max-width:36rem; }
+                    .hero.reverse .visual { order:-1; }
+                    .hero.center { grid-template-columns:1fr; text-align:center; }
+                    .hero.center p { margin-left:auto; margin-right:auto; }
+                    .hero.center .actions { justify-content:center; }
+                    .hero.center .visual { min-height:300px; }
                     .actions { display:flex; gap:.75rem; flex-wrap:wrap; }
                     .btn {
-                      display:inline-flex; align-items:center; justify-content:center; border-radius:999px;
+                      display:inline-flex; align-items:center; justify-content:center; border-radius:var(--rb);
                       padding:.85rem 1.25rem; font-weight:700; font-size:.95rem;
                     }
                     .btn-primary { background:var(--accent); color:#fff; }
                     .btn-ghost { background:#fff; color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 35%%, #fff); }
                     .visual {
-                      min-height:340px; border-radius:28px; overflow:hidden;
+                      min-height:340px; border-radius:calc(var(--r) + 8px); overflow:hidden;
                       background:#ddd center/cover no-repeat;
                       box-shadow:0 25px 60px color-mix(in srgb, var(--accent) 25%%, transparent);
                     }
@@ -94,7 +112,7 @@ final class BigSiteTemplates {
                     .grid-3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
                     .grid-2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
                     a.card, article.card, form.card {
-                      background:#fff; border:1px solid var(--line); border-radius:18px; padding:0;
+                      background:#fff; border:1px solid var(--line); border-radius:var(--r); padding:0;
                       box-shadow:0 8px 24px rgba(15,23,42,.04); overflow:hidden;
                       transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
                       display:block; color:inherit;
@@ -125,7 +143,7 @@ final class BigSiteTemplates {
                       width:100%%; padding:.75rem .9rem; border:1px solid var(--line); border-radius:10px; font:inherit;
                     }
                     form button {
-                      margin-top:1rem; border:0; background:var(--accent); color:#fff; border-radius:999px;
+                      margin-top:1rem; border:0; background:var(--accent); color:#fff; border-radius:var(--rb);
                       padding:.8rem 1.3rem; font-weight:700; cursor:pointer;
                     }
                     .site-footer {
@@ -155,7 +173,7 @@ final class BigSiteTemplates {
                     <a href="/site/careers" class="%s">Careers</a>
                     <a href="/site/contact" class="%s">Contact</a>
                   </nav>
-                  <a class="cta" href="/site/contact">Get started</a>
+                  <a class="cta" href="/site/contact">%s</a>
                 </header>
                 %s
                 <footer class="site-footer">
@@ -174,10 +192,12 @@ final class BigSiteTemplates {
                 brand, title,
                 fontLink,
                 theme.bg(), theme.ink(), theme.muted(), theme.accent(), theme.soft(), theme.dark(),
+                d.headFont(), d.headWeight(), d.radius(), d.radius() < 14 ? 8 : 999,
                 theme.fontFamily(),
                 escAttr(theme.heroImage()), brand,
                 on(current, "home"), on(current, "about"), on(current, "services"), on(current, "pricing"),
                 on(current, "blog"), on(current, "careers"), on(current, "contact"),
+                d.ctaLabel(),
                 body, brand, brand, theme.homeLead(), brand
         );
     }
@@ -225,12 +245,18 @@ final class BigSiteTemplates {
         return card(href, image, title, blurb, fb);
     }
 
-    private static String homeBody(String brand, String story, SiteThemePack.Theme theme) {
+    private static String homeBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
+        String layoutClass = switch (d.heroLayout()) {
+            case "reverse" -> " reverse";
+            case "center" -> " center";
+            default -> "";
+        };
         return """
-                <section class="hero">
+                <section class="hero%s">
                   <div>
-                    <p style="margin:0 0 .5rem;color:var(--accent);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem">Welcome</p>
+                    <p style="margin:0 0 .5rem;color:var(--accent);font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:.85rem">%s</p>
                     <h1>%s</h1>
                     <p>%s</p>
                     <div class="actions">
@@ -241,7 +267,7 @@ final class BigSiteTemplates {
                   <div class="visual"><img src="%s" alt="%s"/></div>
                 </section>
                 <section class="section">
-                  <h2>About %s</h2>
+                  <h2>%s</h2>
                   <p class="lead">%s</p>
                   <div class="grid-3">
                     %s
@@ -250,32 +276,36 @@ final class BigSiteTemplates {
                   </div>
                 </section>
                 <section class="section alt">
-                  <h2>Explore</h2>
+                  <h2>%s</h2>
                   <div class="grid-2">
                     %s
                     %s
                   </div>
                 </section>
                 """.formatted(
-                brand,
-                theme.homeLead(),
+                layoutClass,
+                d.kicker(),
+                d.heroHeadline(),
+                d.heroLead(),
                 brand,
                 escAttr(theme.heroImage()), brand,
-                brand,
-                theme.homeLead(),
+                d.aboutHeading(),
+                d.heroLead(),
                 card("/site/about", img(imgs, 0), "Our story", "Learn who we are and what " + brand + " stands for.", theme),
                 card("/site/services", img(imgs, 1), theme.servicesLabel(), theme.serviceBlurbs()[0], theme),
                 card("/site/contact", img(imgs, 2), "Get in touch", "Reach the " + brand + " team anytime.", theme),
+                d.exploreHeading(),
                 card("/site/about", img(imgs, 3), "About " + brand + " →", "Read more about our mission and values.", theme),
                 card("/site/pricing", img(imgs, 4), "See pricing →", "Simple plans from " + brand + ".", theme)
         );
     }
 
-    private static String aboutBody(String brand, SiteThemePack.Theme theme) {
+    private static String aboutBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
         return """
                 <section class="section">
-                  <h2>About %s</h2>
+                  <h2>%s</h2>
                   <p class="lead">%s</p>
                   <div class="grid-3">
                     %s
@@ -284,15 +314,16 @@ final class BigSiteTemplates {
                   </div>
                 </section>
                 """.formatted(
-                brand,
-                theme.homeLead(),
+                d.aboutHeading(),
+                d.heroLead(),
                 card("/site/services", img(imgs, 0), "What we do", theme.serviceBlurbs()[0], theme),
                 card("/site/careers", img(imgs, 1), "Our people", "The team behind " + brand + ".", theme),
                 card("/site/contact", img(imgs, 2), "Talk to us", "Questions about " + brand + "? We’re here to help.", theme)
         );
     }
 
-    private static String servicesBody(String brand, SiteThemePack.Theme theme) {
+    private static String servicesBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
         String[] titles = theme.serviceTitles();
         String[] blurbs = theme.serviceBlurbs();
@@ -304,43 +335,45 @@ final class BigSiteTemplates {
         return """
                 <section class="section">
                   <h2>%s</h2>
-                  <p class="lead">Everything %s offers — click any box to open that page.</p>
+                  <p class="lead">%s</p>
                   <div class="grid-3">
                     %s
                   </div>
                 </section>
-                """.formatted(theme.servicesLabel(), brand, cards);
+                """.formatted(d.servicesHeading(), d.servicesLead(), cards);
     }
 
-    private static String pricingBody(SiteThemePack.Theme theme) {
+    private static String pricingBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
+        String[] plans = d.planNames();
         return """
                 <section class="section">
-                  <h2>Pricing</h2>
-                  <p class="lead">Simple plans. Click a plan box to continue to contact.</p>
+                  <h2>%s</h2>
+                  <p class="lead">%s</p>
                   <div class="grid-3">
                     <a class="card" href="/site/contact">
-                      <div class="card-media"><img class="card-img" src="%s" alt="Starter" loading="lazy"/></div>
+                      <div class="card-media"><img class="card-img" src="%s" alt="%s" loading="lazy"/></div>
                       <div class="card-body">
-                        <h3>Starter</h3>
+                        <h3>%s</h3>
                         <div class="price">$0 <span>/mo</span></div>
                         <ul class="list"><li>Core pages</li><li>Theme images</li><li>Contact form</li></ul>
-                        <span class="go">Choose Starter →</span>
+                        <span class="go">Choose %s →</span>
                       </div>
                     </a>
                     <a class="card" href="/site/contact" style="border-color:var(--accent)">
-                      <div class="card-media"><img class="card-img" src="%s" alt="Growth" loading="lazy"/></div>
+                      <div class="card-media"><img class="card-img" src="%s" alt="%s" loading="lazy"/></div>
                       <div class="card-body">
-                        <h3>Growth</h3>
+                        <h3>%s</h3>
                         <div class="price">$49 <span>/mo</span></div>
                         <ul class="list"><li>Unlimited stories</li><li>Custom colors & fonts</li><li>Priority support</li></ul>
-                        <span class="go">Choose Growth →</span>
+                        <span class="go">Choose %s →</span>
                       </div>
                     </a>
                     <a class="card" href="/site/contact">
-                      <div class="card-media"><img class="card-img" src="%s" alt="Enterprise" loading="lazy"/></div>
+                      <div class="card-media"><img class="card-img" src="%s" alt="%s" loading="lazy"/></div>
                       <div class="card-body">
-                        <h3>Enterprise</h3>
+                        <h3>%s</h3>
                         <div class="price">Custom</div>
                         <ul class="list"><li>Dedicated workspace</li><li>SLA + onboarding</li><li>Security review</li></ul>
                         <span class="go">Talk to sales →</span>
@@ -348,15 +381,20 @@ final class BigSiteTemplates {
                     </a>
                   </div>
                 </section>
-                """.formatted(escAttr(img(imgs, 0)), escAttr(img(imgs, 1)), escAttr(img(imgs, 2)));
+                """.formatted(d.pricingHeading(), d.pricingLead(),
+                escAttr(img(imgs, 0)), plans[0], plans[0], plans[0],
+                escAttr(img(imgs, 1)), plans[1], plans[1], plans[1],
+                escAttr(img(imgs, 2)), plans[2], plans[2]);
     }
 
-    private static String blogBody(String brand, SiteThemePack.Theme theme) {
+    private static String blogBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
+        String[] t = d.blogTitles();
         return """
                 <section class="section">
-                  <h2>Blog</h2>
-                  <p class="lead">Stories from the %s team. Each card opens a related page.</p>
+                  <h2>%s</h2>
+                  <p class="lead">%s</p>
                   <div class="grid-3">
                     %s
                     %s
@@ -364,19 +402,21 @@ final class BigSiteTemplates {
                   </div>
                 </section>
                 """.formatted(
-                brand,
-                card("/site/services", img(imgs, 3), "Behind the experience", "How we craft moments guests remember.", theme),
-                card("/site/about", img(imgs, 4), "Meet the makers", "People, places, and the craft behind " + brand + ".", theme),
-                card("/site/contact", img(imgs, 5), "Ask us anything", "Planning a visit or trip? Start a conversation.", theme)
+                d.blogHeading(), d.blogLead(),
+                card("/site/services", img(imgs, 3), t[0], "How we craft moments people remember.", theme),
+                card("/site/about", img(imgs, 4), t[1], "People, places, and the craft behind " + brand + ".", theme),
+                card("/site/contact", img(imgs, 5), t[2], "Planning a visit or a project? Start a conversation.", theme)
         );
     }
 
-    private static String careersBody(String brand, SiteThemePack.Theme theme) {
+    private static String careersBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         String[] imgs = theme.cardImages();
+        String[] r = d.roleTitles();
         return """
                 <section class="section">
-                  <h2>Careers at %s</h2>
-                  <p class="lead">Join a team that cares about craft. Click a role to apply via Contact.</p>
+                  <h2>%s</h2>
+                  <p class="lead">%s</p>
                   <div class="grid-2">
                     %s
                     %s
@@ -385,19 +425,20 @@ final class BigSiteTemplates {
                   </div>
                 </section>
                 """.formatted(
-                brand,
-                card("/site/contact", img(imgs, 0), "Front of house lead", "Full-time · On-site", theme),
-                card("/site/contact", img(imgs, 1), "Experience designer", "Hybrid · Full-time", theme),
-                card("/site/contact", img(imgs, 2), "Operations manager", "Remote · Full-time", theme),
-                card("/site/contact", img(imgs, 3), "Guest success specialist", "Full-time · Flexible", theme)
+                d.careersHeading(), d.careersLead(),
+                card("/site/contact", img(imgs, 0), r[0], "Full-time · On-site", theme),
+                card("/site/contact", img(imgs, 1), r[1], "Hybrid · Full-time", theme),
+                card("/site/contact", img(imgs, 2), r[2], "Remote · Full-time", theme),
+                card("/site/contact", img(imgs, 3), r[3], "Full-time · Flexible", theme)
         );
     }
 
-    private static String contactBody(String brand, SiteThemePack.Theme theme) {
+    private static String contactBody(String brand, SiteVariant.Design d) {
+        SiteThemePack.Theme theme = d.theme();
         return """
                 <section class="section">
-                  <h2>Contact %s</h2>
-                  <p class="lead">Tell us what you want to build or book. We’ll respond within one business day.</p>
+                  <h2>%s</h2>
+                  <p class="lead">%s</p>
                   <div class="grid-2">
                     <form class="card" method="post" action="/site/contact" style="padding:1.25rem">
                       <label for="field1">Email</label>
@@ -418,6 +459,6 @@ final class BigSiteTemplates {
                     </a>
                   </div>
                 </section>
-                """.formatted(brand, escAttr(theme.heroImage()));
+                """.formatted(d.contactHeading(), d.contactLead(), escAttr(theme.heroImage()));
     }
 }

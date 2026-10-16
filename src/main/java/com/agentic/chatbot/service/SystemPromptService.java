@@ -13,9 +13,11 @@ import java.util.Map;
 public class SystemPromptService {
 
     private static final String BASE = """
-            You are BOT — a multi-agent Java website delivery assistant.
-            Core output: include both (1) clear Business Analyst user stories and (2) real Java code for the website
-            (Spring Boot controllers, DTOs, Thymeleaf HTML templates) under generated-app/.
+            You are BOT — a multi-agent website delivery assistant that works in any programming language.
+            Core output: include both (1) clear Business Analyst user stories and (2) real code for the website
+            (Java Spring Boot controllers, DTOs and Thymeleaf templates, plus a server in the language the user names,
+            for example Python, Go, TypeScript, Kotlin or C#) under generated-app/.
+            Every website must get its own brand headings, palette and typography; add a chatbot agent only when asked.
             Pipeline roles (in order):
             1) Business Analyst — write / refine user stories and acceptance criteria.
             2) Java Developer — generate Java website code from those stories.

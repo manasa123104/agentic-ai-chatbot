@@ -95,16 +95,20 @@ public class CodeViewerController {
             walk.filter(Files::isRegularFile)
                     .filter(p -> {
                         String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
+                        String rel = root.relativize(p).toString().replace('\\', '/').toLowerCase(Locale.ROOT);
+                        boolean serverFile = rel.startsWith("server/") && !rel.contains("/public/");
                         return name.endsWith(".java") || name.endsWith(".html")
                                 || name.endsWith(".css") || name.equals("pom.xml")
                                 || name.equals("user_story.md") || name.equals("bot_model.json")
                                 || name.equals("workflow.md")
-                                || name.equals("site_meta.json") || name.equals("site_style.json");
+                                || name.equals("site_meta.json") || name.equals("site_style.json")
+                                || name.equals("site_agent.json") || serverFile;
                     })
                     .filter(p -> {
                         String rel = root.relativize(p).toString().replace('\\', '/');
                         return !rel.contains("/target/") && !rel.startsWith("target/")
-                                && !rel.contains("/uploads/");
+                                && !rel.contains("/uploads/") && !rel.contains("node_modules/")
+                                && !(rel.startsWith("server/") && rel.contains("/public/"));
                     })
                     .map(p -> root.relativize(p).toString().replace('\\', '/'))
                     .sorted(Comparator
@@ -155,6 +159,33 @@ public class CodeViewerController {
         }
         if (lower.endsWith(".md")) {
             return "markdown";
+        }
+        if (lower.endsWith(".py")) {
+            return "python";
+        }
+        if (lower.endsWith(".js")) {
+            return "javascript";
+        }
+        if (lower.endsWith(".ts")) {
+            return "typescript";
+        }
+        if (lower.endsWith(".go")) {
+            return "go";
+        }
+        if (lower.endsWith(".kt")) {
+            return "kotlin";
+        }
+        if (lower.endsWith(".cs")) {
+            return "csharp";
+        }
+        if (lower.endsWith(".rs")) {
+            return "rust";
+        }
+        if (lower.endsWith(".php")) {
+            return "php";
+        }
+        if (lower.endsWith(".rb")) {
+            return "ruby";
         }
         return "text";
     }

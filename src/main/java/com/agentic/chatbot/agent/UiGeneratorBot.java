@@ -1,6 +1,9 @@
 package com.agentic.chatbot.agent;
 
 import com.agentic.chatbot.generator.ScreenCodeGenerator;
+import com.agentic.chatbot.generator.SiteAgent;
+import com.agentic.chatbot.generator.SiteBackends;
+import com.agentic.chatbot.stage.StageLanguage;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
@@ -27,9 +30,13 @@ public class UiGeneratorBot implements AgentBot {
             String forDev = context.getUserStory();
             List<Path> files = screenCodeGenerator.generate(forDev, context.getProjectDir());
             files.forEach(context::addGeneratedFile);
-            return AgentResult.ok(
-                    "Generated Java website code (Spring Boot controllers + Thymeleaf templates). Files: " + files.size(),
-                    files);
+            var language = SiteBackends.detect(forDev);
+            String lang = language == StageLanguage.JAVA
+                    ? "Generated Java website code (Spring Boot controllers + Thymeleaf templates)."
+                    : "Generated the website (Spring Boot preview project + a " + language.label() + " server in server/"
+                    + language.id() + "/)" + (SiteBackends.hasServer(language) ? "." : " with a README for converting it.");
+            String agent = SiteAgent.wantsAgent(forDev) ? " Chatbot agent added to every page." : "";
+            return AgentResult.ok(lang + agent + " Files: " + files.size(), files);
         } catch (Exception e) {
             return AgentResult.fail("Java Developer bot failed: " + e.getMessage());
         }

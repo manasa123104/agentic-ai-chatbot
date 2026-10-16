@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>BOT · User stories + Java code</title>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <title>BOT · User stories + code</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
     <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="code-app">
@@ -15,16 +16,18 @@
     <div class="code-brand">
         <a class="rail-mark" href="/">B</a>
         <div>
-            <strong>User stories + Java code</strong>
+            <strong>User stories + code</strong>
             <small>BA story and the website code BOT generated for your request</small>
         </div>
     </div>
     <nav class="code-actions">
         <span class="run-timer done" id="lastRun" th:if="${lastRunMs != null}" th:attr="data-ms=${lastRunMs}"></span>
-        <a class="btn ghost" href="/">Back to BOT</a>
-        <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
-        <a class="btn ghost" href="/edit">Edit site</a>
+        <a class="btn ghost" href="/">Home</a>
+        <a class="btn ghost" href="/stages">Stage bots</a>
         <a class="btn ghost" href="/convert">Code converter</a>
+        <a class="btn ghost" href="/code" aria-current="page">User stories + code</a>
+        <a class="btn ghost" href="/edit">Edit site</a>
+        <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
     </nav>
 </header>
 
