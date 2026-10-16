@@ -44,8 +44,13 @@ final class SiteVariant {
             String[] planNames,
             String[] blogTitles,
             String[] roleTitles,
-            String signature
+            String signature,
+            List<SiteNav.Item> nav
     ) {
+        /** Label of a page in this site's own menu ("pricing" is "Reservations" for a restaurant). */
+        String label(String slug) {
+            return SiteNav.label(nav, slug);
+        }
     }
 
     private record FontPair(String head, String body, String href) {
@@ -101,7 +106,7 @@ final class SiteVariant {
             "Here\u2019s what {brand} is about. {lead}",
     };
     private static final String[] ABOUT = {
-            "About {brand}", "The story behind {brand}", "Why {brand}", "Meet {brand}", "Inside {brand}"
+            "{brand}: {nav}", "The story behind {brand}", "Why {brand}", "Meet {brand}", "Inside {brand}"
     };
     private static final String[] EXPLORE = {
             "Explore", "Start here", "Pick your path", "Where to next?", "Take a look around"
@@ -115,8 +120,9 @@ final class SiteVariant {
             "Pick a card to see how {brand} can help.",
             "A closer look at {brand}, one card at a time.",
     };
+    // page headings are built around the page's own menu label ({nav}), never the stock "Pricing" / "Blog" / "Careers"
     private static final String[] PRICING = {
-            "Pricing", "Simple pricing", "Choose your {brand} plan", "What it costs", "Plans & pricing"
+            "{nav}", "{nav} at {brand}", "{brand}: {nav}", "Your {nav} with {brand}"
     };
     private static final String[] PRICING_LEAD = {
             "Simple plans. Click a plan box to continue to contact.",
@@ -124,7 +130,7 @@ final class SiteVariant {
             "Transparent prices from {brand}. Tap a plan to get in touch.",
     };
     private static final String[] BLOG = {
-            "Blog", "The {brand} journal", "Field notes from {brand}", "Stories & updates", "Latest from {brand}"
+            "{nav}", "{nav} from {brand}", "The {brand} {nav}", "{nav}: stories & updates", "Latest {nav} at {brand}"
     };
     private static final String[] BLOG_LEAD = {
             "Stories from the {brand} team. Each card opens a related page.",
@@ -132,7 +138,7 @@ final class SiteVariant {
             "What we are thinking about at {brand} this season.",
     };
     private static final String[] CAREERS = {
-            "Careers at {brand}", "Join {brand}", "Work with {brand}", "Build the next chapter at {brand}"
+            "{nav}", "{brand}: {nav}", "Be part of {brand}", "Build the next chapter at {brand}"
     };
     private static final String[] CAREERS_LEAD = {
             "Join a team that cares about craft. Click a role to apply via Contact.",
@@ -140,7 +146,7 @@ final class SiteVariant {
             "Good people, good work. See where you could fit at {brand}.",
     };
     private static final String[] CONTACT = {
-            "Contact {brand}", "Talk to {brand}", "Say hello to {brand}", "Visit or reach {brand}"
+            "{nav}", "{brand}: {nav}", "Talk to {brand}", "Say hello to {brand}", "Visit or reach {brand}"
     };
     private static final String[] CONTACT_LEAD = {
             "Tell us what you want to build or book. We\u2019ll respond within one business day.",
@@ -228,6 +234,8 @@ final class SiteVariant {
         // what THIS story says (offers, one card per user story, place) replaces the stock copy of its topic
         StoryDetails details = StoryDetails.parse(s);
         SiteThemePack.Theme base = personalise(SiteThemePack.fromStory(s), details, b, seed);
+        // the top menu comes from the business's topic and its own words, not one shared list
+        List<SiteNav.Item> nav = SiteNav.build(s, base.kind(), seed);
 
         boolean darkBase = luminance(base.bg()) < 0.4;
         boolean colorAsked = HEX.matcher(s).find() || COLOR_WORD.matcher(lower).find()
@@ -289,24 +297,25 @@ final class SiteVariant {
                 pick(KICKERS, seed, 10),
                 hero,
                 lead,
-                fill(pick(ABOUT, seed, 11), b),
+                fill(pick(ABOUT, seed, 11), b, SiteNav.label(nav, "about")),
                 pick(EXPLORE, seed, 12),
                 servicesHeading,
                 fill(pick(SERVICES_LEAD, seed, 13), b),
-                fill(pick(PRICING, seed, 14), b),
+                fill(pick(PRICING, seed, 14), b, SiteNav.label(nav, "pricing")),
                 fill(pick(PRICING_LEAD, seed, 15), b),
-                fill(pick(BLOG, seed, 16), b),
+                fill(pick(BLOG, seed, 16), b, SiteNav.label(nav, "blog")),
                 fill(pick(BLOG_LEAD, seed, 17), b),
-                fill(pick(CAREERS, seed, 18), b),
+                fill(pick(CAREERS, seed, 18), b, SiteNav.label(nav, "careers")),
                 fill(pick(CAREERS_LEAD, seed, 19), b),
-                fill(pick(CONTACT, seed, 20), b),
+                fill(pick(CONTACT, seed, 20), b, SiteNav.label(nav, "contact")),
                 fill(pick(CONTACT_LEAD, seed, 21), b)
                         + (details.place().isEmpty() ? "" : " " + b + " is based in " + details.place() + "."),
                 pick(CTA, seed, 22),
-                PLANS[Math.floorMod(mix(seed, 23), PLANS.length)],
+                SiteNav.planNames(base.kind(), PLANS[Math.floorMod(mix(seed, 23), PLANS.length)]),
                 BLOG_TITLES[Math.floorMod(mix(seed, 24), BLOG_TITLES.length)],
                 ROLES[Math.floorMod(mix(seed, 25), ROLES.length)],
-                accent.toLowerCase(Locale.ROOT) + "|" + headFont + "|" + layout + "|" + radius
+                accent.toLowerCase(Locale.ROOT) + "|" + headFont + "|" + layout + "|" + radius,
+                nav
         );
     }
 
@@ -453,6 +462,10 @@ final class SiteVariant {
 
     private static String fill(String template, String brand) {
         return template.replace("{brand}", brand);
+    }
+
+    private static String fill(String template, String brand, String navLabel) {
+        return template.replace("{brand}", brand).replace("{nav}", navLabel);
     }
 
     private static String fill(String template, String brand, String tagline, String promise, String place,

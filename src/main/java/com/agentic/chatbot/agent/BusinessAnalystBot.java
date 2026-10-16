@@ -85,12 +85,12 @@ public class BusinessAnalystBot implements AgentBot {
 
         StageLanguage language = SiteBackends.detect(p);
         String langLine = language == StageLanguage.JAVA
-                ? "Generate Java website code: Spring Boot controllers, templates, and multi-page HTML (Home, About, Services, Pricing, Blog, Careers, Contact when applicable)."
-                : "Generate the multi-page website (Home, About, Services, Pricing, Blog, Careers, Contact when applicable) with a runnable "
+                ? "Generate Java website code: Spring Boot controllers, templates, and multi-page HTML whose menu labels and headings come from this business and its user stories (not a stock Home/About/Services/Pricing/Blog/Careers/Contact menu)."
+                : "Generate the multi-page website (menu labels and headings drawn from this business and its user stories, not a stock menu) with a runnable "
                 + language.label() + " server under server/" + language.id()
                 + "/, plus the Spring Boot project that powers the BOT preview.";
         String agentLine = SiteAgent.wantsAgent(p)
-                ? "\n6. An on-page chatbot agent (floating chat widget backed by the site-agent endpoint) answers visitor questions about the business."
+                ? "\n6. An on-page chatbot agent (floating ChatGPT-style chat widget: multi-turn, streamed, backed by the connected LLM through the site-agent endpoint) answers visitor questions about the business."
                 : "";
         return """
                 As a %s, I want BOT to generate website code in %s so developers can run and test it.

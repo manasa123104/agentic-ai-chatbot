@@ -137,6 +137,87 @@ public class OpenAiLlmClient implements LlmClient {
     }
 
 
+    /**
+     * Multi-turn chat over the OpenAI-compatible streaming API (Gemini, OpenAI, LM Studio...). Pieces of the answer go
+     * to {@code onChunk} as they arrive. If the provider will not stream (404 model fallback, odd errors) the
+     * non-streaming path, which knows how to recover, answers instead.
+     */
+    @Override
+    public String chat(String systemPrompt, java.util.List<ChatTurn> turns, Duration callTimeout, int maxTokens,
+                       java.util.function.Consumer<String> onChunk) {
+        if (!isAvailable()) {
+            throw new IllegalStateException("LLM is not configured. Set GEMINI_API_KEY or OPENAI_API_KEY.");
+        }
+        long deadline = System.nanoTime() + callTimeout.toNanos();
+        try {
+            ObjectNode body = mapper.createObjectNode();
+            body.put("model", model);
+            body.put("stream", true);
+            body.put("temperature", 0.6);
+            if (maxTokens > 0 && maxTokens < Integer.MAX_VALUE) {
+                body.put("max_tokens", maxTokens);
+            }
+            ArrayNode messages = body.putArray("messages");
+            messages.addObject().put("role", "system").put("content", systemPrompt);
+            for (ChatTurn t : turns) {
+                messages.addObject().put("role", "assistant".equals(t.role()) ? "assistant" : "user")
+                        .put("content", t.content());
+            }
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/chat/completions"))
+                    .timeout(callTimeout)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
+            if (!apiKey.isBlank()) {
+                builder.header("Authorization", "Bearer " + apiKey);
+            }
+            HttpResponse<java.util.stream.Stream<String>> response =
+                    http.send(builder.build(), HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() == 429) {
+                response.body().close();
+                throw new QuotaExceededException();
+            }
+            if (response.statusCode() >= 400) {
+                String text = response.body().collect(java.util.stream.Collectors.joining(" "));
+                log.warn("LLM streaming HTTP {}: {}", response.statusCode(), shorten(text));
+                return LlmClient.super.chat(systemPrompt, turns, callTimeout, maxTokens, onChunk);
+            }
+            StringBuilder all = new StringBuilder();
+            try (java.util.stream.Stream<String> lines = response.body()) {
+                java.util.Iterator<String> it = lines.iterator();
+                while (it.hasNext()) {
+                    String line = it.next().trim();
+                    if (!line.startsWith("data:")) {
+                        continue;
+                    }
+                    String payload = line.substring(5).trim();
+                    if (payload.equals("[DONE]")) {
+                        break;
+                    }
+                    JsonNode n = mapper.readTree(payload);
+                    String piece = n.path("choices").path(0).path("delta").path("content").asText("");
+                    if (!piece.isEmpty()) {
+                        all.append(piece);
+                        if (onChunk != null) {
+                            onChunk.accept(piece);
+                        }
+                    }
+                    if (System.nanoTime() > deadline) {
+                        break;
+                    }
+                }
+            }
+            return all.toString();
+        } catch (QuotaExceededException e) {
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("LLM call interrupted", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("LLM call failed: " + e.getMessage(), e);
+        }
+    }
+
     private HttpResponse<String> send(String useModel, String systemPrompt, String userPrompt) throws Exception {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", useModel);

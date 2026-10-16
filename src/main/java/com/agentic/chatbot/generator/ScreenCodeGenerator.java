@@ -83,6 +83,9 @@ public class ScreenCodeGenerator {
                 .append(" (load them from Google Fonts unless the user named a font).\n");
         sb.append("- Layout accent: hero layout \"").append(d.heroLayout()).append("\", corner radius ")
                 .append(d.radius()).append("px. Write hero and supporting copy that is specific to this business.\n");
+        sb.append("- Navigation: do NOT use the stock menu Home / About / Services / Pricing / Blog / Careers / Contact. ")
+                .append("Use labels drawn from this business and its stories, in this order: ")
+                .append(String.join(" | ", SiteNav.menuLabels(d.nav()))).append(".\n");
         StoryDetails details = StoryDetails.parse(userStory);
         if (!details.cardTitles().isEmpty()) {
             sb.append(details.storyCards().isEmpty()
@@ -99,9 +102,11 @@ public class ScreenCodeGenerator {
                     .append(lang.id()).append("/ that serves the same pages.\n");
         }
         if (SiteAgent.wantsAgent(userStory)) {
-            sb.append("- The user asked for a chatbot agent: add a floating chat widget on every page that POSTs JSON ")
-                    .append("{\"message\": \"...\"} to /api/site-agent and shows the \"reply\" field; keep it grounded in this ")
-                    .append("business. BOT also injects a ready-made widget, so keep the markup simple.\n");
+            sb.append("- The user asked for a chatbot agent: add a floating ChatGPT-style chat widget on every page ")
+                    .append("(multi-turn history, thinking indicator, streamed answers) that POSTs JSON ")
+                    .append("{\"message\": \"...\", \"history\": [...]} to /api/site-agent (or /api/site-agent/stream) and shows the ")
+                    .append("\"reply\" field; keep it grounded in this business. BOT also injects a ready-made widget, ")
+                    .append("so keep the markup simple.\n");
         } else {
             sb.append("- Do NOT add a chatbot widget unless the user asks for one.\n");
         }
@@ -114,8 +119,9 @@ public class ScreenCodeGenerator {
             return;
         }
         String brand = StoryDetails.brandOf(userStory);
+        var design = SiteVariant.design(brand, userStory);
         var theme = SiteThemePack.fromStory(userStory);
-        var knowledge = SiteAgent.knowledge(brand, theme, null);
+        var knowledge = SiteAgent.knowledge(brand, theme, null, design.nav());
         String widget = SiteAgent.widget(knowledge, 18);
         for (Path p : new ArrayList<>(written)) {
             String name = p.getFileName().toString();
@@ -436,7 +442,7 @@ public class ScreenCodeGenerator {
         // on-page chatbot agent: only when the prompt asks for one
         Path agentJson = projectDir.resolve("SITE_AGENT.json");
         if (agent) {
-            Files.writeString(agentJson, SiteAgent.toJson(SiteAgent.knowledge(brand, theme, null)) + "\n",
+            Files.writeString(agentJson, SiteAgent.toJson(SiteAgent.knowledge(brand, theme, null, design.nav())) + "\n",
                     StandardCharsets.UTF_8);
             paths.add(agentJson);
         } else {
@@ -451,7 +457,9 @@ public class ScreenCodeGenerator {
                         + "\n\nBrand: " + brand + " · language: " + language.label()
                         + (agent ? " · on-page chatbot agent: yes" : "")
                         + (theme.serviceTitles().length == 0 ? "" : "\n\nService cards: " + String.join(", ", theme.serviceTitles()))
-                        + "\n\nPages: home, about, services, pricing, blog, careers, contact\n",
+                        + "\n\nMenu: " + String.join(", ", SiteNav.menuLabels(design.nav()))
+                        + "\n\nPage files: home, about, services, pricing, blog, careers, contact "
+                        + "(the menu labels above are what visitors see; regenerate to refresh an older /site/home)\n",
                 StandardCharsets.UTF_8);
         paths.add(readme);
 

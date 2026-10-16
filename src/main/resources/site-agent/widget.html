@@ -1,0 +1,313 @@
+<!-- BOT site agent: ChatGPT-style on-page chat (multi-turn, streamed, grounded in this business) -->
+<style>
+  #sa-fab { position:fixed; right:20px; bottom:20px; z-index:9998; width:58px; height:58px; border:0; cursor:pointer;
+    border-radius:50%; background:var(--accent,#2563eb); color:#fff; box-shadow:0 10px 30px rgba(15,23,42,.3); display:grid; place-items:center; }
+  #sa-fab:hover { transform:translateY(-2px); }
+  #sa-panel { position:fixed; right:20px; bottom:90px; z-index:9999; width:min(400px, calc(100vw - 32px)); height:min(620px, 78vh);
+    display:none; flex-direction:column; background:#fff; color:#0f172a; border:1px solid rgba(15,23,42,.12);
+    border-radius:@@RADIUS@@px; box-shadow:0 24px 60px rgba(15,23,42,.28); overflow:hidden; font:15px/1.5 system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+  #sa-panel.open { display:flex; }
+  #sa-head { background:var(--accent,#2563eb); color:#fff; padding:.75rem .9rem; display:flex; align-items:center; gap:.6rem; }
+  #sa-head .sa-av { width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.22); display:grid; place-items:center; font-weight:700; flex:none; }
+  #sa-head .sa-title { flex:1; min-width:0; }
+  #sa-head strong { display:block; font-size:.98rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #sa-head small { opacity:.88; font-size:.76rem; }
+  #sa-head button { background:rgba(255,255,255,.16); border:0; color:#fff; cursor:pointer; border-radius:8px; font:inherit; font-size:.78rem; padding:.3rem .55rem; }
+  #sa-head button:hover { background:rgba(255,255,255,.3); }
+  #sa-close { font-size:1.2rem !important; line-height:1; padding:.1rem .5rem !important; }
+  #sa-log { flex:1; overflow:auto; padding:1rem .9rem .4rem; display:flex; flex-direction:column; gap:.9rem; background:#fff; scroll-behavior:smooth; }
+  .sa-row { display:flex; gap:.55rem; max-width:100%; }
+  .sa-row.me { justify-content:flex-end; }
+  .sa-dot { width:26px; height:26px; border-radius:50%; background:var(--accent,#2563eb); color:#fff; font-size:.72rem; font-weight:700; display:grid; place-items:center; flex:none; margin-top:2px; }
+  .sa-msg { word-wrap:break-word; overflow-wrap:anywhere; white-space:pre-wrap; min-width:0; }
+  .sa-bot .sa-msg { color:#0f172a; padding-top:2px; }
+  .sa-me .sa-msg { background:var(--accent,#2563eb); color:#fff; padding:.5rem .85rem; border-radius:18px 18px 4px 18px; max-width:84%; }
+  .sa-msg code { background:#f1f5f9; padding:.05rem .3rem; border-radius:5px; font-size:.88em; }
+  .sa-msg pre { background:#0f172a; color:#e2e8f0; padding:.6rem .75rem; border-radius:10px; overflow:auto; margin:.4rem 0; white-space:pre; }
+  .sa-msg a { color:var(--accent,#2563eb); text-decoration:underline; }
+  .sa-msg.sa-typing::after { content:''; display:inline-block; width:7px; height:1em; margin-left:2px; background:currentColor; opacity:.55; vertical-align:text-bottom; animation:sa-blink 1s steps(2) infinite; }
+  .sa-think { display:inline-flex; align-items:center; gap:.45rem; color:#64748b; font-size:.9rem; }
+  .sa-think i { width:6px; height:6px; border-radius:50%; background:#94a3b8; display:inline-block; animation:sa-bounce 1.2s infinite ease-in-out; }
+  .sa-think i:nth-child(2) { animation-delay:.15s; } .sa-think i:nth-child(3) { animation-delay:.3s; }
+  @keyframes sa-bounce { 0%, 80%, 100% { transform:translateY(0); opacity:.4; } 40% { transform:translateY(-4px); opacity:1; } }
+  @keyframes sa-blink { 50% { opacity:0; } }
+  .sa-actions, #sa-chips { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem; }
+  .sa-actions a, #sa-chips button { font:inherit; font-size:.82rem; padding:.28rem .7rem; border-radius:999px; cursor:pointer;
+    border:1px solid color-mix(in srgb, var(--accent,#2563eb) 45%, #fff); color:var(--accent,#2563eb); background:#fff; text-decoration:none; }
+  .sa-actions a:hover, #sa-chips button:hover { background:color-mix(in srgb, var(--accent,#2563eb) 8%, #fff); }
+  #sa-chips { padding:.2rem .9rem .5rem; margin:0; background:#fff; }
+  #sa-form { display:flex; align-items:flex-end; gap:.4rem; margin:.3rem .75rem .35rem; padding:.35rem .35rem .35rem .85rem;
+    border:1px solid #cbd5e1; border-radius:22px; background:#fff; }
+  #sa-form:focus-within { border-color:var(--accent,#2563eb); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent,#2563eb) 18%, transparent); }
+  #sa-input { flex:1; border:0; outline:0; resize:none; font:inherit; max-height:120px; min-height:24px; padding:.3rem 0; background:transparent; color:inherit; }
+  #sa-send { flex:none; width:34px; height:34px; border:0; border-radius:50%; background:var(--accent,#2563eb); color:#fff; cursor:pointer; display:grid; place-items:center; }
+  #sa-send:disabled { opacity:.35; cursor:default; }
+  #sa-note { font-size:.7rem; color:#64748b; text-align:center; padding:0 .5rem .5rem; background:#fff; }
+</style>
+<button id="sa-fab" type="button" aria-label="Chat with @@AGENT@@" aria-expanded="false">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>
+</button>
+<section id="sa-panel" role="dialog" aria-label="@@AGENT@@">
+  <div id="sa-head">
+    <span class="sa-av" aria-hidden="true">AI</span>
+    <div class="sa-title"><strong>@@AGENT@@</strong><small>AI assistant for @@BRAND@@ &middot; ask me anything</small></div>
+    <button id="sa-new" type="button" title="Start a new chat">New chat</button>
+    <button id="sa-close" type="button" aria-label="Close chat">&times;</button>
+  </div>
+  <div id="sa-log" aria-live="polite"></div>
+  <div id="sa-chips"></div>
+  <form id="sa-form" autocomplete="off">
+    <textarea id="sa-input" rows="1" maxlength="1000" placeholder="Message @@AGENT@@..." aria-label="Your message"></textarea>
+    <button id="sa-send" type="submit" aria-label="Send message" disabled>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+    </button>
+  </form>
+  <div id="sa-note">AI can make mistakes. Please check important details with the team.</div>
+</section>
+<script>
+(function () {
+  var K = @@KNOWLEDGE@@;
+  var KEY = 'sa-chat:' + K.brand;
+  var fab = document.getElementById('sa-fab');
+  var panel = document.getElementById('sa-panel');
+  var log = document.getElementById('sa-log');
+  var chips = document.getElementById('sa-chips');
+  var form = document.getElementById('sa-form');
+  var input = document.getElementById('sa-input');
+  var sendBtn = document.getElementById('sa-send');
+  var SEND_ICON = sendBtn.innerHTML;
+  var STOP_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+  var history = [];      // finished turns: { role: 'user' | 'assistant', content }
+  var busy = false;
+  var controller = null;
+  var stopRequested = false;
+  var activeStop = null;
+
+  try { history = JSON.parse(sessionStorage.getItem(KEY) || '[]'); } catch (e) { history = []; }
+  function save() { try { sessionStorage.setItem(KEY, JSON.stringify(history.slice(-30))); } catch (e) { } }
+
+  // ---------------------------------------------------------------- helpers
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // tiny, safe markdown: code, bold, bullets, links to this site or https
+  function md(text) {
+    var t = esc(text);
+    t = t.replace(/```([\s\S]*?)```/g, function (m, c) { return '<pre>' + c.replace(/^\n/, '') + '</pre>'; });
+    t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    t = t.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/(^|\n)[-*] /g, '$1\u2022 ');
+    // (u005b is an opening square bracket; written that way so Thymeleaf never sees an inline-expression opener)
+    t = t.replace(/\u005b([^\]\n]+)\]\((\/[^)\s]*|https:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+    t = t.replace(/(^|[\s(])(\/site\/[a-z0-9-]+)/g, '<a href="$2">$2</a>');
+    return t;
+  }
+  function has(m, words) { for (var i = 0; i < words.length; i++) { if (m.indexOf(words[i]) >= 0) return true; } return false; }
+  function page(slug) {
+    var href = '/site/' + slug;
+    for (var i = 0; i < (K.pages || []).length; i++) { if (K.pages[i].href === href) return { label: K.pages[i].label, href: href }; }
+    return { label: slug.charAt(0).toUpperCase() + slug.slice(1), href: href };
+  }
+  function suggestions() {
+    var s = K.services.slice(0, 3).map(function (x) { return x.title; });
+    s.push(page('pricing').label); s.push(page('contact').label);
+    return s;
+  }
+  function mentions(m, title) {
+    var t = title.toLowerCase().replace('&', ' ');
+    if (m.indexOf(t) >= 0) return true;
+    var parts = t.split(/[^a-z0-9]+/);
+    for (var i = 0; i < parts.length; i++) { if (parts[i].length >= 4 && m.indexOf(parts[i]) >= 0) return true; }
+    return false;
+  }
+  function act(slug) { var p = page(slug); return { label: p.label, href: p.href }; }
+
+  // offline answer (same rules as the server) so the site still replies when it runs on its own
+  function localReply(text) {
+    var m = (text || '').toLowerCase();
+    var sug = suggestions();
+    if (/\b(hi|hello|hey)\b/.test(m) && m.length < 40) {
+      return { reply: "Hi! I'm the " + K.agentName + '. I can walk you through ' + K.brand + ', find the right page, or point you to the team.', actions: [], suggestions: sug };
+    }
+    for (var i = 0; i < K.services.length; i++) {
+      if (mentions(m, K.services[i].title)) {
+        return { reply: K.services[i].title + ' at ' + K.brand + ': ' + K.services[i].blurb,
+          actions: [{ label: 'Open ' + K.services[i].title, href: K.services[i].link }, act('contact')], suggestions: sug };
+      }
+    }
+    if (has(m, ['price', 'cost', 'plan', 'how much', 'fee', 'rate'])) return { reply: 'You will find every option under "' + page('pricing').label + '".', actions: [act('pricing')], suggestions: sug };
+    if (has(m, ['contact', 'reach', 'email', 'phone', 'talk', 'book', 'reserve', 'appointment', 'visit', 'hours', 'quote'])) return { reply: 'The quickest way to reach ' + K.brand + ' is "' + page('contact').label + '" - someone replies within a business day.', actions: [act('contact')], suggestions: sug };
+    if (has(m, ['career', 'job', 'hiring', 'apply'])) return { reply: K.brand + ' is growing - see "' + page('careers').label + '".', actions: [act('careers')], suggestions: sug };
+    if (has(m, ['about', 'who are', 'story', 'mission'])) return { reply: K.lead, actions: [act('about')], suggestions: sug };
+    var names = K.services.map(function (x) { return x.title; }).join(', ');
+    return { reply: "I'm the " + K.agentName + '. I can tell you about ' + names + ' or how to get in touch.', actions: [act('contact')], suggestions: sug };
+  }
+
+  // ---------------------------------------------------------------- ui
+  function scrollDown() { log.scrollTop = log.scrollHeight; }
+  function row(kind) {
+    var r = document.createElement('div');
+    r.className = 'sa-row ' + (kind === 'me' ? 'sa-me me' : 'sa-bot');
+    if (kind !== 'me') { var dot = document.createElement('span'); dot.className = 'sa-dot'; dot.textContent = 'AI'; r.appendChild(dot); }
+    var msg = document.createElement('div');
+    msg.className = 'sa-msg';
+    r.appendChild(msg);
+    log.appendChild(r);
+    return { row: r, msg: msg };
+  }
+  function addUser(text) { var r = row('me'); r.msg.textContent = text; scrollDown(); }
+  function addBot(text) { var r = row('bot'); r.msg.innerHTML = md(text); scrollDown(); return r; }
+  function addActions(r, actions) {
+    if (!actions || !actions.length) return;
+    var box = document.createElement('div');
+    box.className = 'sa-actions';
+    actions.forEach(function (a) { var l = document.createElement('a'); l.href = a.href; l.textContent = a.label; box.appendChild(l); });
+    r.msg.appendChild(box);
+  }
+  function setChips(list) {
+    chips.innerHTML = '';
+    (list || []).forEach(function (s) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = s;
+      b.addEventListener('click', function () { send(s); });
+      chips.appendChild(b);
+    });
+  }
+  function setBusy(v) {
+    busy = v;
+    sendBtn.innerHTML = v ? STOP_ICON : SEND_ICON;
+    sendBtn.setAttribute('aria-label', v ? 'Stop generating' : 'Send message');
+    sendBtn.disabled = !v && !input.value.trim();
+  }
+  function greeting() {
+    return "Hi! I'm the " + K.agentName + ", an AI assistant for " + K.brand + '. Ask me about ' + K.services.slice(0, 3).map(function (x) { return x.title; }).join(', ') + ', or anything else you are wondering about.';
+  }
+  function render() {
+    log.innerHTML = '';
+    if (!history.length) { addBot(greeting()); setChips(suggestions()); return; }
+    history.forEach(function (t) { if (t.role === 'user') addUser(t.content); else addBot(t.content); });
+    setChips([]);
+  }
+
+  // Reveals text smoothly (streamed pieces arrive in bursts; a whole offline answer is typed out).
+  function typer(el) {
+    var shown = '', queue = '', timer = null, onDrained = null;
+    function paint(final) { el.innerHTML = md(shown); if (!final) el.classList.add('sa-typing'); else el.classList.remove('sa-typing'); scrollDown(); }
+    function tick() {
+      if (!queue) { clearInterval(timer); timer = null; if (onDrained) { var f = onDrained; onDrained = null; f(); } return; }
+      var n = Math.max(2, Math.ceil(queue.length / 25));
+      shown += queue.slice(0, n); queue = queue.slice(n); paint(false);
+    }
+    return {
+      push: function (t) { queue += t; if (!timer) timer = setInterval(tick, 18); },
+      drained: function (cb) { if (!queue && !timer) cb(); else onDrained = cb; },
+      stop: function () { queue = ''; if (timer) { clearInterval(timer); timer = null; } paint(true); },
+      text: function () { return shown + queue; },
+      finish: function () { paint(true); }
+    };
+  }
+
+  // ---------------------------------------------------------------- talking to the agent
+  function readStream(resp, onEvent) {
+    if (!resp.body || !resp.body.getReader) { return resp.text().then(function (t) { t.split('\n').forEach(function (l) { if (l.trim()) onEvent(JSON.parse(l)); }); }); }
+    var reader = resp.body.getReader(), dec = new TextDecoder(), buf = '';
+    function pump() {
+      return reader.read().then(function (res) {
+        if (res.done) { if (buf.trim()) { try { onEvent(JSON.parse(buf)); } catch (e) { } } return; }
+        buf += dec.decode(res.value, { stream: true });
+        var lines = buf.split('\n'); buf = lines.pop();
+        lines.forEach(function (l) { if (l.trim()) { try { onEvent(JSON.parse(l)); } catch (e) { } } });
+        return pump();
+      });
+    }
+    return pump();
+  }
+
+  function send(text) {
+    text = (text || '').trim();
+    if (!text || busy) return;
+    input.value = ''; autosize();
+    setChips([]);
+    addUser(text);
+    var bot = row('bot');
+    bot.msg.innerHTML = '<span class="sa-think"><i></i><i></i><i></i> Thinking...</span>';
+    scrollDown();
+    var t = typer(bot.msg);
+    var got = false, meta = null, failed = false, stopped = false;
+    var prior = history.slice(-12);
+    controller = (window.AbortController ? new AbortController() : null);
+    setBusy(true);
+    activeStop = function () { stopped = true; if (controller) controller.abort(); };
+    var giveUp = setTimeout(function () { if (!got && controller) controller.abort(); }, 30000);
+
+    function finish(answerText) {
+      clearTimeout(giveUp);
+      t.drained(function () {
+        t.finish();
+        if (meta) addActions(bot, meta.actions);
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content: answerText });
+        save();
+        setChips(meta && meta.suggestions && history.length < 4 ? meta.suggestions : []);
+        activeStop = null; controller = null; setBusy(false); scrollDown(); input.focus();
+      });
+    }
+
+    fetch('/api/site-agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, history: prior, page: location.pathname }),
+      signal: controller ? controller.signal : undefined
+    }).then(function (r) {
+      if (!r.ok) throw new Error('agent ' + r.status);
+      return readStream(r, function (ev) {
+        if (ev.type === 'meta') { meta = { suggestions: ev.suggestions || [], actions: [] }; }
+        else if (ev.type === 'done') { meta = meta || { suggestions: [] }; meta.actions = ev.actions || []; }
+        else if (ev.type === 'delta' && ev.text) { if (!got) { got = true; bot.msg.textContent = ''; } t.push(ev.text); }
+      });
+    }).then(function () {
+      if (!got) throw new Error('empty');
+      finish(t.text());
+    }).catch(function () {
+      if (stopped) {
+        clearTimeout(giveUp);
+        var partial = t.text();
+        t.stop();
+        if (!got) { bot.msg.textContent = 'Stopped.'; partial = 'Stopped.'; }
+        history.push({ role: 'user', content: text });
+        history.push({ role: 'assistant', content: partial });
+        save(); activeStop = null; controller = null; setBusy(false);
+        return;
+      }
+      if (got) { finish(t.text()); return; }
+      // the agent is unreachable: answer from the site's own content
+      var d = localReply(text);
+      meta = d; got = true; bot.msg.textContent = '';
+      t.push(d.reply);
+      finish(d.reply);
+    });
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function autosize() { input.style.height = 'auto'; input.style.height = Math.min(120, input.scrollHeight) + 'px'; sendBtn.disabled = !busy && !input.value.trim(); }
+  function open(v) {
+    panel.classList.toggle('open', v);
+    fab.setAttribute('aria-expanded', v ? 'true' : 'false');
+    if (v && !log.children.length) render();
+    if (v) { input.focus(); scrollDown(); }
+  }
+  fab.addEventListener('click', function () { open(!panel.classList.contains('open')); });
+  document.getElementById('sa-close').addEventListener('click', function () { open(false); });
+  document.getElementById('sa-new').addEventListener('click', function () {
+    if (busy && activeStop) activeStop();
+    history = []; save(); render(); input.focus();
+  });
+  input.addEventListener('input', autosize);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }
+  });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) { if (activeStop) activeStop(); return; }
+    send(input.value);
+  });
+})();
+</script>

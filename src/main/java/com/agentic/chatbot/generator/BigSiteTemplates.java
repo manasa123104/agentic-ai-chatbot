@@ -18,16 +18,17 @@ final class BigSiteTemplates {
         SiteVariant.Design d = SiteVariant.design(b, s);
         SiteThemePack.Theme theme = d.theme();
         String agent = SiteAgent.wantsAgent(s)
-                ? SiteAgent.widget(SiteAgent.knowledge(b, theme, null), d.radius())
+                ? SiteAgent.widget(SiteAgent.knowledge(b, theme, null, d.nav()), d.radius())
                 : "";
         Map<String, String> pages = new LinkedHashMap<>();
-        pages.put("home", page(b, d, "home", "Home", homeBody(b, d) + agent));
-        pages.put("about", page(b, d, "about", "About", aboutBody(b, d) + agent));
-        pages.put("services", page(b, d, "services", "Services", servicesBody(b, d) + agent));
-        pages.put("pricing", page(b, d, "pricing", "Pricing", pricingBody(b, d) + agent));
-        pages.put("blog", page(b, d, "blog", "Blog", blogBody(b, d) + agent));
-        pages.put("careers", page(b, d, "careers", "Careers", careersBody(b, d) + agent));
-        pages.put("contact", page(b, d, "contact", "Contact", contactBody(b, d) + agent));
+        // slugs stay stable for routing; the visible titles/labels come from the business (SiteNav)
+        pages.put("home", page(b, d, "home", d.label("home"), homeBody(b, d) + agent));
+        pages.put("about", page(b, d, "about", d.label("about"), aboutBody(b, d) + agent));
+        pages.put("services", page(b, d, "services", d.label("services"), servicesBody(b, d) + agent));
+        pages.put("pricing", page(b, d, "pricing", d.label("pricing"), pricingBody(b, d) + agent));
+        pages.put("blog", page(b, d, "blog", d.label("blog"), blogBody(b, d) + agent));
+        pages.put("careers", page(b, d, "careers", d.label("careers"), careersBody(b, d) + agent));
+        pages.put("contact", page(b, d, "contact", d.label("contact"), contactBody(b, d) + agent));
         return pages;
     }
 
@@ -165,13 +166,7 @@ final class BigSiteTemplates {
                 <header class="top">
                   <a class="brand" href="/site/home"><span class="mark" style="background-image:url('%s')"></span>%s</a>
                   <nav class="nav">
-                    <a href="/site/home" class="%s">Home</a>
-                    <a href="/site/about" class="%s">About</a>
-                    <a href="/site/services" class="%s">Services</a>
-                    <a href="/site/pricing" class="%s">Pricing</a>
-                    <a href="/site/blog" class="%s">Blog</a>
-                    <a href="/site/careers" class="%s">Careers</a>
-                    <a href="/site/contact" class="%s">Contact</a>
+                    %s
                   </nav>
                   <a class="cta" href="/site/contact">%s</a>
                 </header>
@@ -181,29 +176,57 @@ final class BigSiteTemplates {
                     <strong>%s</strong>
                     <span>%s — %s</span>
                   </div>
-                  <div><strong>Explore</strong><a href="/site/services">Services</a><a href="/site/pricing">Pricing</a><a href="/site/blog">Blog</a></div>
-                  <div><strong>Company</strong><a href="/site/about">About</a><a href="/site/careers">Careers</a><a href="/site/contact">Contact</a></div>
-                  <div><strong>Tools</strong><a href="/site/home">Home</a><a href="/">New story</a><a href="/edit">Edit site</a></div>
+                  <div><strong>Explore</strong>%s</div>
+                  <div><strong>%s</strong>%s</div>
+                  <div><strong>Tools</strong><a href="/site/home">%s</a><a href="/">New story</a><a href="/edit">Edit site</a></div>
                   <div class="copy">© 2026 %s · Privacy · Terms</div>
                 </footer>
                 </body>
                 </html>
                 """.formatted(
-                brand, title,
+                brand, esc(title),
                 fontLink,
                 theme.bg(), theme.ink(), theme.muted(), theme.accent(), theme.soft(), theme.dark(),
                 d.headFont(), d.headWeight(), d.radius(), d.radius() < 14 ? 8 : 999,
                 theme.fontFamily(),
                 escAttr(theme.heroImage()), brand,
-                on(current, "home"), on(current, "about"), on(current, "services"), on(current, "pricing"),
-                on(current, "blog"), on(current, "careers"), on(current, "contact"),
+                navHtml(d, current),
                 d.ctaLabel(),
-                body, brand, brand, theme.homeLead(), brand
+                body, brand, brand, theme.homeLead(),
+                linksHtml(d, "services", "pricing", "blog"),
+                esc(d.label("about")), linksHtml(d, "about", "careers", "contact"),
+                esc(d.label("home")),
+                brand
         );
     }
 
-    private static String on(String current, String name) {
-        return current.equals(name) ? "active" : "";
+    /** The top menu: only the pages this site's nav keeps, each under the label that fits the business. */
+    private static String navHtml(SiteVariant.Design d, String current) {
+        StringBuilder sb = new StringBuilder();
+        for (SiteNav.Item item : d.nav()) {
+            if (!item.inMenu()) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append("\n                    ");
+            }
+            sb.append("<a href=\"").append(item.href()).append("\" class=\"")
+                    .append(item.slug().equals(current) ? "active" : "").append("\">")
+                    .append(esc(item.label())).append("</a>");
+        }
+        return sb.toString();
+    }
+
+    private static String linksHtml(SiteVariant.Design d, String... slugs) {
+        StringBuilder sb = new StringBuilder();
+        for (String slug : slugs) {
+            sb.append("<a href=\"/site/").append(slug).append("\">").append(esc(d.label(slug))).append("</a>");
+        }
+        return sb.toString();
+    }
+
+    private static String esc(String s) {
+        return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static String escAttr(String s) {
@@ -260,8 +283,8 @@ final class BigSiteTemplates {
                     <h1>%s</h1>
                     <p>%s</p>
                     <div class="actions">
-                      <a class="btn btn-primary" href="/site/about">About %s</a>
-                      <a class="btn btn-ghost" href="/site/contact">Contact us</a>
+                      <a class="btn btn-primary" href="/site/about">%s</a>
+                      <a class="btn btn-ghost" href="/site/contact">%s</a>
                     </div>
                   </div>
                   <div class="visual"><img src="%s" alt="%s"/></div>
@@ -287,16 +310,15 @@ final class BigSiteTemplates {
                 d.kicker(),
                 d.heroHeadline(),
                 d.heroLead(),
-                brand,
+                esc(d.label("about")), esc(d.label("contact")),
                 escAttr(theme.heroImage()), brand,
                 d.aboutHeading(),
                 d.heroLead(),
-                card("/site/about", img(imgs, 0), "Our story", "Learn who we are and what " + brand + " stands for.", theme),
-                card("/site/services", img(imgs, 1), theme.servicesLabel(), theme.serviceBlurbs()[0], theme),
-                card("/site/contact", img(imgs, 2), "Get in touch", "Reach the " + brand + " team anytime.", theme),
+                card("/site/about", img(imgs, 0), "Our story", "Learn who we are and what " + brand + " stands for.", theme),                card("/site/services", img(imgs, 1), theme.servicesLabel(), theme.serviceBlurbs()[0], theme),
+                card("/site/contact", img(imgs, 2), d.label("contact"), "Reach the " + brand + " team anytime.", theme),
                 d.exploreHeading(),
-                card("/site/about", img(imgs, 3), "About " + brand + " →", "Read more about our mission and values.", theme),
-                card("/site/pricing", img(imgs, 4), "See pricing →", "Simple plans from " + brand + ".", theme)
+                card("/site/about", img(imgs, 3), d.label("about") + " →", "Read more about our mission and values.", theme),
+                card("/site/pricing", img(imgs, 4), d.label("pricing") + " →", "Simple plans from " + brand + ".", theme)
         );
     }
 

@@ -56,6 +56,78 @@ public class OllamaLlmClient implements LlmClient {
         return send(systemPrompt, userPrompt, limit, Math.max(64, maxTokens));
     }
 
+    /** Real multi-turn chat through Ollama's streaming API: every token is handed to {@code onChunk} as it arrives. */
+    @Override
+    public String chat(String systemPrompt, java.util.List<ChatTurn> turns, Duration callTimeout, int maxTokens,
+                       java.util.function.Consumer<String> onChunk) {
+        Duration limit = callTimeout.compareTo(timeout) < 0 ? callTimeout : timeout;
+        long deadline = System.nanoTime() + limit.toNanos();
+        try {
+            ObjectNode body = mapper.createObjectNode();
+            body.put("model", model);
+            body.put("stream", true);
+            ArrayNode messages = body.putArray("messages");
+            messages.addObject().put("role", "system").put("content", systemPrompt);
+            int promptChars = systemPrompt.length();
+            for (ChatTurn t : turns) {
+                messages.addObject().put("role", "assistant".equals(t.role()) ? "assistant" : "user")
+                        .put("content", t.content());
+                promptChars += t.content().length();
+            }
+            ObjectNode options = body.putObject("options");
+            options.put("temperature", 0.6);
+            options.put("num_ctx", contextSize(promptChars));
+            options.put("num_predict", Math.min(Math.max(64, maxTokens), answerLimit(promptChars)));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/chat"))
+                    .timeout(limit)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)))
+                    .build();
+            HttpResponse<java.util.stream.Stream<String>> response =
+                    http.send(request, HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() >= 400) {
+                String text = response.body().collect(java.util.stream.Collectors.joining(" "));
+                throw new IllegalStateException("Ollama returned HTTP " + response.statusCode() + ": " + text);
+            }
+            StringBuilder all = new StringBuilder();
+            try (java.util.stream.Stream<String> lines = response.body()) {
+                java.util.Iterator<String> it = lines.iterator();
+                while (it.hasNext()) {
+                    String line = it.next();
+                    if (line.isBlank()) {
+                        continue;
+                    }
+                    JsonNode n = mapper.readTree(line);
+                    String piece = n.path("message").path("content").asText("");
+                    if (!piece.isEmpty()) {
+                        all.append(piece);
+                        if (onChunk != null) {
+                            onChunk.accept(piece);
+                        }
+                    }
+                    if (n.path("done").asBoolean(false)) {
+                        break;
+                    }
+                    if (System.nanoTime() > deadline) {
+                        break;
+                    }
+                }
+            }
+            return all.toString();
+        } catch (HttpTimeoutException e) {
+            throw new IllegalStateException("the local model " + model + " did not answer in time.", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Ollama call was interrupted", e);
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException("Ollama call failed: " + e.getMessage(), e);
+        }
+    }
+
     private String send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) {
         try {
             ObjectNode body = mapper.createObjectNode();
