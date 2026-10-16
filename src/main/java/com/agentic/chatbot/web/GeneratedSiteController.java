@@ -128,6 +128,8 @@ public class GeneratedSiteController {
                   <meta charset="UTF-8"/>
                   <meta name="viewport" content="width=device-width, initial-scale=1"/>
                   <title>@@TITLE@@</title>
+                  <meta name="bot-skin" content="home-warm-paper-teal-v3"/>
+                  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
                   <style>
                     :root { --bg:#ece8e0; --card:#fbf9f5; --accent:#2c5d68; --text:#1d2430; --muted:#5c636b; --line:#d8d3c8; --footer:#f6f3ee; }
                     * { box-sizing: border-box; }
@@ -153,7 +155,7 @@ public class GeneratedSiteController {
                     .site-footer { padding:1rem 1.5rem; background:var(--footer); color:var(--muted); font-size:.8rem; border-top:1px solid var(--line); }
                   </style>
                 </head>
-                <body>
+                <body data-skin="bot-home">
                 <div class="wrap">
                   <div class="card">
                     <h1>@@TITLE@@</h1>
