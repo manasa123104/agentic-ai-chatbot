@@ -52,7 +52,8 @@ class StagePushTest {
     }
 
     private static StageApiController controller(StageService stages) {
-        return new StageApiController(stages, null, new GitService("", "BOT", "bot@example.com"));
+        return new StageApiController(stages, null, new GitService("", "BOT", "bot@example.com"),
+                new com.agentic.chatbot.service.GitHubPreflight(""));
     }
 
     private static MockHttpServletRequest local() {
@@ -161,7 +162,7 @@ class StagePushTest {
         String denied = StageApiController.friendlyGitError("git push failed: The requested URL returned error: 403", url);
         assertTrue(token.contains("rejected the token"), token);
         assertTrue(missing.contains("Repository not found") && missing.contains("no trailing dot"), missing);
-        assertTrue(denied.contains("cannot write"), denied);
+        assertTrue(denied.contains("read but not write") && denied.contains("Test token"), denied);
         assertEquals("git push failed: something else", StageApiController.friendlyGitError("git push failed: something else", url));
     }
 

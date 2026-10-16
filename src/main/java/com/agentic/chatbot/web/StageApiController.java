@@ -1,5 +1,6 @@
 package com.agentic.chatbot.web;
 
+import com.agentic.chatbot.service.GitHubPreflight;
 import com.agentic.chatbot.service.GitService;
 import com.agentic.chatbot.stage.RunNotFoundException;
 import com.agentic.chatbot.stage.StageAutomation;
@@ -56,11 +57,45 @@ public class StageApiController {
     private final StageService stages;
     private final StoryImportService stories;
     private final GitService git;
+    private final GitHubPreflight preflight;
 
-    public StageApiController(StageService stages, StoryImportService stories, GitService git) {
+    public StageApiController(StageService stages, StoryImportService stories, GitService git, GitHubPreflight preflight) {
         this.stages = stages;
         this.stories = stories;
         this.git = git;
+        this.preflight = preflight;
+    }
+
+    /** Body of a token test: the repository and the visitor's token (never stored or logged). */
+    public record TokenCheckRequest(String repoUrl, String token) {
+    }
+
+    /**
+     * "Test token": asks the GitHub API whether the token can write to the repository, without pushing anything. Always 200
+     * with {ok, code, message, ...} for a well-formed request so the page can show the message as-is.
+     */
+    @PostMapping("/github/check")
+    public Map<String, Object> checkToken(@RequestBody TokenCheckRequest body, HttpServletRequest request) {
+        String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
+        GitService.validateRepoUrl(repoUrl);
+        String token = GitPushPolicy.authorize(request, repoUrl, body.token());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("repoUrl", repoUrl);
+        if (token == null) {
+            out.put("ok", true);
+            out.put("code", GitHubPreflight.Code.SKIPPED.name());
+            out.put("message", "No token typed: this computer's saved Git login will be used for the push, so there is "
+                    + "nothing to test here.");
+            return out;
+        }
+        GitHubPreflight.Result r = preflight.check(repoUrl, token);
+        out.put("ok", r.ok());
+        out.put("code", r.code().name());
+        out.put("message", r.message());
+        out.put("login", r.login());
+        out.put("tokenType", r.tokenType());
+        out.put("scopes", r.scopes());
+        return out;
     }
 
     /**
@@ -110,6 +145,13 @@ public class StageApiController {
         String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
         GitService.validateRepoUrl(repoUrl);
         String token = GitPushPolicy.authorize(request, repoUrl, body.token());
+        if (token != null) {
+            // ask GitHub first: a token that cannot write is explained precisely instead of failing inside git
+            GitHubPreflight.Result check = preflight.check(repoUrl, token);
+            if (!check.ok()) {
+                throw new IllegalArgumentException(check.message());
+            }
+        }
         String scope = body.stage() == null ? "" : body.stage().trim().toLowerCase(Locale.ROOT);
         StageType stage = scope.isEmpty() || scope.equals("run") ? null : stageOf(scope);
         String branch = body.branch() == null || body.branch().isBlank() ? "bot/" + runId : body.branch().trim();
@@ -173,8 +215,9 @@ public class StageApiController {
                     + "access and paste it again.";
         }
         if (lower.contains("permission denied") || lower.contains("403") || lower.contains("write access")) {
-            return "The token was accepted but cannot write to " + repoUrl + ": give it repo (contents: write) access "
-                    + "to that repository.";
+            return "GitHub refused the write to " + repoUrl + ". Token can read but not write, or its account has no write "
+                    + "access: set Contents: Read and write on the fine-grained token (and select this repository), or use a "
+                    + "classic token with the repo scope. Press 'Test token' to see which one applies.";
         }
         return m;
     }

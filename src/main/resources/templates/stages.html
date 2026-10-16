@@ -334,6 +334,7 @@
             <div class="gh-actions">
                 <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
                     Pull first: start from the latest code on that branch, then add these files</label>
+                <button type="button" class="btn ghost small gh-test-btn" title="Asks GitHub whether this token can write to the repository; pushes nothing">Test token</button>
                 <button type="button" class="btn small gh-push-btn">&#11014; Push to GitHub</button>
             </div>
             <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
@@ -451,6 +452,7 @@
             <div class="gh-actions">
                 <label class="check"><input type="checkbox" class="gh-pull" checked="checked"/>
                     Pull first: start from the latest code on that branch, then add these files</label>
+                <button type="button" class="btn ghost gh-test-btn" title="Asks GitHub whether this token can write to the repository; pushes nothing">Test token</button>
                 <button type="button" class="btn convert-btn gh-push-btn">&#11014; Push whole run to GitHub</button>
             </div>
             <p class="hint gh-note" th:text="${isHost} ? 'The token is used for this push only; it is never saved or logged.'
@@ -1666,9 +1668,33 @@
       applyLock();
     }
   }
+  /** "Test token": asks GitHub (through the server) whether the token can write to the repository. Pushes nothing. */
+  async function testToken(stage) {
+    const panel = stage === 'trainer' ? $('pipelineComplete') : q(stage, '.gh-panel');
+    const out = panel.querySelector('.gh-result');
+    const show = (text, kind) => { out.className = 'gh-result' + (kind ? ' ' + kind : ''); out.textContent = text; };
+    const repo = cleanRepoUrl(panel.querySelector('.gh-repo').value);
+    const token = panel.querySelector('.gh-token').value.trim();
+    if (!repo) { show('Enter the repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
+    if (!IS_HOST && !token) { show('Paste your GitHub personal access token to test it.', 'error'); return; }
+    const btn = panel.querySelector('.gh-test-btn');
+    btn.disabled = true;
+    show('Asking GitHub what this token can do with ' + repo + '...', '');
+    try {
+      const data = await post('/api/stages/github/check', { repoUrl: repo, token });
+      show(data.message, data.ok ? 'ok' : 'error');
+    } catch (e) {
+      show(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
   STAGES.forEach((stage) => {
-    const push = (stage === 'trainer' ? $('pipelineComplete') : card(stage)).querySelector('.gh-push-btn');
+    const holder = stage === 'trainer' ? $('pipelineComplete') : card(stage);
+    const push = holder.querySelector('.gh-push-btn');
     if (push) push.addEventListener('click', () => pushStage(stage));
+    const test = holder.querySelector('.gh-test-btn');
+    if (test) test.addEventListener('click', () => testToken(stage));
   });
   // ---- "What is ...?" dropdowns under the pipeline strip: click a stage pill, one panel open at a time ------
   function showPipeHelp(stage) {
