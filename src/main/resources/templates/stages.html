@@ -140,7 +140,7 @@
                 <dl>
                     <dt>Role</dt><dd>Stage 3. Plays a tester who proves the stories were built correctly.</dd>
                     <dt>Input</dt><dd>The Developer&rsquo;s code, plus the run&rsquo;s user stories for the automation and manual cases.</dd>
-                    <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Pick which to write in the drop-down above the results, and download them as files or a ZIP, or push the code plus its tests to GitHub.</dd>
+                    <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Pick which to write in the drop-down above the results, and download them as files or a ZIP.</dd>
                     <dt>Next stage</dt><dd>Once the tests look right, the <strong>Deploy</strong> stage prepares the code to be released.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="tester">Go to the Tester &darr;</button>
@@ -300,13 +300,11 @@
             <button type="button" class="btn ghost small logic-btn" disabled title="Business logic of the selected code file, or of the whole stage">&#11015; Business logic</button>
             <button type="button" class="btn ghost small zip-btn" disabled>&#11015; Stage ZIP</button>
         </div>
-        <div class="gh-panel" hidden th:if="${s.id == 'developer' or s.id == 'tester'}"
+        <div class="gh-panel" hidden th:if="${s.id == 'developer'}"
              th:attr="data-scope=${s.id}">
             <div class="gh-head">
                 <strong>Push to GitHub</strong>
-                <span class="hint" th:text="${s.id == 'developer' ? 'Pushes the code the Developer wrote.'
-                    : s.id == 'tester' ? 'Pushes the code plus its tests (unit, automation and manual cases).'
-                    : ''}">What is pushed</span>
+                <span class="hint">Pushes the code the Developer wrote.</span>
             </div>
             <div class="gh-grid">
                 <label class="field"><span>Repository URL</span>
@@ -1415,7 +1413,7 @@
   $('importGitBtn').addEventListener('click', () => importStories('git'));
   if ($('importLocalBtn')) $('importLocalBtn').addEventListener('click', () => importStories('local'));
 
-  // ---- Push to GitHub (after Developer and Tester; the whole run is pushed from the Trainer card) -----------------------------------------
+  // ---- Push to GitHub (after Developer; the whole run is pushed from the Trainer card) -----------------------------------------
   const GH_TEXT_FIELDS = ['gh-repo', 'gh-branch', 'gh-folder', 'gh-token'];
   document.addEventListener('input', (e) => {
     const t = e.target;

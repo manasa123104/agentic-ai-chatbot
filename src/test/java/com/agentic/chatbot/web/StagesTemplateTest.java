@@ -77,10 +77,29 @@ class StagesTemplateTest {
     }
 
     @Test
+    void testerCardHasNoGithubPushMarkup() throws Exception {
+        String html = page();
+        int tabs = html.indexOf("<details class=\"help-tip\" open=\"open\" th:if=\"${s.id == 'tester'}\">");
+        assertTrue(tabs > 0);
+        String help = html.substring(tabs, html.indexOf("</details>", tabs)).toLowerCase();
+        assertFalse(help.contains("push") || help.contains("github"), "Tester card help must not mention a push");
+        int strip = html.indexOf("id=\"pipeHelp-tester\"");
+        String stripHelp = html.substring(strip, html.indexOf("</article>", strip)).toLowerCase();
+        assertFalse(stripHelp.contains("push") || stripHelp.contains("github"), "the Tester dropdown must not mention a push");
+        assertFalse(html.contains("'tester' ? 'Pushes the code plus its tests"), "no Tester push hint text");
+        // the only per-stage push panel is the Developer's; the rest of the page's push is the end-of-page panel
+        assertEquals(1, html.split("class=\"gh-panel\"", -1).length - 1, "exactly one per-stage push panel (Developer)");
+        assertTrue(html.contains("th:if=\"${s.id == 'developer'}\""));
+    }
+
+    @Test
     void deployCardHasNoGithubPush() throws Exception {
         String html = page();
-        assertTrue(html.contains("s.id == 'developer' or s.id == 'tester'}"));
+        assertTrue(html.contains("th:if=\"${s.id == 'developer'}\"\n             th:attr=\"data-scope=${s.id}\"")
+                || html.contains("th:if=\"${s.id == 'developer'}\"\r\n             th:attr=\"data-scope=${s.id}\""),
+                "only the Developer card keeps a push panel");
         assertFalse(html.contains("s.id == 'tester' or s.id == 'deploy'"), "the Deploy card must not get a push panel");
+        assertFalse(html.contains("s.id == 'developer' or s.id == 'tester'"), "the Tester card must not get a push panel");
         assertEquals(1, html.split("data-scope=\"run\"", -1).length - 1, "only the Trainer's complete panel pushes the whole run");
     }
 }
