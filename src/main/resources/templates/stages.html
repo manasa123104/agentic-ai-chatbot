@@ -464,6 +464,8 @@
 </main>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/runcontrol.js}"></script>
+<script th:src="@{/js/menu.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
 <script th:src="@{/js/upload.js}"></script>
 <script th:inline="javascript">
@@ -494,6 +496,7 @@
   const q = (stage, sel) => card(stage).querySelector(sel);
   let runId = null;
   let busy = false;
+  let stopRequested = false; // the Stop button: the run ends after the stage that is running now
   const results = {};
 
   function domainText() {
@@ -999,6 +1002,7 @@
     const btn = q(stage, '.run-btn');
     locks++;
     applyLock();
+    if (!busy) { stopRequested = false; BotRun.running(stage + " stage", runId); }
     btn.textContent = 'Running… 0s';
     const started = Date.now();
     const ticker = setInterval(() => {
@@ -1029,6 +1033,7 @@
       btn.textContent = 'Run';
       applyLock();
       persist();
+      if (!busy) BotRun.idle(); // a single stage cannot be half done: it finished, so there is nothing to resume
     }
   }
 
@@ -1131,7 +1136,8 @@
     return next;
   }
 
-  async function runAll() {
+  /** Run all stages. resume=true continues a stopped run: finished stages and their outputs stay, the rest run. */
+  async function runAll(resume) {
     if (blocked()) return;
     if (!q('ba', '.stage-input').value.trim()) {
       setMessage('ba', 'Enter a requirement or pick a sample above, then press Run all stages.', 'error');
@@ -1139,21 +1145,38 @@
       return;
     }
     busy = true;
+    stopRequested = false;
     const btn = $('runAllBtn');
     applyLock();
-    // a fresh run: clear the previous run's outputs so a failure part-way never leaves stale results behind
-    WORK.forEach((s) => { resetStage(s); if (s !== 'ba') q(s, '.stage-input').value = ''; });
-    resetStage('trainer');
-    setRun(null);
-    $('trainerRun').value = '';
-    document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
+    if (!resume) {
+      // a fresh run: clear the previous run's outputs so a failure part-way never leaves stale results behind
+      WORK.forEach((s) => { resetStage(s); if (s !== 'ba') q(s, '.stage-input').value = ''; });
+      resetStage('trainer');
+      setRun(null);
+      $('trainerRun').value = '';
+      document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
+    }
+    let ended = null; // why the loop ended early: 'stopped' or 'failed'
     try {
       for (const stage of STAGES) {
+        if (resume && results[stage]) { handOff(stage); continue; } // already done before the stop
+        if (stopRequested) { ended = 'stopped'; break; }
         btn.textContent = 'Running ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + '…';
+        BotRun.running('stage ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + ': ' + stage, runId);
         card(stage).scrollIntoView({ behavior: 'smooth', block: 'start' });
         const data = await runStage(stage, true);
-        if (!data) break;
+        if (!data) { ended = 'failed'; break; }
         handOff(stage);
+        if (stopRequested && STAGES.some((s) => !results[s])) { ended = 'stopped'; break; }
+      }
+      const doneCount = STAGES.filter((s) => results[s]).length;
+      if (ended === 'stopped') {
+        BotRun.stopped('Stopped after ' + doneCount + ' of ' + STAGES.length + ' stages', runId, true);
+        setMessage('ba', 'Stopped after ' + doneCount + ' of ' + STAGES.length + ' stages. Press Resume to continue with the next stage; finished stages are kept.', 'ok');
+      } else if (ended === 'failed') {
+        BotRun.stopped('A stage failed after ' + doneCount + ' of ' + STAGES.length + ' stages. Resume retries it', runId, true);
+      } else {
+        BotRun.idle();
       }
       if (STAGES.every((s) => results[s])) {
         setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel at the end of the page.', 'ok');
@@ -1539,7 +1562,12 @@
   ['language', 'automation', 'languageName'].forEach((id) => $(id).addEventListener('input', refreshPersonas));
   $('language').addEventListener('change', refreshPersonas);
   $('automation').addEventListener('change', refreshPersonas);
-  $('runAllBtn').addEventListener('click', runAll);
+  $('runAllBtn').addEventListener('click', () => runAll(false));
+  BotRun.register({
+    key: 'stages', label: 'Stage bots', url: '/stages',
+    onStop: () => { stopRequested = true; },
+    onResume: () => runAll(true)
+  });
   $('newRunBtn').addEventListener('click', newRun);
   $('runZipBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });
   $('runLogicBtn').addEventListener('click', (e) => { if (!runId) e.preventDefault(); });
@@ -1549,6 +1577,9 @@
   window.addEventListener('pageshow', (e) => { if (e.persisted) leaving = false; });
 
   restore();
+  if (BotRun.current().key === 'stages' && BotRun.current().state === 'stopped' && !runId && !Object.keys(results).length) {
+    BotRun.idle(); // nothing was saved to resume from
+  }
   renderSamples();
   refreshPersonas();
   loadExamples();

@@ -25,6 +25,8 @@ public class ScreenCodeGenerator {
     }
 
     public List<Path> generate(String userStory, Path projectDir) throws IOException {
+        // uploaded files: use their requirement text, not the raw file contents
+        userStory = UploadedStory.forGeneration(userStory);
         StoryAnalyzer.Analysis analysis = StoryAnalyzer.analyze(userStory);
         List<Path> written = new ArrayList<>();
 
@@ -65,7 +67,7 @@ public class ScreenCodeGenerator {
      * (seeded from the business name), the requested backend language, and a chatbot agent only when asked for.
      */
     static String designBrief(String userStory) {
-        String brand = SiteVariant.brandFrom(userStory, "the business");
+        String brand = StoryDetails.brandOf(userStory);
         SiteVariant.Design d = SiteVariant.design(brand, userStory);
         var lang = SiteBackends.detect(userStory);
         StringBuilder sb = new StringBuilder();
@@ -81,6 +83,16 @@ public class ScreenCodeGenerator {
                 .append(" (load them from Google Fonts unless the user named a font).\n");
         sb.append("- Layout accent: hero layout \"").append(d.heroLayout()).append("\", corner radius ")
                 .append(d.radius()).append("px. Write hero and supporting copy that is specific to this business.\n");
+        StoryDetails details = StoryDetails.parse(userStory);
+        if (!details.cardTitles().isEmpty()) {
+            sb.append(details.storyCards().isEmpty()
+                    ? "- Name the service cards after what this business offers: "
+                    : "- The prompt holds several user stories; give each story its own section/card: ")
+                    .append(String.join("; ", details.cardTitles())).append(".\n");
+        }
+        if (!details.place().isEmpty()) {
+            sb.append("- Mention that the business is in ").append(details.place()).append(".\n");
+        }
         if (lang != com.agentic.chatbot.stage.StageLanguage.JAVA) {
             sb.append("- The user asked for ").append(lang.label()).append(". Keep the Thymeleaf templates, and also output ")
                     .append("a small runnable ").append(lang.label()).append(" server in fences with FILE paths under server/")
@@ -101,7 +113,7 @@ public class ScreenCodeGenerator {
         if (!SiteAgent.wantsAgent(userStory)) {
             return;
         }
-        String brand = SiteVariant.brandFrom(userStory, "NovaTech");
+        String brand = StoryDetails.brandOf(userStory);
         var theme = SiteThemePack.fromStory(userStory);
         var knowledge = SiteAgent.knowledge(brand, theme, null);
         String widget = SiteAgent.widget(knowledge, 18);
@@ -294,13 +306,8 @@ public class ScreenCodeGenerator {
             String userStory,
             Path projectDir,
             List<Path> paths) throws IOException {
-        String brand = a.classPrefix();
-        if (brand.equalsIgnoreCase("FeatureScreen") || brand.equalsIgnoreCase("CompanyLanding")
-                || brand.length() < 3) {
-            brand = "NovaTech";
-        }
-        // Prefer a readable brand from the story
-        brand = SiteVariant.brandFrom(userStory, brand);
+        // the name written in the story, or one invented from the story itself (never one shared fallback name)
+        String brand = StoryDetails.brandOf(userStory);
 
         // each brand gets its own palette, fonts, layout and headings; the language picks the extra server
         var design = BigSiteTemplates.designFor(brand, userStory);
@@ -443,6 +450,7 @@ public class ScreenCodeGenerator {
         Files.writeString(readme, "# Big site generated\n\n" + userStory
                         + "\n\nBrand: " + brand + " · language: " + language.label()
                         + (agent ? " · on-page chatbot agent: yes" : "")
+                        + (theme.serviceTitles().length == 0 ? "" : "\n\nService cards: " + String.join(", ", theme.serviceTitles()))
                         + "\n\nPages: home, about, services, pricing, blog, careers, contact\n",
                 StandardCharsets.UTF_8);
         paths.add(readme);

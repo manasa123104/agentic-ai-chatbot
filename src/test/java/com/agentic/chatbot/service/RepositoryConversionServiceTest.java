@@ -197,4 +197,59 @@ class RepositoryConversionServiceTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> safe.startFromGit("file:///C:/secret/repo", "", "", options));
         assertTrue(e.getMessage().contains("file://"), e.getMessage());
-    }}
+    }
+    @Test
+    void stopKeepsConvertedFilesAndResumeConvertsOnlyTheRest() throws Exception {
+        java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        FakeLlm llm = new FakeLlm() {
+            private boolean first = true;
+
+            @Override
+            public String complete(String systemPrompt, String userPrompt) {
+                if (first) {
+                    first = false;
+                    entered.countDown();
+                    try {
+                        release.await(10, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return super.complete(systemPrompt, userPrompt);
+            }
+        };
+        RepositoryConversionService service = service(llm);
+        byte[] zip = zip(
+                "shop/src/main/java/com/shop/Alpha.java", "package com.shop;\npublic class Alpha { int a() { return 1; } }\n",
+                "shop/src/main/java/com/shop/Beta.java", "package com.shop;\npublic class Beta { int b() { return 2; } }\n",
+                "shop/src/main/java/com/shop/Gamma.java", "package com.shop;\npublic class Gamma { int c() { return 3; } }\n");
+        ConversionJob job = service.startFromUploads(
+                List.of(new MockMultipartFile("files", "shop.zip", "application/zip", zip)), "shop",
+                new RepositoryConversionService.Options("auto", "python", null, false, false));
+
+        assertTrue(entered.await(10, java.util.concurrent.TimeUnit.SECONDS), "first file is being converted");
+        service.stop(job.getId());          // Stop pressed while the first file is converting
+        release.countDown();
+
+        ConversionJob stopped = null;
+        for (int i = 0; i < 200; i++) {
+            stopped = service.get(job.getId()).orElseThrow();
+            if (stopped.getStatus() != ConversionJob.Status.RUNNING && stopped.getStatus() != ConversionJob.Status.QUEUED) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals(ConversionJob.Status.STOPPED, stopped.getStatus(), stopped.getMessage());
+        assertEquals(3, stopped.getTotalFiles());
+        assertEquals(1, stopped.getDoneFiles(), "the file that was running finished and is kept");
+        assertEquals(1, llm.prompts.size());
+
+        service.resume(job.getId());
+        ConversionJob done = await(service, job.getId());
+        assertEquals(ConversionJob.Status.DONE, done.getStatus(), done.getMessage());
+        assertEquals(3, done.getFiles().stream().filter(f -> "converted".equals(f.status())).count());
+        assertEquals(3, llm.prompts.size(), "finished files are not converted again");
+        assertThrows(IllegalStateException.class, () -> service.resume(job.getId()), "only a stopped job can resume");
+    }
+}

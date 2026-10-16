@@ -13,6 +13,7 @@
 <body class="chat-app">
 <aside class="chat-rail" id="chatRail">
     <div class="rail-brand">
+        <button type="button" class="rail-close" id="railClose" aria-label="Close menu">&#10005;</button>
         <span class="rail-mark">B</span>
         <div>
             <strong>BOT</strong>
@@ -20,25 +21,6 @@
         </div>
     </div>
     <button type="button" class="new-chat" id="newChat">+ New prompt</button>
-
-    <div class="bot-pipeline workflow-rail" aria-label="BOT workflow diagram">
-        <span class="pipe-label">Workflow</span>
-        <div class="workflow-flow">
-            <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories</span></a>
-            <div class="wf-arrow" aria-hidden="true">↓</div>
-            <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Any language</span></a>
-            <div class="wf-arrow" aria-hidden="true">↓</div>
-            <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit · automation · manual</span></a>
-            <div class="wf-arrow" aria-hidden="true">↓</div>
-            <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker · CI/CD · K8s</span></a>
-            <div class="wf-arrow" aria-hidden="true">↓</div>
-            <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approvals</span></a>
-        </div>
-        <div class="wf-io">
-            <span class="io-chip">In: prompt + domain + language</span>
-            <span class="io-chip out">Out: stories, code, tests, deploy</span>
-        </div>
-    </div>
 
     <div class="history-head">
         <span>Previous results</span>
@@ -67,6 +49,7 @@
         </p>
     </div>
     <nav class="rail-links">
+        <a href="/">Home</a>
         <a href="/code">User stories + code</a>
         <a href="/stages">5-stage pipeline: BA → Dev → Test → Deploy → Train</a>
         <a href="/convert">Code converter</a>
@@ -119,7 +102,7 @@
                     <a class="btn" href="/stages">Open the 5-stage pipeline</a>
                     <a class="btn ghost" href="/code">Open User stories + code</a>
                 </p>
-                <p class="muted-note">Pick a language, upload a file or folder, or try an example. Every site gets its own name, headings, palette and fonts.</p>
+                <p class="muted-note">Pick a language, upload a file, or try an example. Every site gets its own name, headings, palette and fonts.</p>
                 <p class="chip-label">Websites in your language of choice</p>
                 <div class="suggestions">
                     <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant</button>
@@ -178,21 +161,16 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <ul class="attach-list" id="attachList"></ul>
                 <div class="attach-actions">
-                    <span class="attach-note">Text and code files go into your prompt as context. For a whole project, send it to a converter instead:</span>
+                    <span class="attach-note">Upload file &rarr; user stories + website: BOT reads these file(s) as your user stories and requirements, then writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
                     <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
             </div>
             <div class="composer-tools">
-                <label class="tool-btn" title="Attach one or more files">
+                <label class="tool-btn" title="Upload file: BOT reads it as your user stories and builds the code and a website from it. Several files are used together.">
                     <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
-                    Upload file
-                </label>
-                <label class="tool-btn" title="Attach a whole folder (sub-folders included)">
-                    <input type="file" id="attachFolder" class="u-input" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
-                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                    Upload folder
+                    Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
                 </label>
                 <label class="tool-select" title="Backend language for generated websites. Auto uses the language named in your prompt.">
                     <span>Language</span>
@@ -211,21 +189,23 @@ if __name__ == &quot;__main__&quot;:
             </div>
             <div class="composer-box" id="composerBox">
                 <textarea id="userStory" name="userStory" rows="1"
-                          placeholder="Describe a website, app or conversion. Name a language and say “with a chatbot agent” if you want one…"></textarea>
+                          placeholder="Describe a website, app or conversion, or upload a file of user stories and BOT builds the website. Name a language and say “with a chatbot agent” if you want one…"></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send">
                     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · Shift+Enter for a new line · Drop files onto the box to attach them</p>
+            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: it becomes the user stories for your website</p>
         </form>
     </footer>
 </div>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/runcontrol.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
 <script th:src="@{/js/upload.js}"></script>
+<script th:src="@{/js/menu.js}"></script>
 <script th:inline="javascript">
 (function () {
   var thread = document.getElementById('thread');
@@ -521,19 +501,37 @@ if __name__ == &quot;__main__&quot;:
 
   var running = false;
   var PENDING_KEY = 'bot.chat.pending';
+  var CHAT_RUN_KEY = 'bot.chat.run';
 
-  async function runPipeline(story, shown) {
+  function newRunId() {
+    return 'run-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+
+  /**
+   * opts.resume: continue a stopped run (same runId) from its next unfinished bot.
+   * opts.fromUpload: the story came from uploaded files (adds a line about it to the result).
+   */
+  async function runPipeline(story, shown, opts) {
+    opts = opts || {};
+    var resume = !!opts.resume;
     if (running) return; // one run at a time: Enter, a suggestion chip or a double click cannot start a second one
     running = true;
+    var runId = opts.runId || newRunId();
     document.body.classList.add('is-running');
     try { localStorage.setItem(PENDING_KEY, shown || story); } catch (e) { /* ignore */ }
-    addUser(shown || story);
+    try { sessionStorage.setItem(CHAT_RUN_KEY, JSON.stringify({ runId: runId, story: story, shown: shown || story, fromUpload: !!opts.fromUpload })); } catch (e) { /* ignore */ }
+    BotRun.running(resume ? 'resuming' : 'starting', runId);
+    if (!resume) addUser(shown || story);
     input.value = '';
     autoSize();
     sendBtn.disabled = true;
     addTyping();
     var pipeStart = Date.now();
-    if (/^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite|show|give me)\b[^\n]*\b(?:to|into|in)\s/i.test(story)) {
+    if (resume) {
+      addBot('<p>Resuming from the last finished step\u2026</p>');
+    } else if (opts.fromUpload) {
+      addBot('<p>Reading your uploaded file(s) as user stories \u2192 writing the stories, the code and the website\u2026</p>');
+    } else if (/^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite|show|give me)\b[^\n]*\b(?:to|into|in)\s/i.test(story)) {
       addBot('<p>Code Converter is translating your code… (a local AI model can take a minute or two)</p>');
     } else {
       addBot('<p>BOT pipeline starting — Business Analyst → Developer → Tester → Trainer…</p>');
@@ -553,7 +551,9 @@ if __name__ == &quot;__main__&quot;:
           userStory: story,
           systemPrompt: (systemPrompt.value || '').trim(),
           runUnitTests: true,
-          runFunctionalTests: true
+          runFunctionalTests: true,
+          runId: runId,
+          resume: resume
         })
       });
       var data = await res.json().catch(function () { return null; });
@@ -564,6 +564,15 @@ if __name__ == &quot;__main__&quot;:
         return;
       }
       removeTyping();
+      if (data.stopped) {
+        rt.stop('Stopped after', false);
+        addBot('<p><strong>Stopped.</strong> ' + escapeHtml(data.message || '') + '</p>' +
+          '<p class="actions"><button type="button" class="btn" id="resumeInline">&#9654; Resume</button></p>');
+        var ri = document.getElementById('resumeInline');
+        if (ri) ri.addEventListener('click', function () { BotRun.resumeNow(); });
+        BotRun.stopped(data.message || 'Stopped', runId, true);
+        return;
+      }
       rt.stop(data && data.success === false ? 'Failed after' : 'Done in', data && data.success === false);
 
       if (data.historyId) {
@@ -571,7 +580,21 @@ if __name__ == &quot;__main__&quot;:
       }
       await loadHistory();
       renderResultBubble(data, false);
+      if (data.success) {
+        BotRun.idle();
+        try { sessionStorage.removeItem(CHAT_RUN_KEY); } catch (e) { /* ignore */ }
+      } else if (data.resumable) {
+        BotRun.stopped('A step failed. Resume retries it from the last finished step', runId, true);
+      } else {
+        BotRun.idle();
+      }
       var lastBubble = thread.lastChild && thread.lastChild.querySelector('.bubble');
+      if (lastBubble && opts.fromUpload && data.success) {
+        var upNote = document.createElement('p');
+        upNote.className = 'muted-note';
+        upNote.innerHTML = 'Built from your uploaded file(s): the user stories and code are in <a href="/code">User stories + code</a>, the website is at <a href="' + escapeHtml(data.previewUrl || '/site/home') + '">' + escapeHtml(data.previewUrl || '/site/home') + '</a>.';
+        lastBubble.appendChild(upNote);
+      }
       if (lastBubble) {
         var total = document.createElement('p');
         total.style.margin = '.6rem 0 0';
@@ -586,7 +609,8 @@ if __name__ == &quot;__main__&quot;:
     } catch (e) {
       removeTyping();
       rt.stop('Failed after', true);
-      addBot('<p>Network error. Please try again.</p>');
+      addBot('<p>Network error. Your progress is saved on the server: press <strong>Resume</strong> to continue from the last finished step.</p>');
+      BotRun.stopped('Connection lost. Resume continues from the last finished step', runId, true);
     } finally {
       running = false;
       document.body.classList.remove('is-running');
@@ -601,7 +625,7 @@ if __name__ == &quot;__main__&quot;:
     input.style.height = Math.min(input.scrollHeight, 140) + 'px';
   }
 
-  // ---- language picker + attachments (files / folder) ----------------------------------------------------------
+  // ---- language picker + attachments (files) ----------------------------------------------------------
   var langPick = document.getElementById('langPick');
   var CONVERT_INTENT = /^\s*(?:(?:please|can you|could you|help me)\s+)*(?:convert|translate|port|rewrite)\b/i;
   var SITE_INTENT = /\b(?:website|web ?site|web ?page|landing page|site)\b/i;
@@ -649,7 +673,7 @@ if __name__ == &quot;__main__&quot;:
     renderTray();
   }
 
-  ['attachFiles', 'attachFolder'].forEach(function (id) {
+  ['attachFiles'].forEach(function (id) {
     var inp = document.getElementById(id);
     inp.addEventListener('change', function () {
       addAttachments(BotUpload.collect(inp));
@@ -709,11 +733,13 @@ if __name__ == &quot;__main__&quot;:
     if (!read.blocks.length) {
       return { story: null, shown: text + note, noText: true };
     }
-    var ask = text || 'Use the attached files as the requirements for the site.';
-    var story = withLanguage(ask) + '\n\nAttached files (use them as context):\n' + read.blocks.map(function (b) {
-      return '--- ' + b.path + (b.cut ? ' (truncated)' : '') + ' ---\n' + b.text;
-    }).join('\n\n');
-    return { story: story, shown: ask + note + skippedNote };
+    // Upload file -> user stories + website: the files are the requirements, the typed text is an optional short request
+    var ask = text || 'Build a website from the uploaded user stories and requirements.';
+    var story = withLanguage(ask) + '\n\n=== Uploaded files (use as the user stories and requirements for the website) ===\n' +
+      read.blocks.map(function (b) {
+        return '--- ' + b.path + (b.cut ? ' (truncated)' : '') + ' ---\n' + b.text;
+      }).join('\n\n');
+    return { story: story, shown: (text || 'Upload \u2192 user stories + website') + note + skippedNote, fromUpload: true };
   }
 
   form.addEventListener('submit', async function (e) {
@@ -741,7 +767,7 @@ if __name__ == &quot;__main__&quot;:
     }
     attached = [];
     renderTray();
-    runPipeline(composed.story, composed.shown);
+    runPipeline(composed.story, composed.shown, { fromUpload: !!composed.fromUpload });
   });
 
   input.addEventListener('keydown', function (e) {
@@ -756,13 +782,6 @@ if __name__ == &quot;__main__&quot;:
     chip.addEventListener('click', function () {
       runPipeline(withLanguage(chip.getAttribute('data-story')));
     });
-  });
-
-  var railToggle = document.getElementById('railToggle');
-  railToggle.addEventListener('click', function () {
-    var open = document.body.classList.toggle('rail-open');
-    railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    railToggle.innerHTML = open ? '&#10005; Close' : '&#9776; Menu';
   });
 
   document.getElementById('newChat').addEventListener('click', function () {
@@ -786,10 +805,29 @@ if __name__ == &quot;__main__&quot;:
 
   loadHistory();
 
+  BotRun.register({
+    key: 'home', label: 'Chat pipeline', url: '/',
+    onStop: function () {
+      var id = BotRun.current().runId;
+      if (!id) return;
+      fetch('/api/pipeline/stop', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId: id }) }).catch(function () { /* ignore */ });
+    },
+    onResume: function () {
+      var saved = null;
+      try { saved = JSON.parse(sessionStorage.getItem(CHAT_RUN_KEY) || 'null'); } catch (e) { saved = null; }
+      if (!saved || !saved.runId) { BotRun.idle(); return; }
+      runPipeline(saved.story, saved.shown, { resume: true, runId: saved.runId, fromUpload: saved.fromUpload });
+    }
+  });
+
   // A refresh while a run was in progress: the server may still have finished it, so point to the history.
   try {
     var interrupted = localStorage.getItem(PENDING_KEY);
-    if (interrupted) {
+    if (interrupted && BotRun.isStopped('home')) {
+      localStorage.removeItem(PENDING_KEY);
+      addBot('<p>Your last run was interrupted when the page closed. Its progress is saved: press <strong>Resume</strong> to continue from the last finished step.</p>');
+    } else if (interrupted) {
       localStorage.removeItem(PENDING_KEY);
       addBot('<p>The page was refreshed while a run was in progress. BOT may have finished it \u2013 check <strong>Previous results</strong> on the left. ' +
         'Your prompt is back in the box below if you want to send it again.</p>');

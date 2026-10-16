@@ -285,6 +285,8 @@
 </main>
 
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/runcontrol.js}"></script>
+<script th:src="@{/js/menu.js}"></script>
 <script th:src="@{/js/botshare.js}"></script>
 <script th:src="@{/js/upload.js}"></script>
 <script th:inline="javascript">
@@ -815,7 +817,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       currentJob = job;
       renderJob(job);
       if (changed) loadTree();
-      if (job.status === 'DONE' || job.status === 'FAILED') {
+      if (job.status === 'DONE' || job.status === 'FAILED' || job.status === 'STOPPED') {
         clearInterval(pollTimer);
         loadRecent();
       }
@@ -852,6 +854,44 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     $('pushMessage').placeholder = 'Convert ' + job.sourceLabel + ' to ' + job.targetLanguage;
     if (job.pushes && job.pushes.length) showPush(job.pushes[job.pushes.length - 1], true);
     renderJobTimer(job);
+    syncRunBar(job);
+  }
+
+  // ---- Stop / Resume (shared bar, js/runcontrol.js) ----------------------------------------------------
+  function syncRunBar(job) {
+    if (job.status === 'RUNNING' || job.status === 'QUEUED') {
+      BotRun.running(job.totalFiles ? job.doneFiles + ' of ' + job.totalFiles + ' files' : 'starting', job.id);
+    } else if (job.status === 'STOPPED') {
+      BotRun.stopped(job.message || 'Stopped', job.id, true);
+    } else if (BotRun.current().key === 'convert' && BotRun.current().runId === job.id) {
+      BotRun.idle();
+    }
+  }
+
+  async function stopJob() {
+    const id = BotRun.current().runId || (currentJob && currentJob.id);
+    if (!id) return;
+    try {
+      const res = await fetch('/api/convert/jobs/' + id + '/stop', { method: 'POST' });
+      if (res.ok && currentJob && currentJob.id === id) { currentJob = await res.json(); renderJob(currentJob); }
+    } catch (e) { /* the poll keeps showing the state */ }
+  }
+
+  async function resumeJob() {
+    const id = BotRun.current().runId || (currentJob && currentJob.id);
+    if (!id) return;
+    try {
+      const res = await fetch('/api/convert/jobs/' + id + '/resume', { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setJobMessage(err.error || err.message || 'This conversion cannot be resumed.', 'error');
+        BotRun.idle();
+        return;
+      }
+      openJob(await res.json(), true);
+    } catch (e) {
+      setJobMessage(netError(e), 'error');
+    }
   }
 
   function jobElapsed(job) {
@@ -864,6 +904,11 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
     const el = $('jobTimer');
     const running = job.status === 'RUNNING' || job.status === 'QUEUED';
     el.className = 'run-timer ' + (running ? 'running' : job.status === 'FAILED' ? 'done failed' : 'done');
+    if (job.status === 'STOPPED') {
+      const sms = jobElapsed(job);
+      el.textContent = 'Stopped' + (isNaN(sms) ? '' : ' after ' + RunTimer.format(sms));
+      return;
+    }
     if (job.status === 'QUEUED' && !job.startedAt) { el.textContent = 'Queued\u2026'; return; }
     const ms = jobElapsed(job);
     if (isNaN(ms)) { el.textContent = ''; return; }
@@ -1198,8 +1243,17 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   document.addEventListener('change', saveSoon);
   window.addEventListener('pagehide', saveState);
 
+  BotRun.register({ key: 'convert', label: 'Code converter', url: '/convert', onStop: stopJob, onResume: resumeJob });
   renderGallery();
   restoreState().then(async () => {
+    // a stopped conversion from before a refresh: open it so Resume has its job on screen
+    const saved = BotRun.current();
+    if (saved.key === 'convert' && saved.runId && (!currentJob || currentJob.id !== saved.runId)) {
+      try {
+        const res = await fetch('/api/convert/jobs/' + saved.runId);
+        if (res.ok) openJob(await res.json(), true); else BotRun.idle();
+      } catch (e) { /* ignore */ }
+    }
     // files attached on the home page: open the upload tab and keep them ready
     const entries = await BotUpload.take('convert');
     if (!entries || !entries.length) return;

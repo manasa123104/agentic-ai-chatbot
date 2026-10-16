@@ -1,6 +1,11 @@
 # BOT: Agentic AI Chatbot
 
-**Try BOT live:** https://bot-code-converter.onrender.com (converter: /convert, 5 stages: /stages)
+**Try BOT live:** https://bot-code-converter.onrender.com (chat: /, converter: /convert, 5 stages: /stages, user stories + code: /code, generated website: /site/home)
+
+- **Upload file -> user stories + website:** on the home page, upload one or more files (or type a short request). BOT reads them as the user stories, then writes the stories, the code and a website of its own. Open it at `/site/home`; stories and code are at `/code`.
+- **Stop / Resume** (every page): Stop ends the run after the step in progress and keeps what is finished; Resume continues from the next unfinished bot, file or stage.
+- **Push to GitHub** for the generated website (`/code` and the site toolbar): your repo URL, a new branch and, on the public site, your own token (used once, never stored).
+- **Menu** button on narrow windows (900px and below) on `/`, `/convert`, `/stages` and `/code`.
 
 > The first load after idle takes about 1 minute (Render free tier wakes up), and the AI runs on the Google Gemini free tier, so very heavy use can show *Free AI quota reached - try again later*.
 

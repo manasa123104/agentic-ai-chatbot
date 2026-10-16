@@ -3,6 +3,7 @@ package com.agentic.chatbot.agent;
 import com.agentic.chatbot.generator.ScreenCodeGenerator;
 import com.agentic.chatbot.generator.SiteAgent;
 import com.agentic.chatbot.generator.SiteBackends;
+import com.agentic.chatbot.generator.UploadedStory;
 import com.agentic.chatbot.stage.StageLanguage;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +28,7 @@ public class UiGeneratorBot implements AgentBot {
     public AgentResult run(AgentContext context) {
         try {
             // Prefer BA-refined story; generators still key off original topic keywords in the prompt.
-            String forDev = context.getUserStory();
+            String forDev = UploadedStory.forGeneration(context.getUserStory());
             List<Path> files = screenCodeGenerator.generate(forDev, context.getProjectDir());
             files.forEach(context::addGeneratedFile);
             var language = SiteBackends.detect(forDev);

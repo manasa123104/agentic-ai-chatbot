@@ -6,7 +6,7 @@ import java.util.List;
 /** A project / repository conversion running in the background. Saved as job.json next to its files. */
 public class ConversionJob {
 
-    public enum Status { QUEUED, RUNNING, DONE, FAILED }
+    public enum Status { QUEUED, RUNNING, STOPPED, DONE, FAILED }
 
     /**
      * @param status   converted, copied (same language or non-code file), skipped, or failed

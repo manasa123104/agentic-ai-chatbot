@@ -20,6 +20,23 @@ public class PipelineResponse {
     private List<BotStepLog> steps = new ArrayList<>();
     /** Set when the chat message was a code-conversion request instead of a website story. */
     private ConversionResponse conversion;
+    /** Id of the run (echoed from the request); use it to resume. */
+    private String runId;
+    /** True when the user pressed Stop and the run ended early with its progress saved. */
+    private boolean stopped;
+    /** True when the run can continue from its last finished bot. */
+    private boolean resumable;
+    /** Bots that finished and will not run again on resume. */
+    private int completedSteps;
+
+    public String getRunId() { return runId; }
+    public void setRunId(String runId) { this.runId = runId; }
+    public boolean isStopped() { return stopped; }
+    public void setStopped(boolean stopped) { this.stopped = stopped; }
+    public boolean isResumable() { return resumable; }
+    public void setResumable(boolean resumable) { this.resumable = resumable; }
+    public int getCompletedSteps() { return completedSteps; }
+    public void setCompletedSteps(int completedSteps) { this.completedSteps = completedSteps; }
 
     public boolean isSuccess() {
         return success;

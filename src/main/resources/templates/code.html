@@ -7,8 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
-    <link rel="stylesheet" th:href="@{/css/workflow.css}"/>
-    <link rel="stylesheet" th:href="@{/css/site.css}"/>
+        <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
 <body class="code-app">
@@ -17,7 +16,7 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>User stories + code</strong>
-            <small>BA story and the website code BOT generated for your request</small>
+            <small>3 bots: Story bot, Code bot and Site bot</small>
         </div>
     </div>
     <nav class="code-actions">
@@ -27,39 +26,47 @@
         <a class="btn ghost" href="/convert">Code converter</a>
         <a class="btn ghost" href="/code" aria-current="page">User stories + code</a>
         <a class="btn ghost" href="/edit">Edit site</a>
+        <a class="btn ghost" href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
         <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
     </nav>
 </header>
 
-<section class="workflow-diagram code-workflow" aria-label="BOT workflow diagram">
-    <h3>Workflow · 5 stages</h3>
-    <div class="workflow-flow">
-        <a class="wf-node" href="/stages"><span class="wf-num">1</span><strong>Business Analyst</strong><span>User stories, any domain</span></a>
-        <div class="wf-arrow" aria-hidden="true">→</div>
-        <a class="wf-node" href="/stages"><span class="wf-num">2</span><strong>Developer</strong><span>Code in any language</span></a>
-        <div class="wf-arrow" aria-hidden="true">→</div>
-        <a class="wf-node" href="/stages"><span class="wf-num">3</span><strong>Tester</strong><span>Unit + Selenium/Playwright</span></a>
-        <div class="wf-arrow" aria-hidden="true">→</div>
-        <a class="wf-node" href="/stages"><span class="wf-num">4</span><strong>Deploy</strong><span>Docker, CI/CD, Kubernetes</span></a>
-        <div class="wf-arrow" aria-hidden="true">→</div>
-        <a class="wf-node" href="/stages"><span class="wf-num">5</span><strong>Trainer</strong><span>Learns from approved outputs</span></a>
-    </div>
-    <div class="wf-io">
-        <span class="io-chip">Input: end-user prompt + domain + language</span>
-        <span class="io-chip out">Output: user stories, code, tests, deploy files</span>
+<section class="three-bots" aria-label="The 3 bots on this page">
+    <h3>3 bots work on this page</h3>
+    <div class="bot-trio">
+        <a class="bot-card" href="#story-bot">
+            <span class="bot-num">1</span>
+            <strong>Story bot</strong>
+            <span>Turns your prompt into a user story. Every story is read for its own business, offers and place.</span>
+        </a>
+        <a class="bot-card" href="#code-bot">
+            <span class="bot-num">2</span>
+            <strong>Code bot</strong>
+            <span>Writes the website code and pages from that story, so different stories give different sites.</span>
+        </a>
+        <div class="bot-card">
+            <span class="bot-num">3</span>
+            <strong>Site bot</strong>
+            <span>Shows the finished website, lets you edit it, and pushes it to your GitHub.</span>
+            <span class="bot-links">
+                <a th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
+                <a href="/edit">Edit site</a>
+                <a href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
+            </span>
+        </div>
     </div>
 </section>
 
-<section class="story-banner" th:if="${hasUserStory}">
+<section class="story-banner" id="story-bot" th:if="${hasUserStory}">
     <div class="story-banner-inner">
-        <p class="pipe-label">Business Analyst · user story</p>
+        <p class="pipe-label">Story bot · user story</p>
         <pre class="story-pre" th:text="${userStoryText}">User story</pre>
     </div>
 </section>
 
-<main class="code-layout" th:if="${hasCode}">
+<main class="code-layout" id="code-bot" th:if="${hasCode}">
     <aside class="code-files">
-        <p class="pipe-label">Generated code files</p>
+        <p class="pipe-label">Code bot · generated files</p>
         <a th:each="f : ${files}"
            class="file-link"
            th:classappend="${f == selected} ? ' active' : ''"
@@ -79,12 +86,15 @@
 <main class="code-empty" th:unless="${hasCode}">
     <div class="bubble">
         <h1>No user story or website code yet</h1>
-        <p>Ask BOT to create a website. Agents will produce a Business Analyst user story and Developer website code (Spring Boot + Thymeleaf).</p>
+        <p>Ask BOT to create a website. The Story bot writes the user story, the Code bot writes the website code, and the Site bot shows and publishes it.</p>
         <p class="actions"><a class="btn" href="/">Create a website with BOT</a>
             <a class="btn ghost" href="/stages">Open the 5-stage pipeline</a></p>
     </div>
 </main>
 <script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/runcontrol.js}"></script>
+<script th:src="@{/js/menu.js}"></script>
+<script th:src="@{/js/sitepush.js}"></script>
 <script>
   (function () {
     var el = document.getElementById('lastRun');

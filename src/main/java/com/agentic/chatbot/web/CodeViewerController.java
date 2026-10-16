@@ -31,7 +31,9 @@ public class CodeViewerController {
     public String code(
             @RequestParam(value = "file", required = false) String file,
             Model model,
-            jakarta.servlet.http.HttpSession session) throws Exception {
+            jakarta.servlet.http.HttpSession session,
+            jakarta.servlet.http.HttpServletRequest request) throws Exception {
+        model.addAttribute("isHost", RequestOrigin.isHost(request));
         Object last = session.getAttribute("lastPipelineResponse");
         if (last instanceof com.agentic.chatbot.model.PipelineResponse pr && pr.getDurationMs() != null) {
             model.addAttribute("lastRunMs", pr.getDurationMs());

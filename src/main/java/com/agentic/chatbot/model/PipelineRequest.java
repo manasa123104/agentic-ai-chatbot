@@ -6,6 +6,26 @@ public class PipelineRequest {
     private String systemPrompt;
     private boolean runUnitTests = true;
     private boolean runFunctionalTests = true;
+    /** Browser-chosen id of this run; lets the Stop button and a later Resume find it. */
+    private String runId;
+    /** True to continue the run with this id from its last finished bot instead of starting over. */
+    private boolean resume;
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public boolean isResume() {
+        return resume;
+    }
+
+    public void setResume(boolean resume) {
+        this.resume = resume;
+    }
 
     public String getUserStory() {
         return userStory;

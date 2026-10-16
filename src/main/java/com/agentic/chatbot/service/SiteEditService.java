@@ -1,6 +1,7 @@
 package com.agentic.chatbot.service;
 
 import com.agentic.chatbot.generator.ScreenCodeGenerator;
+import com.agentic.chatbot.generator.UploadedStory;
 import com.agentic.chatbot.generator.SiteThemePack;
 import com.agentic.chatbot.model.BotStepLog;
 import com.agentic.chatbot.model.PipelineResponse;
@@ -59,11 +60,30 @@ public class SiteEditService {
                 || Files.exists(outputDir.resolve("src/main/resources/templates/login.html"));
     }
 
+    /** A brand-new site request ("build a restaurant website called X with blue colours") is never an edit of the old site. */
+    private static final Pattern NEW_BUILD_PATTERN = Pattern.compile(
+            "(?i)\\b(?:build|create|generate|develop|design|make)\\s+(?:me\\s+)?(?:a|an|my|our|another|new)\\b[^.\\n]{0,80}?"
+                    + "\\b(?:web\\s?site|web\\s?page|landing page|site|portal)\\b");
+    private static final Pattern EXPLICIT_EDIT = Pattern.compile(
+            "(?i)\\b(?:edit|change|update|modify|restyle|recolor|redesign)\\s+(?:the\\s+|this\\s+|my\\s+)?"
+                    + "(?:web\\s?site|site|page|colou?rs?|fonts?|images?|theme)\\b");
+
     public boolean looksLikeEdit(String message) {
-        if (message == null || message.isBlank() || !hasGeneratedSite()) {
+        return hasGeneratedSite() && isEditMessage(message);
+    }
+
+    /** True when the chat message edits the current site instead of asking for a new one. */
+    public static boolean isEditMessage(String message) {
+        if (message == null || message.isBlank()) {
             return false;
         }
         String m = message.trim();
+        if (UploadedStory.hasUploads(m)) {
+            return false; // uploaded files are the requirements of a new site
+        }
+        if (NEW_BUILD_PATTERN.matcher(m).find() && !EXPLICIT_EDIT.matcher(m).find()) {
+            return false;
+        }
 
         // Full new site / page stories should generate, not edit
         if (NEW_SITE_PATTERN.matcher(m).find()

@@ -9,16 +9,20 @@ import com.agentic.chatbot.model.PipelineRequest;
 import com.agentic.chatbot.model.PipelineResponse;
 import com.agentic.chatbot.service.ChatHistoryService;
 import com.agentic.chatbot.service.CodeConversionService;
+import com.agentic.chatbot.service.RunControl;
 import com.agentic.chatbot.service.SiteEditService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -29,12 +33,15 @@ public class PipelineApiController {
     private final ChatHistoryService historyService;
     private final SiteEditService siteEditService;
     private final CodeConversionService conversionService;
+    private final RunControl control;
 
     public PipelineApiController(
             PipelineOrchestrator orchestrator,
             ChatHistoryService historyService,
             SiteEditService siteEditService,
-            CodeConversionService conversionService) {
+            CodeConversionService conversionService,
+            RunControl control) {
+        this.control = control;
         this.orchestrator = orchestrator;
         this.historyService = historyService;
         this.siteEditService = siteEditService;
@@ -50,6 +57,15 @@ public class PipelineApiController {
         long startedMs = System.currentTimeMillis();
 
         String instruction = request.getUserStory() == null ? "" : request.getUserStory().trim();
+        if (request.isResume() && orchestrator.hasCheckpoint(request.getRunId())) {
+            // Resume: continue the stopped run from its next unfinished bot
+            PipelineResponse resumed = orchestrator.run(request);
+            resumed.setDurationMs(System.currentTimeMillis() - startedMs);
+            if (!resumed.isStopped()) {
+                finish(resumed, instruction, session);
+            }
+            return ResponseEntity.ok(resumed);
+        }
         Optional<ConversionRequest> conversionRequest = conversionService.fromChatMessage(instruction);
         if (conversionRequest.isPresent()) {
             PipelineResponse response = convert(conversionRequest.get());
@@ -69,16 +85,48 @@ public class PipelineApiController {
             session.setAttribute("lastEditInstruction", instruction);
         } else {
             response = orchestrator.run(request);
-            session.setAttribute("baseUserStory", instruction);
+            if (!response.isStopped()) {
+                session.setAttribute("baseUserStory", instruction);
+            }
         }
 
         response.setDurationMs(System.currentTimeMillis() - startedMs);
+        if (!response.isStopped()) {
+            finish(response, instruction, session);
+        }
+        return ResponseEntity.ok(response);
+    }
+
+    /** Saves a finished run to the history and remembers it for the next edit; stopped runs are not saved yet. */
+    private void finish(PipelineResponse response, String instruction, HttpSession session) {
+        if (response.getRunId() != null && response.isSuccess()) {
+            session.setAttribute("baseUserStory", instruction);
+        }
         ChatHistoryEntry saved = historyService.save(instruction, response);
         response.setHistoryId(saved.getId());
         session.setAttribute("lastPipelineResponse", response);
         session.setAttribute("lastUserStory", instruction);
         session.setAttribute("lastHistoryId", saved.getId());
-        return ResponseEntity.ok(response);
+    }
+
+    /** The Stop button: the run ends after the bot that is running now, and keeps what it has finished. */
+    @PostMapping("/pipeline/stop")
+    public ResponseEntity<Map<String, Object>> stop(@RequestBody Map<String, String> body) {
+        String runId = body == null ? null : body.get("runId");
+        if (!RunControl.validId(runId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "runId is required"));
+        }
+        control.requestStop(runId);
+        return ResponseEntity.ok(orchestrator.status(runId));
+    }
+
+    /** What a run has finished so far, and whether it can be resumed. */
+    @GetMapping("/pipeline/status")
+    public ResponseEntity<Map<String, Object>> status(@RequestParam String runId) {
+        if (!RunControl.validId(runId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid runId"));
+        }
+        return ResponseEntity.ok(orchestrator.status(runId));
     }
 
     private PipelineResponse convert(ConversionRequest request) {

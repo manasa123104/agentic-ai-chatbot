@@ -5,6 +5,7 @@ import com.agentic.chatbot.model.SiteStyle;
 import com.agentic.chatbot.service.SiteStyleService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -30,7 +31,7 @@ public class GeneratedSiteController {
 
     @GetMapping(value = "/site/{page}", produces = MediaType.TEXT_HTML_VALUE)
     @ResponseBody
-    public String showPage(@PathVariable String page, HttpSession session) throws Exception {
+    public String showPage(@PathVariable String page, HttpSession session, HttpServletRequest request) throws Exception {
         Path template = styleService.outputDir().resolve("src/main/resources/templates/" + page + ".html");
         if (!Files.exists(template)) {
             return missingPage(page);
@@ -38,7 +39,7 @@ public class GeneratedSiteController {
         String html = Files.readString(template, StandardCharsets.UTF_8);
         Object user = session.getAttribute("googleUser");
         Object email = session.getAttribute("googleEmail");
-        return preparePreviewHtml(html, page, null, user, email);
+        return preparePreviewHtml(html, page, null, user, email, RequestOrigin.isHost(request));
     }
 
     @PostMapping(value = "/site/{page}", produces = MediaType.TEXT_HTML_VALUE)
@@ -49,7 +50,8 @@ public class GeneratedSiteController {
             @RequestParam(required = false) String field2,
             @RequestParam(required = false) String field3,
             @RequestParam(required = false) String field4,
-            HttpSession session) throws Exception {
+            HttpSession session,
+            HttpServletRequest request) throws Exception {
         String redirect = readRedirectPath();
         if (redirect == null) {
             Object story = session.getAttribute("lastUserStory");
@@ -64,7 +66,7 @@ public class GeneratedSiteController {
                 || page.equalsIgnoreCase("register");
 
         if (looksLikeLogin && (field1 == null || field1.isBlank() || field2 == null || field2.isBlank())) {
-            return preparePreviewHtml(raw, page, "Username and password are required", null, null);
+            return preparePreviewHtml(raw, page, "Username and password are required", null, null, RequestOrigin.isHost(request));
         }
 
         // Contact form posts to success page
@@ -106,7 +108,8 @@ public class GeneratedSiteController {
         }
     }
 
-    private String preparePreviewHtml(String html, String page, String error, Object googleUser, Object googleEmail) {
+    private String preparePreviewHtml(String html, String page, String error, Object googleUser, Object googleEmail,
+                                      boolean host) {
         SiteStyle style = styleService.load();
 
         String result = html
@@ -157,12 +160,14 @@ public class GeneratedSiteController {
         }
 
         String banner = """
-                <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;gap:.5rem;font:13px Roboto,Arial,sans-serif">
+                <div style="position:fixed;top:12px;right:12px;z-index:9999;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.5rem;font:13px Roboto,Arial,sans-serif">
                   <a href="/code" style="background:#0f6b4c;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">User stories + code</a>
                   <a href="/edit/%s" style="background:#1a73e8;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">Edit site</a>
+                  <a href="#" data-site-push data-host="%s" style="background:#24292f;color:#fff;padding:.45rem .75rem;border-radius:999px;text-decoration:none;box-shadow:0 1px 3px rgba(0,0,0,.2)">&#11014; Push to GitHub</a>
                   <a href="/" style="background:#fff;color:#1a73e8;border:1px solid #dadce0;padding:.45rem .75rem;border-radius:999px;text-decoration:none">New story</a>
                 </div>
-                """.formatted(page);
+                <script src="/js/sitepush.js" defer></script>
+                """.formatted(page, host);
 
         int bodyIdx = result.toLowerCase().indexOf("<body");
         if (bodyIdx >= 0) {

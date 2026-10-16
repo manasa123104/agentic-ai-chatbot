@@ -648,7 +648,7 @@ body.system-open .system-prompt { display: block; }
 
 @media (max-width: 900px) {
   body.chat-app { grid-template-columns: 1fr; }
-  .chat-rail { display: none; }
+  /* the sidebar becomes the Menu drawer, see mobile.css */
 }
 
 /* Run timer (shared, see js/runtimer.js) */

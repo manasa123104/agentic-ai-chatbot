@@ -102,6 +102,20 @@ public class RepositoryConversionController {
         return jobs.snapshot(own(id, request, response));
     }
 
+    /** Stop button: ends the job after the current file; its finished files are kept. */
+    @PostMapping("/{id}/stop")
+    public ConversionJob stop(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) {
+        own(id, request, response);
+        return jobs.stop(id);
+    }
+
+    /** Resume button: converts the remaining files of a stopped job. */
+    @PostMapping("/{id}/resume")
+    public ConversionJob resume(@PathVariable String id, HttpServletRequest request, HttpServletResponse response) {
+        own(id, request, response);
+        return jobs.resume(id);
+    }
+
     @GetMapping("/{id}/files")
     public List<String> files(@PathVariable String id, @RequestParam(defaultValue = "output") String side,
                               HttpServletRequest request, HttpServletResponse response) throws IOException {

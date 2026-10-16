@@ -105,8 +105,9 @@ public class RepositoryConversionService {
                 try {
                     ConversionJob job = json.readValue(file.toFile(), ConversionJob.class);
                     if (job.getStatus() == ConversionJob.Status.RUNNING || job.getStatus() == ConversionJob.Status.QUEUED) {
-                        job.setStatus(ConversionJob.Status.FAILED);
-                        job.setMessage("Stopped because BOT restarted. Start the conversion again.");
+                        // the uploaded / cloned source is still on disk, so the job can continue where it stopped
+                        job.setStatus(ConversionJob.Status.STOPPED);
+                        job.setMessage("Stopped because BOT restarted. Press Resume to continue with the remaining files.");
                     }
                     jobs.put(job.getId(), job);
                 } catch (IOException e) {
@@ -313,14 +314,21 @@ public class RepositoryConversionService {
     }
 
     private void submit(ConversionJob job, Step prepare) {
+        submit(job, prepare, false);
+    }
+
+    private void submit(ConversionJob job, Step prepare, boolean resume) {
         executor.submit(() -> {
             try {
                 update(job, j -> {
                     j.setStatus(ConversionJob.Status.RUNNING);
-                    j.setStartedAt(LocalDateTime.now().toString());
+                    if (!resume || j.getStartedAt() == null) {
+                        j.setStartedAt(LocalDateTime.now().toString());
+                    }
+                    j.setFinishedAt(null);
                 });
                 prepare.run();
-                process(job);
+                process(job, resume);
             } catch (Exception e) {
                 log.warn("Conversion job {} failed", job.getId(), e);
                 update(job, j -> {
@@ -334,14 +342,60 @@ public class RepositoryConversionService {
         });
     }
 
+    // ------------------------------------------------------------------ Stop / Resume
+
+    private final java.util.Set<String> stops = ConcurrentHashMap.newKeySet();
+
+    /** Stop button: the job ends after the file it is converting now and keeps everything done so far. */
+    public ConversionJob stop(String id) {
+        ConversionJob job = get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
+        if (job.getStatus() == ConversionJob.Status.RUNNING || job.getStatus() == ConversionJob.Status.QUEUED) {
+            stops.add(id);
+            update(job, j -> j.setMessage("Stopping after the current file..."));
+        }
+        return snapshot(job);
+    }
+
+    /** Resume button: converts the files that are not done yet, reusing the finished ones. */
+    public ConversionJob resume(String id) {
+        ConversionJob job = get(id).orElseThrow(() -> new IllegalArgumentException("Unknown conversion job."));
+        synchronized (job) {
+            if (job.getStatus() != ConversionJob.Status.STOPPED) {
+                throw new IllegalStateException("Only a stopped job can be resumed.");
+            }
+            if (!Files.isDirectory(sourceDir(id))) {
+                throw new IllegalStateException("The source files of this job are gone, so it cannot be resumed.");
+            }
+            stops.remove(id);
+            update(job, j -> {
+                j.setStatus(ConversionJob.Status.QUEUED);
+                j.setMessage("Resuming with the remaining files");
+            });
+        }
+        submit(job, () -> { }, true);
+        return snapshot(job);
+    }
+
     private void process(ConversionJob job) throws IOException {
+        process(job, false);
+    }
+
+    private void process(ConversionJob job, boolean resume) throws IOException {
+        stops.remove(job.getId());
         Path sourceDir = sourceDir(job.getId());
         Path root = job.getSourceFolder().isEmpty() ? sourceDir : safeResolve(sourceDir, job.getSourceFolder());
         if (!Files.isDirectory(root)) {
             throw new IllegalArgumentException(missingFolderMessage(sourceDir, job.getSourceFolder()));
         }
         Path output = outputDir(job.getId());
-        deleteTree(output);
+        boolean keepDone = resume && !job.getFiles().isEmpty() && Files.isDirectory(output);
+        if (!keepDone) {
+            deleteTree(output);
+            update(job, j -> {
+                j.getFiles().clear();
+                j.setDoneFiles(0);
+            });
+        }
         Files.createDirectories(output);
 
         ProgrammingLanguage target = converter.library().language(job.getTargetLanguageId())
@@ -396,9 +450,41 @@ public class RepositoryConversionService {
 
         Optional<LlmClient> llm = converter.activeLlm();
         Map<String, String> converted = new LinkedHashMap<>();
+        java.util.Set<String> alreadyDone = new java.util.HashSet<>();
+        if (keepDone) {
+            for (FileResult f : job.getFiles()) {
+                if (!"failed".equals(f.status())) {
+                    alreadyDone.add(f.sourcePath());
+                }
+            }
+            // failed files are tried again; finished ones stay and give context to the next files
+            update(job, j -> {
+                j.getFiles().removeIf(f -> "failed".equals(f.status()));
+                j.setDoneFiles(j.getFiles().size());
+            });
+        }
         for (ProjectModuleMapper.Module module : plan) {
             if (Thread.currentThread().isInterrupted()) {
                 throw new IllegalStateException("Conversion was stopped.");
+            }
+            if (alreadyDone.contains(module.source().path())) {
+                try {
+                    converted.put(module.source().path(),
+                            Files.readString(safeResolve(output, module.targetPath()), StandardCharsets.UTF_8));
+                } catch (IOException ignored) {
+                    // context only
+                }
+                continue;
+            }
+            if (stops.remove(job.getId())) {
+                int done = job.getDoneFiles();
+                update(job, j -> {
+                    j.setStatus(ConversionJob.Status.STOPPED);
+                    j.setCurrentFile(null);
+                    j.setDurationMs(elapsedMs(j));
+                    j.setMessage("Stopped after " + done + " of " + plan.size() + " files. Press Resume to convert the rest.");
+                });
+                return;
             }
             update(job, j -> j.setCurrentFile(module.source().path()));
             long fileStart = System.currentTimeMillis();

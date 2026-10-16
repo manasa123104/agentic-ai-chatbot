@@ -2,6 +2,7 @@ package com.agentic.chatbot.agent;
 
 import com.agentic.chatbot.generator.SiteAgent;
 import com.agentic.chatbot.generator.SiteBackends;
+import com.agentic.chatbot.generator.UploadedStory;
 import com.agentic.chatbot.llm.LlmClient;
 import com.agentic.chatbot.stage.StageLanguage;
 import com.agentic.chatbot.service.SystemPromptService;
@@ -69,7 +70,7 @@ public class BusinessAnalystBot implements AgentBot {
     }
 
     private static String refineOffline(String prompt) {
-        String p = prompt == null ? "" : prompt.trim();
+        String p = prompt == null ? "" : UploadedStory.forGeneration(prompt).trim();
         String lower = p.toLowerCase(Locale.ROOT);
         String role = "end user";
         if (lower.contains("restaurant") || lower.contains("cafe") || lower.contains("café")) {

@@ -1,5 +1,6 @@
 package com.agentic.chatbot.generator;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -185,13 +186,28 @@ final class SiteVariant {
             if (m.find()) {
                 return m.group(1).trim();
             }
-            m = BRAND_FOR.matcher(story);
+            m = BRAND_QUOTED.matcher(story);
             if (m.find()) {
-                return m.group(1);
+                return m.group(1).trim();
+            }
+            m = BRAND_FOR.matcher(story);
+            while (m.find()) {
+                if (!GENERIC_BRAND.contains(m.group(1).toLowerCase(Locale.ROOT))) {
+                    return m.group(1);
+                }
             }
         }
         return fallback;
     }
+
+    private static final Pattern BRAND_QUOTED = Pattern.compile(
+            "[\"\u201c]([A-Z][A-Za-z0-9]+(?:\\s+[A-Z][A-Za-z0-9]+){0,2})[\"\u201d]");
+    /** Words that follow "for" in a prompt but are not a business name. */
+    private static final java.util.Set<String> GENERIC_BRAND = java.util.Set.of(
+            "restaurants", "restaurant", "travel", "company", "business", "businesses", "users", "user", "customers",
+            "customer", "students", "student", "teachers", "developers", "everyone", "example", "java", "python",
+            "javascript", "typescript", "kotlin", "testing", "test", "tests", "the", "this", "that", "each", "every",
+            "guests", "members", "owners", "visitors", "clients", "hotels", "banks", "music", "wedding", "weddings");
 
     /** Stable per-brand seed. */
     static int seedFor(String brand) {
@@ -208,8 +224,10 @@ final class SiteVariant {
         String b = brand == null || brand.isBlank() ? "NovaTech" : brand.trim();
         String s = story == null ? "" : story;
         String lower = s.toLowerCase(Locale.ROOT);
-        SiteThemePack.Theme base = SiteThemePack.fromStory(s);
         int seed = seedFor(b);
+        // what THIS story says (offers, one card per user story, place) replaces the stock copy of its topic
+        StoryDetails details = StoryDetails.parse(s);
+        SiteThemePack.Theme base = personalise(SiteThemePack.fromStory(s), details, b, seed);
 
         boolean darkBase = luminance(base.bg()) < 0.4;
         boolean colorAsked = HEX.matcher(s).find() || COLOR_WORD.matcher(lower).find()
@@ -282,13 +300,97 @@ final class SiteVariant {
                 fill(pick(CAREERS, seed, 18), b),
                 fill(pick(CAREERS_LEAD, seed, 19), b),
                 fill(pick(CONTACT, seed, 20), b),
-                fill(pick(CONTACT_LEAD, seed, 21), b),
+                fill(pick(CONTACT_LEAD, seed, 21), b)
+                        + (details.place().isEmpty() ? "" : " " + b + " is based in " + details.place() + "."),
                 pick(CTA, seed, 22),
                 PLANS[Math.floorMod(mix(seed, 23), PLANS.length)],
                 BLOG_TITLES[Math.floorMod(mix(seed, 24), BLOG_TITLES.length)],
                 ROLES[Math.floorMod(mix(seed, 25), ROLES.length)],
                 accent.toLowerCase(Locale.ROOT) + "|" + headFont + "|" + layout + "|" + radius
         );
+    }
+
+    // ------------------------------------------------------------------ story details
+
+    private static final String[] FEATURE_BLURBS = {
+            "{f} is one of the things {brand} is known for.",
+            "Ask the {brand} team about {f}.",
+            "{f} at {brand}, made with care.",
+            "Explore {f}, a signature part of {brand}.",
+    };
+
+    /**
+     * Puts the story's own details into the theme of its topic: cards named after the offers (or one per user story),
+     * a lead that names them and the place, and a hero / card image order picked from the brand seed.
+     */
+    static SiteThemePack.Theme personalise(SiteThemePack.Theme base, StoryDetails details, String brand, int seed) {
+        String hero = base.heroImage();
+        String[] cards = base.cardImages();
+        if (cards != null && cards.length > 1) {
+            int n = cards.length;
+            int off = Math.floorMod(mix(seed, 40), n);
+            String[] rotated = new String[n];
+            for (int i = 0; i < n; i++) {
+                rotated[i] = cards[(i + off) % n];
+            }
+            int h = Math.floorMod(mix(seed, 41), n + 1);
+            if (h > 0) {
+                hero = cards[h - 1].replace("w=800", "w=1400");
+            }
+            cards = rotated;
+        }
+
+        String[] titles = base.serviceTitles();
+        String[] blurbs = base.serviceBlurbs();
+        String[] links = base.serviceLinks();
+        String label = base.servicesLabel();
+        String lead = base.homeLead();
+
+        List<String> named = details.cardTitles();
+        if (!named.isEmpty()) {
+            boolean stories = !details.storyCards().isEmpty();
+            int n = Math.min(6, Math.max(named.size(), 3));
+            String[] t = new String[n];
+            String[] b = new String[n];
+            String[] l = new String[n];
+            for (int i = 0; i < n; i++) {
+                if (i < named.size()) {
+                    t[i] = named.get(i);
+                    b[i] = stories
+                            ? details.storyCards().get(i).blurb()
+                            : pick(FEATURE_BLURBS, seed, 50 + i).replace("{f}", named.get(i)).replace("{brand}", brand);
+                } else {
+                    t[i] = titles[i % titles.length];
+                    b[i] = blurbs[i % blurbs.length];
+                }
+                l[i] = links[i % links.length];
+            }
+            titles = t;
+            blurbs = b;
+            links = l;
+            if (stories) {
+                label = "Story highlights";
+            }
+            String core = stories
+                    ? "Built around " + named.size() + " user stories: " + joinNames(named, 3) + "."
+                    : "Discover " + joinNames(named, 3) + " at " + brand + ".";
+            lead = base.kind() == SiteThemePack.Kind.TECH ? core : core + " " + base.homeLead();
+        }
+        if (!details.place().isEmpty()) {
+            lead = lead + " Find us in " + details.place() + ".";
+        }
+        return new SiteThemePack.Theme(
+                base.kind(), base.accent(), base.soft(), base.dark(), base.bg(), base.ink(), base.muted(),
+                base.fontFamily(), base.googleFontsHref(), hero, cards, base.homeHeadline(), lead, label,
+                titles, blurbs, links);
+    }
+
+    private static String joinNames(List<String> names, int max) {
+        List<String> top = names.subList(0, Math.min(max, names.size()));
+        if (top.size() == 1) {
+            return top.get(0);
+        }
+        return String.join(", ", top.subList(0, top.size() - 1)) + " and " + top.get(top.size() - 1);
     }
 
     // ------------------------------------------------------------------ copy

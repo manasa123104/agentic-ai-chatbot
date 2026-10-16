@@ -36,7 +36,7 @@ table { max-width: 100%; }
 .code-files { max-width: 100%; }
 .pane textarea, .stage-io, #sourceCode, #fileEditor { max-width: 100%; width: 100%; }
 
-/* the menu button only exists on small screens */
+/* the Menu button only exists on small screens (see the 900px block at the bottom) */
 .rail-toggle {
   display: none;
   align-items: center;
@@ -141,10 +141,7 @@ table { max-width: 100%; }
   .story-banner-inner { padding-left: .75rem; padding-right: .75rem; }
 
   /* ---------- chat (/): the sidebar becomes a collapsible panel at the top ---------- */
-  body.chat-app { grid-template-columns: minmax(0, 1fr); }
-  .rail-toggle { display: inline-flex; }
-  .chat-rail { display: none; }
-  body.rail-open .chat-rail { display: flex; max-height: 78vh; overflow-y: auto; border-right: 0; border-bottom: 1px solid #2d3640; }
+  /* (the Menu drawer itself is defined in the 900px block below) */
   .chat-top { padding: .6rem .75rem; gap: .5rem; flex-wrap: wrap; }
   .chat-title { min-width: 0; flex: 1 1 auto; }
   .chat-title small { display: block; overflow-wrap: anywhere; }
@@ -165,3 +162,154 @@ table { max-width: 100%; }
   .btn { white-space: normal; text-align: center; }
   .stats-row { grid-template-columns: 1.2fr 1fr .8fr; }
 }
+
+/* =====================================================================================================
+ * Menu (hamburger) - narrow laptop windows and phones, up to 900px wide.
+ *  - /          : the left sidebar becomes a drawer that slides in from the left
+ *  - /convert /stages /code : the header links (Home, Stage bots, Code converter, User stories + code ...) drop down
+ * js/menu.js opens / closes it: Menu button, dark overlay, Esc, a tap on any link, or the X.
+ * Wider than 900px nothing changes: the normal sidebar / header links stay, and the Menu button is hidden.
+ * ===================================================================================================== */
+.rail-close, .nav-overlay { display: none; }
+
+@media (max-width: 900px) {
+  .rail-toggle { display: inline-flex; flex: 0 0 auto; white-space: nowrap; min-height: 44px; }
+  .menu-toggle { margin-left: auto; }
+
+  .nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    background: rgba(20, 26, 33, .5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s, visibility .2s;
+  }
+  body.rail-open .nav-overlay, body.nav-open .nav-overlay { opacity: 1; visibility: visible; }
+  body.rail-open, body.nav-open { overflow: hidden; }
+
+  /* ---------- home: sidebar drawer ---------- */
+  body.chat-app { grid-template-columns: minmax(0, 1fr); }
+  .chat-rail {
+    display: flex;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    width: min(86vw, 320px);
+    max-width: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    border-right: 0;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, .3);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform .22s ease, visibility .22s;
+  }
+  body.rail-open .chat-rail { transform: none; visibility: visible; }
+  .rail-brand { position: relative; padding-right: 3rem; }
+  .rail-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border: 1px solid #3b4753;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--rail-text, #eceff2);
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .chat-top { flex-wrap: nowrap; }
+  .chat-top .rail-toggle { order: -1; }
+
+  /* ---------- /convert /stages /code: header links drop down ---------- */
+  .code-top { position: relative; flex-wrap: nowrap; align-items: center; }
+  .code-brand { min-width: 0; flex: 1 1 auto; }
+  .code-top > .code-actions {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: .4rem;
+    padding: .7rem .9rem 1rem;
+    max-height: calc(100vh - 70px);
+    max-height: calc(100dvh - 70px);
+    overflow-y: auto;
+    background: var(--surface, #fbf9f5);
+    border-bottom: 1px solid var(--line, #d8d3c8);
+    box-shadow: 0 14px 26px rgba(30, 36, 46, .22);
+  }
+  body.nav-open .code-top { z-index: 1000; }
+  body.nav-open .code-top > .code-actions { display: flex; }
+  .code-top > .code-actions .btn { width: 100%; justify-content: flex-start; text-align: left; }
+  .code-top > .code-actions .run-timer { align-self: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .rail-toggle { padding: .4rem .65rem; }
+  .code-brand small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-rail, .nav-overlay { transition: none; }
+}
+/* =====================================================================================================
+ * Stop / Resume bar (js/runcontrol.js), on every page. Stop works only while something runs, Resume only
+ * while something is stopped and can be continued.
+ * ===================================================================================================== */
+.run-bar {
+  position: fixed;
+  top: 72px;
+  right: 12px;
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  max-width: min(94vw, 560px);
+  padding: .35rem .45rem .35rem .8rem;
+  border: 1px solid var(--line, #d8d3c8);
+  border-radius: 999px;
+  background: var(--surface, #fbf9f5);
+  box-shadow: 0 4px 16px rgba(30, 36, 46, .16);
+  font: 500 12.5px var(--font-ui, system-ui, sans-serif);
+  color: var(--text, #1d2430);
+}
+.run-bar.is-idle { opacity: .72; }
+.run-bar.is-running { border-color: #c98a2b; }
+.run-bar.is-stopped { border-color: #b5483a; }
+.run-bar-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: .3rem .85rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent, #2c5d68);
+  background: var(--accent, #2c5d68);
+  color: #fff;
+  font: 600 12.5px var(--font-ui, system-ui, sans-serif);
+  cursor: pointer;
+}
+.rc-btn.rc-stop { background: #b5483a; border-color: #b5483a; }
+.rc-btn:disabled { background: transparent; color: #8a9199; border-color: var(--line, #d8d3c8); cursor: not-allowed; }
+@media (max-width: 900px) {
+  .run-bar { top: auto; bottom: 10px; right: 8px; left: 8px; max-width: none; justify-content: space-between; }
+  body.chat-app .run-bar { bottom: auto; top: 64px; }
+  .rc-btn { min-height: 40px; }
+}
+/* Upload file -> user stories + website (home composer) */
+.tool-arrow { font-weight: 500; opacity: .8; }
+@media (max-width: 480px) { .tool-arrow { display: none; } }
+@media (max-width: 900px) { body.code-app { padding-bottom: 64px; } }
