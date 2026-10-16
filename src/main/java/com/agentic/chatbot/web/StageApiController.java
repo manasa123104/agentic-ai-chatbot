@@ -167,26 +167,16 @@ public class StageApiController {
                 throw new IllegalArgumentException(emptyPushMessage(runId, stage));
             }
             boolean pullFirst = body.pull() == null || body.pull();
-            GitService.PushResult result;
-            String note = null;
-            try {
-                result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
-                        work.resolve("push-1"), token, pullFirst);
-            } catch (IllegalStateException e) {
-                // Classic PATs need the "workflow" scope to create .github/workflows/*; retry without that folder.
-                if (!workflowScopeDenied(e.getMessage())) {
-                    throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
-                }
-                if (!relocateGithubWorkflows(export)) {
-                    throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
-                }
-                result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(), message,
-                        work.resolve("push-2"), token, pullFirst);
-                note = "Pushed without enabling GitHub Actions: your token lacks the classic \"workflow\" scope, so "
-                        + "CI files were moved to deploy/github-workflows/ instead of .github/workflows/. "
-                        + "Copy them into .github/workflows/ on GitHub if you want Actions, or create a new classic "
-                        + "token with both the repo and workflow scopes and push again.";
-            }
+            // Never push .github/workflows/*: classic PATs without the "workflow" scope are rejected by GitHub.
+            // New Deploy output already uses deploy/github-workflows/; this also covers older runs.
+            boolean relocated = relocateGithubWorkflows(export);
+            GitService.PushResult result = git.pushDirectory(export, repoUrl, branch, body.baseBranch(), body.folder(),
+                    message, work.resolve("push-1"), token, pullFirst);
+            String note = relocated
+                    ? "CI files are under deploy/github-workflows/ (not .github/workflows/) so a normal repo token can "
+                    + "push. Copy them into .github/workflows/ on GitHub to enable Actions, or use a classic token with "
+                    + "both the repo and workflow scopes."
+                    : null;
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("repoUrl", repoUrl);
             out.put("branch", result.branch());

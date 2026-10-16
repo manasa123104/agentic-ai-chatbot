@@ -115,7 +115,7 @@ class StageServiceTest {
         assertCompiles(dir, List.of("selenium-java/src/test/java"));
 
         StageResponse deploy = run.get(3);
-        assertTrue(paths(deploy).containsAll(List.of("Dockerfile", ".dockerignore", ".github/workflows/ci-cd.yml",
+        assertTrue(paths(deploy).containsAll(List.of("Dockerfile", ".dockerignore", "deploy/github-workflows/ci-cd.yml",
                 "scripts/build.sh", "scripts/build.ps1", "docker-compose.yml", "k8s/deployment.yaml", "k8s/service.yaml",
                 "DEPLOY.md")), paths(deploy).toString());
         assertTrue(content(deploy, "Dockerfile").contains("maven:3.9-eclipse-temurin-17"));

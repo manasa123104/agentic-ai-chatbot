@@ -94,7 +94,14 @@ public final class DeployTemplates {
                 Write-Host "==> Run (Ctrl+C to stop)"
                 docker run --rm -p {{PORT}}:{{PORT}} {{APP}}:latest
                 """, p, r));
-        files.put(".github/workflows/ci-cd.yml", fill(WORKFLOW.replace("{{SETUP}}", r.ciSetup()), p, r));
+        // Under deploy/ (not .github/workflows/) so a normal repo-scoped PAT can push without the classic "workflow" scope.
+        files.put("deploy/github-workflows/ci-cd.yml", fill(WORKFLOW.replace("{{SETUP}}", r.ciSetup()), p, r));
+        files.put("deploy/github-workflows/README.md", """
+                # GitHub Actions workflow (from BOT Deploy)
+
+                Copy `ci-cd.yml` into `.github/workflows/` in this repository to enable Actions, or push with a
+                classic personal access token that has both the `repo` and `workflow` scopes.
+                """.stripIndent());
         if (p.compose()) {
             files.put("docker-compose.yml", fill("""
                     services:
@@ -158,7 +165,8 @@ public final class DeployTemplates {
             sb.append("## 3. Run with Docker Compose\n\n    docker compose up --build\n\n");
         }
         sb.append("## ").append(p.compose() ? 4 : 3).append(". CI/CD with GitHub Actions\n\n")
-                .append("Commit the project with `.github/workflows/ci-cd.yml`. On every push and pull request it builds, ")
+                .append("The workflow file is at `deploy/github-workflows/ci-cd.yml` (so a normal GitHub token can push it). ")
+                .append("Copy it to `.github/workflows/ci-cd.yml` to enable Actions. On every push and pull request it builds, ")
                 .append("runs the unit tests and builds the Docker image. On `main` it also pushes the image to the GitHub ")
                 .append("Container Registry (`ghcr.io/<owner>/").append(p.app()).append("`).\n\n")
                 .append("The optional `deploy` job runs only when the repository variable `DEPLOY_ENABLED` is `true` and the ")
