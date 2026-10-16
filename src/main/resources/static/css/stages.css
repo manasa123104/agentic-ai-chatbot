@@ -317,3 +317,8 @@
 .gh-head { display: grid; gap: .2rem; margin-bottom: .5rem; }
 .gh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem .9rem; }
 .gh-actions { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin-top: .6rem; }
+.gh-complete { background: #f0f8f2; border-color: #a9d3b5; }
+.gh-newlink { margin-top: .7rem; padding: .8rem 1rem; border: 2px solid #1d6b3a; border-radius: 10px; background: #fff; display: grid; gap: .3rem; }
+.gh-newlink strong { color: #1d6b3a; font-size: 15px; }
+.gh-newlink a { font-weight: 700; overflow-wrap: anywhere; }
+.gh-newlink .gh-newlink-url { font-size: 16px; }
