@@ -289,7 +289,7 @@ public class PipelineOrchestrator {
                 if (lower.endsWith("user_story.md")) {
                     return 0;
                 }
-                boolean own = javaSite ? (lower.endsWith(".java") || lower.endsWith("pom.xml")) : lower.startsWith("server/");
+                boolean own = javaSite ? (lower.endsWith(".java") || lower.endsWith("pom.xml")) : (lower.startsWith("server/") && !lower.contains("/public/"));
                 return own ? 1 : 2;
             }));
             response.setGeneratedCodeFiles(codeFiles);

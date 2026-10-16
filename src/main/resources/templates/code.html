@@ -75,7 +75,7 @@
             <a class="btn ghost" th:if="${hasUserStory}" href="/code/download/stories" id="dlStories">&#11015; User stories (.md)</a>
             <a class="btn ghost" th:if="${hasCode}" href="/code/download/code.zip" id="dlCode">&#11015; <span th:text="${siteLanguage}">Java</span> code (ZIP)</a>
             <a class="btn" th:if="${hasCode or hasUserStory}" href="/code/download/site.zip" id="dlSite">&#11015; Whole site ZIP (stories + code + pages)</a>
-            <a class="btn ghost" th:if="${selected}" th:href="@{/code/download/file(file=${selected})}" id="dlFile">&#11015; This file</a>
+            <a class="btn ghost" th:if="${selected}" th:href="'/code/download/file?file=' + ${#uris.escapeQueryParam(selected)}" id="dlFile">&#11015; This file</a>
         </p>
     </div>
 </section>
