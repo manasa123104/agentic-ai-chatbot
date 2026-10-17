@@ -48,6 +48,20 @@ agentic:
   git:
     author-name: ${BOT_GIT_AUTHOR_NAME:BOT Code Converter}
     author-email: ${BOT_GIT_AUTHOR_EMAIL:bot-converter@users.noreply.github.com}
+  # MCP JSON-RPC at POST /api/mcp (tools/list, tools/call) for agents / Cursor
+  mcp:
+    enabled: ${BOT_MCP_ENABLED:true}
+    api-key: ${BOT_MCP_API_KEY:}
+  # Guardrails for MCP tools and sensitive stage/push actions (ENFORCE blocks, OBSERVE only logs)
+  guardrail:
+    enabled: ${BOT_GUARDRAIL_ENABLED:true}
+    mode: ${BOT_GUARDRAIL_MODE:ENFORCE}
+    allowed-repo-hosts:
+      - github.com
+    allowed-repos: []
+    block-secrets: true
+    block-dot-github-workflows: true
+    require-https-remote: true
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}

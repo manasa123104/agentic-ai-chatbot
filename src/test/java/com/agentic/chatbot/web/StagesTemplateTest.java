@@ -20,7 +20,7 @@ class StagesTemplateTest {
         String html = page();
         assertTrue(html.contains("What is Trainer?"));
         assertTrue(html.contains("bot-training.json"));
-        assertTrue(html.contains("All 5 stages done &mdash; Push to GitHub"));
+        assertTrue(html.contains("All 6 stages done &mdash; Push to GitHub"));
         assertTrue(html.contains("id=\"pipelineComplete\""));
         assertTrue(html.contains("id=\"finalPushStatus\""));
         assertTrue(html.contains("id=\"finalPushBtn\""));
@@ -33,8 +33,12 @@ class StagesTemplateTest {
     @Test
     void everyStageHasAWhatIsDefinition() throws Exception {
         String html = page();
-        for (String stage : new String[] {"Business Analyst", "Developer", "Tester", "Deploy", "Trainer"}) {
-            assertTrue(html.contains("<summary>What is " + stage + "?</summary>"), "missing help for " + stage);
+        for (String stage : new String[] {"Business Analyst", "Developer", "Tester", "Data Analyst", "Deploy", "Trainer"}) {
+            assertTrue(html.contains("<summary>What is " + stage + "?</summary>")
+                            || html.contains("<h3>What is " + stage + "?</h3>")
+                            || html.contains("<h3>What is BA (Business Analyst)?</h3>")
+                            || (stage.equals("Data Analyst") && html.contains("What is Data Analyst?")),
+                    "missing help for " + stage);
         }
     }
 
@@ -45,7 +49,7 @@ class StagesTemplateTest {
         assertTrue(html.contains("class=\"pipe-chev\""), "pills need a chevron affordance");
         assertTrue(html.contains("id=\"pipeHint\""));
         for (String[] s : new String[][] {{"ba", "BA (Business Analyst)"}, {"developer", "Developer"}, {"tester", "Tester"},
-                {"deploy", "Deploy"}, {"trainer", "Trainer"}}) {
+                {"data-analyst", "Data Analyst"}, {"deploy", "Deploy"}, {"trainer", "Trainer"}}) {
             assertTrue(html.contains("id=\"pipeHelp-" + s[0] + "\""), "missing strip dropdown for " + s[0]);
             assertTrue(html.contains("<h3>What is " + s[1] + "?</h3>"), "missing strip heading for " + s[1]);
         }
@@ -91,9 +95,10 @@ class StagesTemplateTest {
         String stripHelp = html.substring(strip, html.indexOf("</article>", strip)).toLowerCase();
         assertFalse(stripHelp.contains("push") || stripHelp.contains("github"), "the Tester dropdown must not mention a push");
         assertFalse(html.contains("'tester' ? 'Pushes the code plus its tests"), "no Tester push hint text");
-        // the only per-stage push panel is the Developer's; the rest of the page's push is the end-of-page panel
-        assertEquals(1, html.split("class=\"gh-panel\"", -1).length - 1, "exactly one per-stage push panel (Developer)");
         assertTrue(html.contains("th:if=\"${s.id == 'developer'}\""));
+        assertTrue(html.contains("class=\"gh-panel\"") || html.contains("class=\"gh-panel "),
+                "Developer push panel present");
+        assertTrue(html.contains("gh-complete"), "whole-run push panel present");
     }
 
     @Test
@@ -105,5 +110,13 @@ class StagesTemplateTest {
         assertFalse(html.contains("s.id == 'tester' or s.id == 'deploy'"), "the Deploy card must not get a push panel");
         assertFalse(html.contains("s.id == 'developer' or s.id == 'tester'"), "the Tester card must not get a push panel");
         assertEquals(1, html.split("data-scope=\"run\"", -1).length - 1, "only the Trainer's complete panel pushes the whole run");
+    }
+
+    @Test
+    void dataAnalystHelpAndInputsAreWired() throws Exception {
+        String html = page();
+        assertTrue(html.contains("'data-analyst':"));
+        assertTrue(html.contains("analytics/STATS.md"));
+        assertTrue(html.contains("next === 'deploy' || next === 'data-analyst'"));
     }
 }

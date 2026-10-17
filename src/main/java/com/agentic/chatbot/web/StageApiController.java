@@ -1,5 +1,7 @@
 package com.agentic.chatbot.web;
 
+import com.agentic.chatbot.guardrail.GuardrailDeniedException;
+import com.agentic.chatbot.guardrail.GuardrailService;
 import com.agentic.chatbot.service.GitHubPreflight;
 import com.agentic.chatbot.service.GitService;
 import com.agentic.chatbot.stage.RunNotFoundException;
@@ -36,8 +38,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Independent stage bots: POST /api/stages/{ba|developer|tester|deploy|trainer} with {domain, input, options, runId}.
- * The older ids unit-test and functional-test still work and run only that part of the Tester.
+ * Independent stage bots: POST /api/stages/{ba|developer|tester|data-analyst|deploy|trainer} with
+ * {domain, input, options, runId}. The older ids unit-test and functional-test still work and run only that part of the Tester.
  */
 @RestController
 @RequestMapping("/api/stages")
@@ -58,12 +60,15 @@ public class StageApiController {
     private final StoryImportService stories;
     private final GitService git;
     private final GitHubPreflight preflight;
+    private final GuardrailService guardrails;
 
-    public StageApiController(StageService stages, StoryImportService stories, GitService git, GitHubPreflight preflight) {
+    public StageApiController(StageService stages, StoryImportService stories, GitService git, GitHubPreflight preflight,
+                              GuardrailService guardrails) {
         this.stages = stages;
         this.stories = stories;
         this.git = git;
         this.preflight = preflight;
+        this.guardrails = guardrails;
     }
 
     /** Body of a token test: the repository and the visitor's token (never stored or logged). */
@@ -78,6 +83,7 @@ public class StageApiController {
     public Map<String, Object> checkToken(@RequestBody TokenCheckRequest body, HttpServletRequest request) {
         String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
         GitService.validateRepoUrl(repoUrl);
+        guardrails.require("test_github_token", Map.of("repoUrl", repoUrl, "token", body.token() == null ? "" : body.token()));
         String token = GitPushPolicy.authorize(request, repoUrl, body.token());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("repoUrl", repoUrl);
@@ -297,6 +303,9 @@ public class StageApiController {
 
     @PostMapping("/run-all")
     public Map<String, Object> runAll(@RequestBody StageRequest request) {
+        guardrails.require("run_all_stages", Map.of(
+                "domain", request.domain() == null ? "" : request.domain(),
+                "input", request.input() == null ? "" : request.input()));
         List<StageResponse> results = stages.runAll(request);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("runId", results.get(0).runId());
@@ -341,6 +350,10 @@ public class StageApiController {
 
     @PostMapping("/{stage}")
     public StageResponse run(@PathVariable String stage, @RequestBody StageRequest request) {
+        guardrails.require("run_stage", Map.of(
+                "stage", stage,
+                "domain", request.domain() == null ? "" : request.domain(),
+                "input", request.input() == null ? "" : request.input()));
         return stages.run(stageOf(stage), legacy(stage, request));
     }
 
@@ -415,7 +428,7 @@ public class StageApiController {
 
     private static StageType stageOf(String id) {
         return StageType.fromId(id).orElseThrow(() -> new IllegalArgumentException(
-                "Unknown stage '" + id + "'. Use ba, developer, tester, deploy or trainer."));
+                "Unknown stage '" + id + "'. Use ba, developer, tester, data-analyst, deploy or trainer."));
     }
 
     /** The run folder is gone (e.g. hosting restarted): 404 with a code the page uses to clear its stale run. */
@@ -423,6 +436,12 @@ public class StageApiController {
     public ResponseEntity<Map<String, String>> runNotFound(RunNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("error", e.getMessage(), "code", RunNotFoundException.CODE));
+    }
+
+    @ExceptionHandler(GuardrailDeniedException.class)
+    public ResponseEntity<Map<String, String>> guardrailDenied(GuardrailDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", e.getMessage(), "code", e.code(), "ruleId", e.ruleId()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

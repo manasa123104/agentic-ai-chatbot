@@ -5,6 +5,7 @@ import com.agentic.chatbot.service.BotModelTrainingService;
 import com.agentic.chatbot.stage.StageResponse.StageFile;
 import com.agentic.chatbot.stage.template.AutomationTemplates;
 import com.agentic.chatbot.stage.template.CodeTemplates;
+import com.agentic.chatbot.stage.template.DataAnalystTemplates;
 import com.agentic.chatbot.stage.template.DeployTemplates;
 import com.agentic.chatbot.stage.template.ManualTestTemplates;
 import com.agentic.chatbot.stage.template.PolyglotTemplates;
@@ -97,7 +98,7 @@ public class StageService {
     private static final int FEW_SHOT_EXAMPLES = 2;
     private static final double RECALL_SIMILARITY = 0.8;
     private static final List<StageType> WORK_STAGES = List.of(StageType.BA, StageType.DEVELOPER, StageType.TESTER,
-            StageType.DEPLOY);
+            StageType.DATA_ANALYST, StageType.DEPLOY);
     private static final String OFFLINE_LANGUAGES = "Java, Python, " + String.join(", ",
             PolyglotTemplates.LANGUAGES.stream().map(StageLanguage::label).toList());
 
@@ -168,6 +169,7 @@ public class StageService {
                 case BA -> "Enter a requirement, e.g. \"fund transfer between accounts\".";
                 case DEVELOPER -> "Paste user stories, or run the Business Analyst stage first.";
                 case TESTER -> "Paste code (and/or user stories for the automation tests), or run the Developer stage first.";
+                case DATA_ANALYST -> "Paste the project's code (and optional stories), or run the Developer / Tester stages first.";
                 case DEPLOY -> "Paste the code to deploy, or run the Developer stage first.";
                 case TRAINER -> "";
             });
@@ -182,7 +184,7 @@ public class StageService {
         Optional<LlmClient> model = request.flag("offline") ? Optional.empty() : llm.active();
 
         Generated g = generate(stage, ctx, input, model, dir);
-        if (stage == StageType.TESTER || stage == StageType.DEPLOY) {
+        if (stage == StageType.TESTER || stage == StageType.DATA_ANALYST || stage == StageType.DEPLOY) {
             addMissingSources(dir, ctx, testerInput(input, dir).code(), g.extras());
         }
         Map<String, String> all = new LinkedHashMap<>(g.files());
@@ -198,7 +200,7 @@ public class StageService {
         String nextStage = stage.next().map(StageType::id).orElse("");
         String nextInput = switch (stage) {
             case BA, DEVELOPER -> output;
-            case TESTER -> Optional.of(developerCode(runId)).filter(s -> !s.isBlank())
+            case TESTER, DATA_ANALYST -> Optional.of(developerCode(runId)).filter(s -> !s.isBlank())
                     .orElse(testerInput(input, dir).code());
             case DEPLOY -> runId;
             case TRAINER -> "";
@@ -210,7 +212,7 @@ public class StageService {
                 g.model(), output, files, g.notes(), nextStage, nextInput, elapsed);
     }
 
-    /** Runs all five stages, each fed from the previous one, into a single run folder. The Trainer only reports. */
+    /** Runs all work stages plus Trainer, each fed from the previous one, into a single run folder. */
     public List<StageResponse> runAll(StageRequest request) {
         List<StageResponse> results = new ArrayList<>();
         StageResponse ba = run(StageType.BA, request);
@@ -220,12 +222,17 @@ public class StageService {
         results.add(dev);
         StageResponse tester = run(StageType.TESTER, request.withInput(dev.nextInput(), runId).withOption("testerPart", null));
         results.add(tester);
-        results.add(run(StageType.DEPLOY, request.withInput(tester.nextInput(), runId)));
+        StageResponse analyst = run(StageType.DATA_ANALYST, request.withInput(tester.nextInput(), runId));
+        results.add(analyst);
+        results.add(run(StageType.DEPLOY, request.withInput(analyst.nextInput(), runId)));
         results.add(run(StageType.TRAINER, request.withInput("", runId).withOption("save", null)));
         return results;
     }
 
     private Generated generate(StageType stage, Ctx ctx, String input, Optional<LlmClient> model, Path dir) {
+        if (stage == StageType.DATA_ANALYST) {
+            return dataAnalyst(ctx, input, dir);
+        }
         if (stage == StageType.DEPLOY) {
             return deploy(ctx, input, model, dir);
         }
@@ -339,7 +346,7 @@ public class StageService {
                 notes.add(checkNote(ctx.lang(), files));
             }
             case TESTER -> which = testerTemplate(ctx, testerInput(input, dir), files, extras, notes);
-            case DEPLOY, TRAINER -> throw new IllegalStateException("not a template stage: " + stage);
+            case DATA_ANALYST, DEPLOY, TRAINER -> throw new IllegalStateException("not a template stage: " + stage);
         }
         notes.add(0, "Offline mode: used the built-in " + which + ".");
         return new Generated(files, extras, notes, "template", "offline templates");
@@ -588,7 +595,7 @@ public class StageService {
                 }
             }
             case TESTER -> testerViaModel(ctx, testerInput(input, dir), model, system, files, extras, notes);
-            case DEPLOY, TRAINER -> throw new IllegalStateException("not a model stage: " + stage);
+            case DATA_ANALYST, DEPLOY, TRAINER -> throw new IllegalStateException("not a model stage: " + stage);
         }
         return new Generated(files, extras, notes, "llm", model.describe());
     }
@@ -1067,6 +1074,58 @@ public class StageService {
                 + " or the CI workflow from the Deploy stage.";
     }
 
+    // ---------------------------------------------------------------- data analyst
+
+    /** KPI dashboard + stats from the run's stories, code and tests (deterministic offline templates). */
+    private Generated dataAnalyst(Ctx ctx, String input, Path dir) {
+        TesterInput in = testerInput(input, dir);
+        String code = in.code().isBlank() ? input : in.code();
+        String stories = !in.stories().isBlank() ? in.stories() : readQuietly(dir.resolve("stories.md"));
+        String feature = StageSample.detect(stories.isBlank() ? code : stories, ctx.domain()).featureName(
+                stories.isBlank() ? code : stories);
+        int storyCount = countMatches(stories, "(?im)^##\\s*Story\\b") + countMatches(stories, "(?im)^###?\\s*Scenario\\b");
+        if (storyCount == 0 && !stories.isBlank()) {
+            storyCount = Math.max(1, stories.split("\n").length / 12);
+        }
+        Map<String, String> sources = sourceFiles(ctx, code);
+        int unitTests = countFiles(dir, p -> p.startsWith("src/test/") || p.contains("/test_") || p.contains("_test."));
+        int automation = countFiles(dir, p -> StageAutomation.isAutomationPath(p));
+        int manual = countFiles(dir, p -> p.startsWith("manual-tests/"));
+        if (unitTests == 0) {
+            unitTests = Math.max(2, sources.size());
+        }
+        Map<String, String> files = new LinkedHashMap<>(DataAnalystTemplates.files(new DataAnalystTemplates.Context(
+                ctx.domain(), ctx.languageName(), feature, storyCount, Math.max(sources.size(), 1),
+                unitTests, Math.max(automation, 1), Math.max(manual, 1))));
+        List<String> notes = new ArrayList<>();
+        notes.add("Data Analyst used the built-in analytics template (Chart.js dashboard, STATS.md, metrics.json) "
+                + "for " + ctx.domain().label() + " / " + feature + ".");
+        notes.add("Open analytics/dashboard.html in a browser for interactive graphs. Numbers are illustrative KPIs "
+                + "derived from this run, not a live database.");
+        return new Generated(files, Map.of(), notes, "template", "data analyst templates");
+    }
+
+    private static int countMatches(String text, String regex) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        return (int) java.util.regex.Pattern.compile(regex).matcher(text).results().count();
+    }
+
+    private static int countFiles(Path dir, java.util.function.Predicate<String> pathMatch) {
+        if (dir == null || !Files.isDirectory(dir)) {
+            return 0;
+        }
+        try (Stream<Path> walk = Files.walk(dir)) {
+            return (int) walk.filter(Files::isRegularFile)
+                    .map(p -> dir.relativize(p).toString().replace('\\', '/'))
+                    .filter(pathMatch)
+                    .count();
+        } catch (IOException e) {
+            return 0;
+        }
+    }
+
     // ---------------------------------------------------------------- deploy
 
     private Generated deploy(Ctx ctx, String input, Optional<LlmClient> model, Path dir) {
@@ -1240,8 +1299,8 @@ public class StageService {
             if (requested == null || stages.isEmpty()) {
                 throw new IllegalArgumentException("Nothing to save: run the stages first, or give the run id to save.");
             }
-            Set<String> wanted = new HashSet<>(Arrays.asList(request.option("stages", "ba,developer,tester,deploy")
-                    .toLowerCase(Locale.ROOT).split("\\s*,\\s*")));
+            Set<String> wanted = new HashSet<>(Arrays.asList(request.option("stages",
+                    "ba,developer,tester,data-analyst,deploy").toLowerCase(Locale.ROOT).split("\\s*,\\s*")));
             for (StageType stage : WORK_STAGES) {
                 Map<String, Object> entry = stages.get(stage.id());
                 if (entry == null || !wanted.contains(stage.id())) {
@@ -1549,6 +1608,20 @@ public class StageService {
                     }
                 }
             }
+            case DATA_ANALYST -> {
+                for (Map.Entry<String, String> part : StageFiles.split(output)) {
+                    String path = StageFiles.safeRelative(part.getKey());
+                    if (!path.isBlank()) {
+                        files.put(path, part.getValue());
+                    } else if (part.getValue().contains("<html")) {
+                        files.put("analytics/dashboard.html", part.getValue());
+                    } else if (part.getValue().strip().startsWith("{")) {
+                        files.put("analytics/metrics.json", part.getValue());
+                    } else {
+                        files.put("analytics/STATS.md", part.getValue());
+                    }
+                }
+            }
             case DEPLOY -> {
                 for (Map.Entry<String, String> part : StageFiles.split(output)) {
                     String path = StageFiles.safeRelative(part.getKey());
@@ -1842,7 +1915,7 @@ public class StageService {
             return out;
         }
         List<StageType> include = switch (stage) {
-            case TESTER, DEPLOY -> List.of(StageType.DEVELOPER, stage);
+            case TESTER, DATA_ANALYST, DEPLOY -> List.of(StageType.DEVELOPER, stage);
             default -> List.of(stage);
         };
         for (StageType s : include) {

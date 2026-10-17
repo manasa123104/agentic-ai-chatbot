@@ -6,20 +6,31 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * The five independent stage bots, in the order they are chained.
+ * The independent stage bots, in the order they are chained.
  */
 public enum StageType {
     BA("ba", "Business Analyst", "User stories with Given/When/Then acceptance criteria"),
     DEVELOPER("developer", "Developer", "Commented code in the chosen language"),
     TESTER("tester", "Tester", "Unit tests, UI automation tests and manual (functional) test cases"),
+    DATA_ANALYST("data-analyst", "Data Analyst", "Graphs, KPIs and statistics dashboard for the run"),
     DEPLOY("deploy", "Deploy", "Dockerfile, scripts, CI/CD workflow, Kubernetes YAML, DEPLOY.md"),
     TRAINER("trainer", "Trainer", "Run summary, approved training examples and stats");
 
     /** Older and alternative ids still accepted by the API; see {@link #testerPart(String)} for the Tester ones. */
-    private static final Map<String, StageType> ALIASES = Map.of(
-            "unit-test", TESTER, "unit-tester", TESTER, "functional-test", TESTER, "automation-test", TESTER,
-            "automation", TESTER, "java-developer", DEVELOPER, "dev", DEVELOPER, "deployment", DEPLOY,
-            "business-analyst", BA, "training", TRAINER);
+    private static final Map<String, StageType> ALIASES = Map.ofEntries(
+            Map.entry("unit-test", TESTER),
+            Map.entry("unit-tester", TESTER),
+            Map.entry("functional-test", TESTER),
+            Map.entry("automation-test", TESTER),
+            Map.entry("automation", TESTER),
+            Map.entry("java-developer", DEVELOPER),
+            Map.entry("dev", DEVELOPER),
+            Map.entry("deployment", DEPLOY),
+            Map.entry("business-analyst", BA),
+            Map.entry("training", TRAINER),
+            Map.entry("analyst", DATA_ANALYST),
+            Map.entry("analytics", DATA_ANALYST),
+            Map.entry("data_analyst", DATA_ANALYST));
 
     private final String id;
     private final String title;

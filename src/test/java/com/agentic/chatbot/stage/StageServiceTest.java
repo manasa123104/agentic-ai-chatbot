@@ -66,12 +66,13 @@ class StageServiceTest {
     // ------------------------------------------------------------------ names and ids
 
     @Test
-    void fiveStagesWithSimpleNamesAndOldIdsAsAliases() {
-        assertEquals(List.of("Business Analyst", "Developer", "Tester", "Deploy", "Trainer"),
+    void sixStagesWithSimpleNamesAndOldIdsAsAliases() {
+        assertEquals(List.of("Business Analyst", "Developer", "Tester", "Data Analyst", "Deploy", "Trainer"),
                 java.util.Arrays.stream(StageType.values()).map(StageType::title).toList());
         assertEquals(StageType.TESTER, StageType.fromId("unit-test").orElseThrow());
         assertEquals(StageType.TESTER, StageType.fromId("functional-test").orElseThrow());
         assertEquals(StageType.DEVELOPER, StageType.fromId("java-developer").orElseThrow());
+        assertEquals(StageType.DATA_ANALYST, StageType.fromId("analyst").orElseThrow());
         assertEquals("unit", StageType.testerPart("unit-test").orElseThrow());
         assertEquals("automation", StageType.testerPart("functional-test").orElseThrow());
         assertTrue(StageType.testerPart("tester").isEmpty());
@@ -80,15 +81,16 @@ class StageServiceTest {
     // ------------------------------------------------------------------ offline chains
 
     @Test
-    void offlineBankingChainRunsAllFiveStages() throws Exception {
+    void offlineBankingChainRunsAllSixStages() throws Exception {
         StageService service = service(OFFLINE);
         List<StageResponse> run = service.runAll(request("banking", "fund transfer between accounts", Map.of()));
 
-        assertEquals(5, run.size());
-        assertEquals(List.of("ba", "developer", "tester", "deploy", "trainer"), run.stream().map(StageResponse::stage).toList());
+        assertEquals(6, run.size());
+        assertEquals(List.of("ba", "developer", "tester", "data-analyst", "deploy", "trainer"),
+                run.stream().map(StageResponse::stage).toList());
         assertEquals(1, run.stream().map(StageResponse::runId).distinct().count(), "one run folder for the chain");
-        run.subList(0, 4).forEach(r -> assertEquals("template", r.mode(), r.stage()));
-        assertEquals("trainer", run.get(4).mode());
+        run.subList(0, 5).forEach(r -> assertEquals("template", r.mode(), r.stage()));
+        assertEquals("trainer", run.get(5).mode());
         run.forEach(r -> assertFalse(r.output().isBlank(), r.stage()));
         run.forEach(r -> assertFalse(r.files().isEmpty(), r.stage()));
 
@@ -108,20 +110,27 @@ class StageServiceTest {
         assertTrue(paths(tester).contains("selenium-java/src/test/java/com/bank/transfer/ui/FundTransferSeleniumTest.java"));
         assertTrue(paths(tester).contains("selenium-ruby/spec/fund_transfer_spec.rb"), "automation tests from the run's stories");
         assertTrue(paths(tester).contains("manual-tests/manual-test-cases.md"), "manual (functional) cases are part of the default mode");
-        assertTrue(tester.nextInput().contains("FundTransferService"), "deploy gets the developer's code");
+        assertTrue(tester.nextInput().contains("FundTransferService"), "data analyst / deploy get the developer's code");
 
         Path dir = service.runDir(ba.runId());
         assertCompiles(dir, List.of("src/main/java", "src/test/java"));
         assertCompiles(dir, List.of("selenium-java/src/test/java"));
 
-        StageResponse deploy = run.get(3);
+        StageResponse analyst = run.get(3);
+        assertEquals("Data Analyst", analyst.stageTitle());
+        assertTrue(paths(analyst).containsAll(List.of("analytics/STATS.md", "analytics/dashboard.html", "analytics/metrics.json")),
+                paths(analyst).toString());
+        assertTrue(content(analyst, "dashboard.html").contains("chart.js"), content(analyst, "dashboard.html"));
+        assertTrue(analyst.nextInput().contains("FundTransferService"), "deploy still gets the developer's code");
+
+        StageResponse deploy = run.get(4);
         assertTrue(paths(deploy).containsAll(List.of("Dockerfile", ".dockerignore", "deploy/github-workflows/ci-cd.yml",
                 "scripts/build.sh", "scripts/build.ps1", "docker-compose.yml", "k8s/deployment.yaml", "k8s/service.yaml",
                 "DEPLOY.md")), paths(deploy).toString());
         assertTrue(content(deploy, "Dockerfile").contains("maven:3.9-eclipse-temurin-17"));
         assertEquals("trainer", deploy.nextStage());
 
-        StageResponse trainer = run.get(4);
+        StageResponse trainer = run.get(5);
         assertTrue(trainer.output().contains("# Training report"));
         assertTrue(trainer.output().contains("| Developer | template |"), trainer.output());
         assertEquals(0, service.trainingStats().get("total"), "Run all never auto-approves");
@@ -207,13 +216,16 @@ class StageServiceTest {
         assertTrue(paths(tester).contains("selenium-python/tests/test_patient_appointment.py"), "Selenium in the code's language");
         assertTrue(Files.exists(dir.resolve("pytest.ini")) && Files.exists(dir.resolve("selenium-python/conftest.py")));
 
-        StageResponse deploy = run.get(3);
+        StageResponse analyst = run.get(3);
+        assertTrue(paths(analyst).contains("analytics/dashboard.html"), paths(analyst).toString());
+
+        StageResponse deploy = run.get(4);
         assertTrue(content(deploy, "Dockerfile").contains("python:3.12-slim"));
         assertTrue(content(deploy, "Dockerfile").contains("\"python\", \"-m\", \"app.patient_appointment\""), "entry point found");
         assertTrue(content(deploy, "ci-cd.yml").contains("actions/setup-python@v5"));
         assertTrue(content(deploy, "ci-cd.yml").contains("python -m pytest -q"));
 
-        assertTrue(run.get(4).output().contains("domain **Healthcare**"), run.get(4).output());
+        assertTrue(run.get(5).output().contains("domain **Healthcare**"), run.get(5).output());
 
         // The generated Python suite really passes.
         Assumptions.assumeTrue(pytestAvailable(), "python with pytest not installed");
@@ -510,6 +522,7 @@ class StageServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.run(StageType.BA, request("banking", "  ", Map.of())));
         assertThrows(IllegalArgumentException.class, () -> service.run(StageType.TESTER,
                 request("banking", "just some words", Map.of("testerPart", "unit"))));
+        assertThrows(IllegalArgumentException.class, () -> service.run(StageType.DATA_ANALYST, request("banking", " ", Map.of())));
         assertThrows(IllegalArgumentException.class, () -> service.run(StageType.DEPLOY, request("banking", " ", Map.of())));
         assertThrows(IllegalArgumentException.class, () -> service.runDir("..\\..\\windows"));
     }
@@ -523,7 +536,8 @@ class StageServiceTest {
         List<StageResponse> run = service.runAll(request("banking", "fund transfer with a ZEBRA42 limit", Map.of()));
 
         run.subList(0, 3).forEach(r -> assertEquals("llm", r.mode(), r.stage() + " " + r.notes()));
-        assertEquals("template", run.get(3).mode(), "deploy files are deterministic");
+        assertEquals("template", run.get(3).mode(), "data analyst files are deterministic");
+        assertEquals("template", run.get(4).mode(), "deploy files are deterministic");
         assertTrue(run.get(0).output().contains("ZEBRA42"));
         assertTrue(model.prompt("List the Java classes").contains("ZEBRA42"), "developer plans from the BA stories");
         assertTrue(model.prompt("Write ONLY the complete file TransferService.java").contains("public class Account"),

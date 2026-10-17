@@ -1,31 +1,33 @@
 # BOT: Agentic AI Chatbot
 
-**Try BOT live:** https://bot-code-converter.onrender.com (chat: /, converter: /convert, 5 stages: /stages, user stories + code: /code, generated website: /site/home)
+**Try BOT live:** https://bot-code-converter.onrender.com (chat: /, converter: /convert, 6 stages: /stages, user stories + code: /code, generated website: /site/home)
 
 -
 
 
 ![Scan to open BOT live](docs/bot-live-qr.png)
 
-BOT is a Spring Boot / Java 17 app that runs a **5-stage AI development pipeline** (Business Analyst, Developer, Tester, Deploy, Trainer) for any domain and any language, and includes a **repo-scale code converter**. It runs on a local Ollama model or any OpenAI compatible API.
+BOT is a Spring Boot / Java 17 app that runs a **6-stage AI development pipeline** (Business Analyst, Developer, Tester, Data Analyst, Deploy, Trainer) for any domain and any language, and includes a **repo-scale code converter**. It runs on a local Ollama model or any OpenAI compatible API.
 
 ## Workflow
 
-![BOT 5-stage workflow](docs/workflow.svg)
+![BOT 6-stage workflow](docs/workflow.svg)
 
-### 5-stage pipeline (`/stages`)
+### 6-stage pipeline (`/stages`)
 
 ```mermaid
 flowchart LR
     P["Prompt + domain"] --> BA
     BA["1 Business Analyst<br/>39 domains, domain sample"] -->|"user stories"| DEV
     DEV["2 Developer<br/>57 languages, with comments"] -->|"source code"| TEST
-    TEST["3 Tester<br/>JUnit, pytest, Jest, Selenium"] -->|"unit and UI tests"| DEP
-    DEP["4 Deploy<br/>Dockerfile, CI/CD, Kubernetes"] -->|"DEPLOY.md and configs"| TR
-    TR["5 Trainer<br/>learns from approved outputs"] -->|"bot-training.json"| STORE[("data/bot-training.json")]
+    TEST["3 Tester<br/>JUnit, pytest, Jest, Selenium"] -->|"tests"| DA
+    DA["4 Data Analyst<br/>KPIs, Chart.js dashboard"] -->|"analytics"| DEP
+    DEP["5 Deploy<br/>Dockerfile, CI/CD, Kubernetes"] -->|"DEPLOY.md and configs"| TR
+    TR["6 Trainer<br/>learns from approved outputs"] -->|"bot-training.json"| STORE[("data/bot-training.json")]
     STORE -.->|"feedback loop"| BA
     STORE -.->|"feedback loop"| DEV
     STORE -.->|"feedback loop"| TEST
+    STORE -.->|"feedback loop"| DA
     STORE -.->|"feedback loop"| DEP
 ```
 
@@ -52,16 +54,32 @@ Prompt, then user stories, then a generated website you can view and edit (`/cod
 - **Business Analyst:** user stories for any of 39 domains, with a domain sample requirement.
 - **Developer:** code in any of 57 languages, with comments.
 - **Tester:** JUnit, pytest or Jest unit tests, plus Selenium (Java or Ruby) automation.
+- **Data Analyst:** KPIs, `analytics/STATS.md`, Chart.js `dashboard.html` and `metrics.json`.
 - **Deploy:** Dockerfile, CI/CD pipeline, Kubernetes manifests and `DEPLOY.md`.
 - **Trainer:** learns from approved outputs, stored in `data/bot-training.json`.
+- **MCP + Guardrails:** agents call `POST /api/mcp` (`tools/list`, `tools/call`) for stages and GitHub push; every call is checked by guardrails (block secrets, protect `main`/`master`, allowlist `github.com`).
 - **Code converter:** paste code, give a GitHub repo URL, or upload a file or ZIP. Handles large files by chunking, adds comments, explains business logic in plain English, and links modules. Download a file or ZIP, push to a branch, and see run timers.
+
+### MCP + Guardrails
+
+```http
+POST /api/mcp
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+```
+
+Tools: `run_stage`, `run_all_stages`, `push_run`, `test_github_token`, `get_run_status`, `list_stages`.  
+Optional header `X-BOT-MCP-Key` when `BOT_MCP_API_KEY` is set.  
+Guardrail mode: `BOT_GUARDRAIL_MODE=ENFORCE` (default) or `OBSERVE`.
 
 ## Pages
 
 | URL | What it does |
 |-----|--------------|
 | `/` | Chat pipeline: prompt, user stories, website |
-| `/stages` | 5-stage pipeline, run each stage or Run all |
+| `/stages` | 6-stage pipeline, run each stage or Run all |
+| `/api/mcp` | MCP JSON-RPC for agents (tools + guardrails) |
 | `/convert` | Code converter |
 | `/code` | View generated code |
 | `/edit` | Edit the generated site |

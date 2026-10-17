@@ -70,6 +70,11 @@ public final class StagePrompts {
                     + "from configuration. Add a short comment above each test naming its scenario.\n"
                     + "Manual (functional) test cases are for a person to run by hand: ID, title, preconditions, numbered steps and "
                     + "expected results taken from the Given/When/Then scenarios.";
+            case DATA_ANALYST -> "You are a senior Data Analyst for the " + d + " domain."
+                    + " You know " + domain.expertise() + ".\n"
+                    + "From the project's stories, code and tests, produce clear KPIs, short statistical summaries and "
+                    + "chart-ready series (weekly volume, success rate, test mix). Prefer Markdown tables and JSON; "
+                    + "do not invent a live database connection. Keep numbers realistic for " + d + ".";
             case DEPLOY -> "You are a senior DevOps engineer for " + d + " systems. You write minimal, secure, "
                     + "production-ready Dockerfiles, build scripts and GitHub Actions pipelines for " + languageName
                     + " projects, with short comments explaining each step.";

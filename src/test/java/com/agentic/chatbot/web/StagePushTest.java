@@ -52,8 +52,11 @@ class StagePushTest {
     }
 
     private static StageApiController controller(StageService stages) {
+        com.agentic.chatbot.guardrail.GuardrailProperties gp = new com.agentic.chatbot.guardrail.GuardrailProperties();
+        gp.setEnabled(false);
         return new StageApiController(stages, null, new GitService("", "BOT", "bot@example.com"),
-                new com.agentic.chatbot.service.GitHubPreflight(""));
+                new com.agentic.chatbot.service.GitHubPreflight(""),
+                new com.agentic.chatbot.guardrail.GuardrailService(gp));
     }
 
     private static MockHttpServletRequest local() {

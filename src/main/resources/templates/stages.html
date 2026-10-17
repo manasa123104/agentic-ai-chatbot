@@ -18,7 +18,7 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Stage bots</strong>
-            <small>Business Analyst → Developer → Tester → Deploy → Trainer · any language, any domain · run one stage or chain them all</small>
+            <small>Business Analyst → Developer → Tester → Data Analyst → Deploy → Trainer · MCP + Guardrails · any language, any domain</small>
         </div>
     </div>
     <nav class="code-actions">
@@ -143,15 +143,26 @@
                     <dt>Role</dt><dd>Stage 3. Plays a tester who proves the stories were built correctly.</dd>
                     <dt>Input</dt><dd>The Developer&rsquo;s code, plus the run&rsquo;s user stories for the automation and manual cases.</dd>
                     <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Pick which to write in the drop-down above the results, and download them as files or a ZIP.</dd>
-                    <dt>Next stage</dt><dd>Once the tests look right, the <strong>Deploy</strong> stage prepares the code to be released.</dd>
+                    <dt>Next stage</dt><dd>Once the tests look right, the <strong>Data Analyst</strong> turns the run into KPIs and charts, then <strong>Deploy</strong> packages the code.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="tester">Go to the Tester &darr;</button>
+            </article>
+            <article class="pipe-help" id="pipeHelp-data-analyst" data-help="data-analyst" role="region" aria-labelledby="pipeBtn-data-analyst" hidden>
+                <h3>What is Data Analyst?</h3>
+                <p class="pipe-lead">The Data Analyst turns the run into <strong>graphs and statistics</strong>: KPIs, a Chart.js dashboard and a metrics JSON file you can open or push with the rest of the project.</p>
+                <dl>
+                    <dt>Role</dt><dd>Stage 4. Plays a data analyst for your domain: volume, success rate, test mix and open-defect estimates.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code (and the run&rsquo;s stories / tests when available).</dd>
+                    <dt>Output</dt><dd><code>analytics/STATS.md</code>, <code>analytics/dashboard.html</code> (interactive charts) and <code>analytics/metrics.json</code>. Download them from this card or open the HTML in a browser.</dd>
+                    <dt>Next stage</dt><dd>The <strong>Deploy</strong> stage prepares the same Developer code for release.</dd>
+                </dl>
+                <button type="button" class="link-btn pipe-jump" data-jump="data-analyst">Go to the Data Analyst &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-deploy" data-help="deploy" role="region" aria-labelledby="pipeBtn-deploy" hidden>
                 <h3>What is Deploy?</h3>
                 <p class="pipe-lead">Deploy prepares the code so the app can be <strong>packaged and released</strong>. It only produces the files; it does not publish or run anything for you.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 4. Plays a DevOps engineer for your language: it writes everything needed to build and run the app anywhere.</dd>
+                    <dt>Role</dt><dd>Stage 5. Plays a DevOps engineer for your language: it writes everything needed to build and run the app anywhere.</dd>
                     <dt>Input</dt><dd>The Developer&rsquo;s code.</dd>
                     <dt>Output</dt><dd>A Dockerfile, build scripts, a CI/CD workflow (GitHub Actions), Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide that explains how to run it. Download them from the Deploy card as a file or a ZIP. You can also tick &ldquo;Build image locally&rdquo; if Docker is installed.</dd>
                     <dt>Next stage</dt><dd>The <strong>Trainer</strong> reviews the finished run and saves the outputs you approve.</dd>
@@ -162,10 +173,10 @@
                 <h3>What is Trainer?</h3>
                 <p class="pipe-lead">The Trainer is BOT&rsquo;s memory. It does not write or deploy anything itself: it keeps the outputs <em>you approve</em> so the next runs in the same domain (and language) come out better.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 5, the last one. Reviews the run and saves approved (and corrected) outputs as few-shot examples.</dd>
-                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases (unit, automation, manual) and Deploy files. Tick the stages to save. Your own corrections to an output are saved as you edited them, and you can add feedback such as &ldquo;always add an AML screening story&rdquo;.</dd>
+                    <dt>Role</dt><dd>Stage 6, the last one. Reviews the run and saves approved (and corrected) outputs as few-shot examples.</dd>
+                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases, Data Analyst charts and Deploy files. Tick the stages to save. Your own corrections to an output are saved as you edited them, and you can add feedback such as &ldquo;always add an AML screening story&rdquo;.</dd>
                     <dt>Output</dt><dd>A training report, and examples saved in <code>data/bot-training.json</code> on the machine running BOT. On the public Render site that file is temporary and is wiped on restart or redeploy, so treat training there as a demo. Nothing is saved automatically: press <em>Save this run as training</em>.</dd>
-                    <dt>Next stage</dt><dd>There is no next stage: the pipeline is complete. The saved examples are shown to the model the next time you run a stage for the same domain, and an <strong>All 5 stages done &mdash; Push to GitHub</strong> panel appears at the very end of the page so you can push the whole run to a new GitHub branch and get a new link.</dd>
+                    <dt>Next stage</dt><dd>There is no next stage: the pipeline is complete. The saved examples are shown to the model the next time you run a stage for the same domain, and an <strong>All 6 stages done &mdash; Push to GitHub</strong> panel appears at the very end of the page so you can push the whole run to a new GitHub branch and get a new link.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
             </article>
@@ -193,7 +204,12 @@
         <details class="help-tip" open="open" th:if="${s.id == 'developer'}">
             <summary>What is Developer?</summary>
             <p>The Developer reads the user stories and writes <strong>working, commented code</strong> that implements them, in the language you chose (Java, Python, JavaScript, C#, Go and many more).</p>
-            <p>Edit the code if you like, download it, or push it to GitHub. The Tester and Deploy stages build on this code.</p>
+            <p>Edit the code if you like, download it, or push it to GitHub. The Tester, Data Analyst and Deploy stages build on this code.</p>
+        </details>
+        <details class="help-tip" open="open" th:if="${s.id == 'data-analyst'}">
+            <summary>What is Data Analyst?</summary>
+            <p>The Data Analyst turns this run into <strong>graphs and statistics</strong>: a KPI summary (<code>STATS.md</code>), a Chart.js <code>dashboard.html</code> you can open in a browser, and <code>metrics.json</code> for the chart data.</p>
+            <p>Figures are illustrative, domain-flavoured metrics derived from the stories, code and tests in the run &mdash; not a live database. Deploy still uses the Developer&rsquo;s code next.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'deploy'}">
             <summary>What is Deploy?</summary>
@@ -368,7 +384,7 @@
                 <li><strong>Where it is kept</strong> &ndash; in <code>data/bot-training.json</code> on the machine running BOT. On the public Render site that file is temporary and is wiped on restart or redeploy, so treat training there as a demo.</li>
                 <li><strong>Nothing is saved automatically</strong> &ndash; press <em>Save this run as training</em> when you are happy with the results.</li>
             </ul>
-            <p>When the Trainer finishes, the whole pipeline is complete: the <strong>All 5 stages done &mdash; Push to GitHub</strong> panel appears at the very end of this page, so you can push everything this run generated to a new GitHub branch and get a new link.</p>
+            <p>When the Trainer finishes, the whole pipeline is complete: the <strong>All 6 stages done &mdash; Push to GitHub</strong> panel appears at the very end of this page, so you can push everything this run generated to a new GitHub branch and get a new link.</p>
         </details>
         <div class="convert-panes">
             <div class="pane trainer-pane">
@@ -435,11 +451,11 @@
         <div class="final-push-head">
             <span class="final-push-badge" aria-hidden="true">&#10003;</span>
             <div>
-                <h2 id="finalPushTitle">All 5 stages done &mdash; Push to GitHub</h2>
-                <p id="finalPushBlurb">Finish <strong>Business Analyst, Developer, Tester, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.</p>
+                <h2 id="finalPushTitle">All 6 stages done &mdash; Push to GitHub</h2>
+                <p id="finalPushBlurb">Finish <strong>Business Analyst, Developer, Tester, Data Analyst, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.</p>
             </div>
         </div>
-        <p class="final-push-status" id="finalPushStatus" role="status">Waiting: run all 5 stages first, then you can push.</p>
+        <p class="final-push-status" id="finalPushStatus" role="status">Waiting: run all 6 stages first, then you can push.</p>
         <div class="gh-panel gh-complete" id="pipelineComplete" data-scope="run">
             <div class="gh-grid">
                 <label class="field"><span>Repository URL</span>
@@ -493,6 +509,7 @@
     'ba': ['Requirement', 'Describe what the business needs, e.g. "fund transfer between accounts".'],
     'developer': ['User stories', 'Paste user stories, or run the Business Analyst stage and press "Send to next stage".'],
     'tester': ['Code (+ stories)', 'Paste code to test (several files can be separated by === FILE: path === lines). Automation and manual test cases use the run\'s user stories, or stories pasted here.'],
+    'data-analyst': ['Code (+ stories)', 'Paste the Developer code (or run Developer / Tester first). Data Analyst writes analytics/STATS.md, dashboard.html and metrics.json.'],
     'deploy': ['Code to deploy', 'Paste the code (or run the Developer stage). Deploy writes a Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML and DEPLOY.md.']
   };
   const MODES = { llm: 'AI model', template: 'Offline template', trained: 'From training', trainer: 'Training report',
@@ -542,6 +559,7 @@
       'ba': 'Senior Business Analyst, ' + d + ' domain · user stories with Given/When/Then',
       'developer': 'Senior ' + lang + ' developer, ' + d + ' domain · commented ' + lang + ' code',
       'tester': 'Tester · unit tests with ' + unit + ' + automation with ' + automationLabel() + ' + manual (functional) test cases',
+      'data-analyst': 'Data Analyst, ' + d + ' domain · KPIs, Chart.js dashboard and statistics for the run',
       'deploy': 'DevOps · Dockerfile, build scripts, GitHub Actions CI/CD, Kubernetes for ' + lang
     };
   }
@@ -938,7 +956,7 @@
     const on = locks > 0 || busy;
     document.querySelectorAll('.run-btn, #runAllBtn, #newRunBtn, #saveRunBtn, .import-btn, .gh-push-btn').forEach((b) => { b.disabled = on; });
     ['domain', 'language'].forEach((id) => { $(id).disabled = on; });
-    // whole-run push stays disabled until all 5 stages are done (even when the page is idle)
+    // whole-run push stays disabled until all stages are done (even when the page is idle)
     const finalBtn = $('finalPushBtn');
     if (finalBtn && !on) finalBtn.disabled = !(pipelineComplete() && !!currentRunId());
   }
@@ -1295,7 +1313,8 @@
       return next;
     }
     let value = getOut(stage);
-    if (next === 'deploy') {
+    // Deploy and Data Analyst both need the Developer code, not the previous stage's prose/tests/charts.
+    if (next === 'deploy' || next === 'data-analyst') {
       value = q('developer', '.stage-output').value.trim()
         || (results[stage] && results[stage].nextInput)
         || q('tester', '.stage-input').value;
