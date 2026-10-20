@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT</title>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
@@ -28,7 +28,7 @@
         <span class="rail-mark">B</span>
         <div>
             <strong>BOT</strong>
-            <small>Prompt → train → ship</small>
+            <small>From idea to release</small>
         </div>
     </div>
     <button type="button" class="new-chat" id="newChat">+ New prompt</button>
@@ -56,19 +56,17 @@
         </th:block>
         <p class="history-empty" id="historyEmpty"
            th:style="${history != null and !history.isEmpty()} ? 'display:none' : ''">
-            No previous results yet. Send a prompt and BOT will train on it.
+            No previous results yet. Send a request and BOT will keep it here.
         </p>
     </div>
     <nav class="rail-links">
         <a href="/">Home</a>
-        <a href="/code">User stories + code</a>
         <a href="/convert">Code converter</a>
-        <a href="/stages">6-stage pipeline: BA → Dev → Test → Analyst → Deploy → Train</a>
-        <a href="/edit">Edit generated site</a>
+        <a href="/stages">Stage bots</a>
     </nav>
     <div class="rail-foot">
         <span th:text="${modelStatus != null ? modelStatus['label'] : 'Untrained BOT model'}">Untrained BOT model</span>
-        <span th:text="${llmReady} ? ' · LLM on' : ' · Offline templates'"> · Offline</span>
+        <span th:text="${llmReady} ? ' · AI model ready' : ' · Offline mode'"> · Offline</span>
     </div>
 </aside>
 
@@ -89,15 +87,14 @@
         <div class="msg bot" id="welcomeMsg">
             <div class="avatar-sm">B</div>
             <div class="bubble">
-                <p>Hi — I’m <strong>BOT</strong>.</p>
-                <p>Tell me what you want in plain words, in any domain and language. I build it, then we keep talking: ask for changes like <em>“make the hero shorter”</em> or <em>“add a chatbot agent”</em>, or ask me a question. Or start from one of these:</p>
+                <p>Welcome to <strong>BOT</strong>.</p>
+                <p>Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
                 <nav class="welcome-links" aria-label="Where to start">
-                    <a href="/code"><strong>User stories + code</strong><span>Read the stories and the generated code</span></a>
-                    <a href="/convert"><strong>Code converter</strong><span>Translate code or a whole project</span></a>
-                    <a href="/stages"><strong>6-stage pipeline: BA → Dev → Test → Analyst → Deploy → Train</strong><span>Run each stage on its own</span></a>
+                    <a href="/convert"><strong>Code converter</strong><span>Translate a snippet or an entire project</span></a>
+                    <a href="/stages"><strong>Stage bots</strong><span>Six stages from user stories to training</span></a>
                 </nav>
                 <p class="chip-label">Code conversion</p>
-                <p class="muted-note">Convert code right here: type <em>Convert this Python code to Java:</em> then paste code on the next line (Shift+Enter), upload a file, or ask for a sample.</p>
+                <p class="muted-note">Convert code here. Type <em>Convert this Python code to Java:</em> then paste the code on the next line. You can also upload a file or try a sample.</p>
                 <div class="suggestions">
                     <button type="button" class="chip" data-story="Convert this Python code to Java:
 def factorial(n: int) -&gt; int:
@@ -127,10 +124,10 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <p class="chip-label">Websites with an on-page chatbot agent</p>
                 <div class="suggestions">
-                    <button type="button" class="chip" data-story="Build a restaurant website called OliveGrove with an on-page chatbot agent that answers menu, opening hours and reservation questions. Backend language: Python.">Restaurant + agent (Python)</button>
-                    <button type="button" class="chip" data-story="Create a travel website called SkyTrail Travels with a chatbot agent that recommends destinations and packages. Backend language: JavaScript.">Travel + agent (JavaScript)</button>
-                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with an AI assistant chatbot that explains services, prices and books visits. Backend language: C#.">Clinic + agent (C#)</button>
-                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with a chatbot agent that helps couples choose venues and photographers. Backend language: Kotlin.">Wedding + agent (Kotlin)</button>
+                    <button type="button" class="chip" data-story="Build a restaurant website called OliveGrove with an on-page chatbot agent that answers menu, opening hours and reservation questions. Backend language: Python.">Restaurant chatbot in Python</button>
+                    <button type="button" class="chip" data-story="Create a travel website called SkyTrail Travels with a chatbot agent that recommends destinations and packages. Backend language: JavaScript.">Travel chatbot in JavaScript</button>
+                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with an AI assistant chatbot that explains services, prices and books visits. Backend language: C#.">Clinic chatbot in C#</button>
+                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with a chatbot agent that helps couples choose venues and photographers. Backend language: Kotlin.">Wedding chatbot in Kotlin</button>
                 </div>
             </div>
         </div>
@@ -147,8 +144,8 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <ul class="attach-list" id="attachList"></ul>
                 <div class="attach-actions">
-                    <button type="button" class="btn generate-bot" id="generateBot" title="Send the uploaded stories to BOT: it writes the user stories, the code and the website">&#9654; Generate with BOT</button>
-                    <span class="attach-note">Upload file &rarr; user stories + website: the text of the file is pasted into the box below and BOT starts on its own (a short countdown lets you stop it to edit first). BOT writes the stories, the code and the website (website at /site/home, stories and code at /code). To convert a whole project instead:</span>
+                    <button type="button" class="btn generate-bot" id="generateBot" title="Send the uploaded stories to BOT. It writes the user stories, the code, and the website.">&#9654; Generate with BOT</button>
+                    <span class="attach-note">Upload a file to add its text below. BOT can write user stories, code, and a website from it. A short countdown starts so you can stop and edit first. To convert a whole project, choose Convert as a project. To open the six-stage analysis, choose Import as user stories.</span>
                     <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
@@ -158,19 +155,19 @@ if __name__ == &quot;__main__&quot;:
                 <p class="image-note" id="imageNote">BOT looks at your pictures when the connected model can see images; otherwise it uses them as the site's own images.</p>
             </div>
             <div class="composer-tools">
-                <label class="tool-btn" title="Upload file: its text is pasted into the box and BOT then builds the user stories, the code and a website from it automatically (or press Generate with BOT). Several files are added one after another.">
+                <label class="tool-btn" title="Upload a file to add its text. BOT can then write user stories, code, and a website. You can also press Generate with BOT. Several files are added one after another.">
                     <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
                     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
                     Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
                 </label>
                 <div class="system-menu" id="systemMenu">
                     <button type="button" class="tool-btn system-toggle" id="systemToggle" aria-expanded="false"
-                            aria-controls="systemPanel" title="System prompt (optional): widens the BOT model with your standing instructions">
+                            aria-controls="systemPanel" title="Standing instructions for BOT">
                         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4"/></svg>
                         System prompt
                     </button>
                     <div class="system-panel" id="systemPanel" role="dialog" aria-label="System prompt" hidden>
-                        <label for="systemPrompt">System prompt <small>(optional &middot; widens BOT model)</small></label>
+                        <label for="systemPrompt">Standing instructions for BOT</label>
                         <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
                                   placeholder="Example: Prefer calm palettes. Keep the brand name clean. Always add a chatbot agent to websites…"
                                   th:field="*{systemPrompt}"></textarea>
@@ -180,7 +177,7 @@ if __name__ == &quot;__main__&quot;:
                 <label class="tool-select" title="Backend language for generated websites. Auto uses the language named in your prompt.">
                     <span>Language</span>
                     <select id="langPick">
-                        <option value="">Auto (from prompt)</option>
+                        <option value="">From your prompt</option>
                         <option value="Java">Java</option>
                         <option value="Python">Python</option>
                         <option value="JavaScript">JavaScript</option>
@@ -195,7 +192,7 @@ if __name__ == &quot;__main__&quot;:
             <p class="bot-status" id="botStatus" role="status" aria-live="polite" hidden></p>
             <div class="composer-box" id="composerBox">
                 <textarea id="userStory" name="userStory" rows="2"
-                          placeholder="Describe a website, app or conversion — or paste / drop a screenshot to show the look you want. Add “with a chatbot agent” if you want one…"></textarea>
+                          placeholder="Describe a website, app, or code conversion. You can also drop a screenshot to show the look you want."></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send" aria-label="Send">
                     <svg class="ico-send" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
@@ -205,7 +202,7 @@ if __name__ == &quot;__main__&quot;:
                     </svg>
                 </button>
             </div>
-            <p class="hint">Enter to send · Shift+Enter for a new line · Upload or drop a file: its text is pasted into the box and BOT starts on its own after a 2 s countdown (type to stop and edit first, or press Generate with BOT) · Paste (Ctrl+V) or drop an image to show the look you want · Keep chatting to change the result</p>
+            <p class="hint">Press Enter to send. Shift+Enter starts a new line. Upload a file to add its text. Drop an image to show the look you want. Keep chatting to refine the result.</p>
         </form>
     </footer>
 </div>
@@ -457,11 +454,10 @@ if __name__ == &quot;__main__&quot;:
       : '';
     var preview = data.previewUrl
       ? '<p class="actions"><a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' +
-        '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code' +
-          (data.languageLabel ? ' (' + escapeHtml(data.languageLabel) + ')' : '') + '</a>' +
-        '<a class="btn" href="/download/site.zip">&#11015; Download site ZIP</a>' +
-        '<a class="btn ghost" href="/edit">Edit site</a></p>' + downloadLinks(data)
-      : '<p class="actions"><a class="btn ghost" href="/code">User stories + code</a></p>';
+        '<a class="btn ghost" href="/convert">Code converter</a>' +
+        '<a class="btn ghost" href="/stages">Stage bots</a></p>' + downloadLinks(data)
+      : '<p class="actions"><a class="btn ghost" href="/convert">Code converter</a>' +
+        '<a class="btn ghost" href="/stages">Stage bots</a></p>';
     var label = fromHistory
       ? '<p>Saved result from your history.</p>'
       : '<p>Done — user story + website code are ready.</p>';
@@ -656,8 +652,8 @@ if __name__ == &quot;__main__&quot;:
       var buttons = (data.languageLabel || data.generatedCodeFiles && data.generatedCodeFiles.length)
         ? '<p class="actions">' +
           (data.previewUrl ? '<a class="btn" href="' + escapeHtml(data.previewUrl) + '">Open website</a>' : '') +
-          '<a class="btn ghost" href="' + escapeHtml(data.codeUrl || '/code') + '">User stories + code' +
-            (data.languageLabel ? ' (' + escapeHtml(data.languageLabel) + ')' : '') + '</a>' +
+          '<a class="btn ghost" href="/convert">Code converter</a>' +
+          '<a class="btn ghost" href="/stages">Stage bots</a>' +
           '<a class="btn" href="' + escapeHtml(data.siteDownloadUrl || '/download/site.zip') + '">&#11015; Download site ZIP</a></p>' +
           downloadLinks(data)
         : '';
@@ -724,7 +720,7 @@ if __name__ == &quot;__main__&quot;:
     if (data.stopped) text = '**Stopped.** ' + (data.message || '');
     else if (!data.success) text = 'I hit a problem: ' + (data.message || 'Unknown error');
     else text = (data.conversion ? 'Here is your conversion.' : 'Done \u2014 the user story and the website code are ready.') +
-      (data.previewUrl ? '\n\n- [Open the website](' + data.previewUrl + ')\n- [User stories + code](' + (data.codeUrl || '/code') + ')\n- [Download ZIP (stories + code + site)](/download/site.zip)\n- [Edit the site](/edit)' : '');
+      (data.previewUrl ? '\n\n- [Code converter](/convert)\n- [Stage bots](/stages)' : '');
     return { data: data, text: text };
   }
 

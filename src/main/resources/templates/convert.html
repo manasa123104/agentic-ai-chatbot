@@ -17,22 +17,21 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Code converter</strong>
-            <small th:text="'Convert code between ' + ${#lists.size(allLanguages)} + ' languages (or type any other) · ' + ${#lists.size(samples)} + ' sample programs in ' + ${#lists.size(languages)} + ' of them'">Convert code between languages</small>
+            <small th:text="'Convert code between ' + ${#lists.size(allLanguages)} + ' languages. ' + ${#lists.size(samples)} + ' sample programs in ' + ${#lists.size(languages)} + ' of them.'">Convert code between languages</small>
         </div>
     </div>
     <nav class="code-actions">
         <a class="btn ghost" href="/">Home</a>
         <a class="btn ghost" href="/stages">Stage bots</a>
         <a class="btn ghost" href="/convert" aria-current="page">Code converter</a>
-        <a class="btn ghost" href="/code">User stories + code</a>
     </nav>
 </header>
 
 <main class="convert-main">
     <section class="convert-status" th:classappend="${llmReady} ? ' on' : ' off'">
         <span class="dot"></span>
-        <p th:if="${llmReady}"><strong>AI model connected: <span th:text="${llmName}">model</span>.</strong> Paste any code and convert it to any of the languages below. Built-in samples convert instantly; a local model can take a minute or two for longer code.</p>
-        <p th:unless="${llmReady}"><strong>Offline mode.</strong> The built-in samples convert instantly between every language. To convert your own code, start Ollama with a coding model (<code>ollama pull qwen2.5-coder:7b</code>) and BOT picks it up automatically, or set <code>OPENAI_API_KEY</code> and restart BOT.</p>
+        <p th:if="${llmReady}"><strong>AI model connected: <span th:text="${llmName}">model</span>.</strong> Paste any code and convert it to any of the languages below. Built-in samples convert instantly. Longer code may take a minute or two.</p>
+        <p th:unless="${llmReady}"><strong>Offline mode.</strong> Built-in samples convert instantly between every language. To convert your own code, start Ollama with a coding model, or set <code>OPENAI_API_KEY</code> and restart BOT.</p>
     </section>
 
     <section class="convert-card">
@@ -49,12 +48,12 @@
                     <optgroup label="With offline samples">
                         <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}">Java</option>
                     </optgroup>
-                    <optgroup label="More languages (AI model)">
+                    <optgroup label="More languages">
                         <option th:each="l : ${moreLanguages}" th:value="${l.id()}" th:text="${l.name()}">Scala</option>
                     </optgroup>
-                    <option value="other">Other (type your own)</option>
+                    <option value="other">Other</option>
                 </select>
-                <input type="text" id="sourceOther" class="lang-other" maxlength="60" placeholder="Source language, e.g. Hack" hidden/>
+                <input type="text" id="sourceOther" class="lang-other" maxlength="60" placeholder="Source language, for example Hack" hidden/>
             </label>
             <button type="button" class="swap" id="swapBtn" title="Swap languages" aria-label="Swap languages">&#8644;</button>
             <label class="lang-pick">
@@ -64,12 +63,12 @@
                         <option th:each="l : ${languages}" th:value="${l.id()}" th:text="${l.name()}"
                                 th:selected="${l.id() == 'python'}">Python</option>
                     </optgroup>
-                    <optgroup label="More languages (AI model)">
+                    <optgroup label="More languages">
                         <option th:each="l : ${moreLanguages}" th:value="${l.id()}" th:text="${l.name()}">Scala</option>
                     </optgroup>
-                    <option value="other">Other (type your own)</option>
+                    <option value="other">Other</option>
                 </select>
-                <input type="text" id="targetOther" class="lang-other" maxlength="60" placeholder="Target language, e.g. Mojo" hidden/>
+                <input type="text" id="targetOther" class="lang-other" maxlength="60" placeholder="Target language, for example Mojo" hidden/>
             </label>
             <div class="sample-loader" id="sampleLoader">
                 <span>Load sample</span>
@@ -79,7 +78,7 @@
 
         <div class="convert-options">
             <label class="check"><input type="checkbox" id="optComments"/> Add comments to the converted code</label>
-            <label class="check"><input type="checkbox" id="optLogic"/> Explain the business logic in plain English</label>
+            <label class="check"><input type="checkbox" id="optLogic"/> Describe what the code does in everyday language</label>
         </div>
 
         <div id="pasteMode">
@@ -107,7 +106,7 @@
 
         <div class="convert-actions">
             <input type="text" id="instructions" maxlength="500"
-                   placeholder="Optional instructions for the AI, e.g. &quot;use a class&quot; or &quot;use streams&quot;"/>
+                   placeholder="Instructions for the AI, for example use a class or use streams"/>
             <button type="button" class="btn convert-btn" id="convertBtn">Convert</button>
         </div>
         <p class="convert-message" id="message" role="status" aria-live="polite"></p>
@@ -127,7 +126,7 @@
             </div>
         </div>
         <div class="business" id="businessBox" hidden>
-            <p class="pipe-label">Business logic in plain English</p>
+            <p class="pipe-label">What the code does in everyday language</p>
             <div class="business-text" id="businessText"></div>
         </div>
         </div>
@@ -143,7 +142,7 @@
                 <div class="kind-fields" data-kind="git">
                     <label class="field wide"><span>Repository URL</span>
                         <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo.git"/></label>
-                    <label class="field"><span>Branch (optional)</span>
+                    <label class="field"><span>Branch</span>
                         <input type="text" id="repoBranch" placeholder="main"/></label>
                 </div>
                 <div class="kind-fields" data-kind="upload" hidden>
@@ -172,15 +171,15 @@
                         <input type="text" id="localPath" placeholder="C:\Users\me\projects\my-java-app"/></label>
                 </div>
                 <div class="kind-fields always">
-                    <label class="field"><span>Only this sub-folder (optional)</span>
+                    <label class="field"><span>Only this sub-folder</span>
                         <input type="text" id="subfolder" placeholder="src/main/java"/></label>
-                    <label class="field wide"><span>Instructions for the AI (optional)</span>
-                        <input type="text" id="projectInstructions" maxlength="500" placeholder="e.g. use dataclasses, keep method names"/></label>
+                    <label class="field wide"><span>Instructions for the AI</span>
+                        <input type="text" id="projectInstructions" maxlength="500" placeholder="For example: use dataclasses, keep method names"/></label>
                     <button type="button" class="btn convert-btn" id="startJobBtn">Convert project</button>
                 </div>
                 <p class="field-help">Every source file in every sub-folder is converted. Files are converted in dependency order, so each file
-                    imports the already-converted modules it uses. Build folders (target, build, node_modules, .git) are skipped and
-                    resources are copied unchanged.</p>
+                    imports the already-converted modules it uses. Build folders such as target, build, node_modules, and .git are skipped.
+                    Resource files are copied unchanged.</p>
             </div>
             <div class="recent-jobs" id="recentJobs" hidden>
                 <span>Previous conversions</span>
@@ -197,13 +196,13 @@
                     <small id="jobMeta"></small>
                 </div>
                 <div class="job-buttons">
-                    <a class="btn ghost small" id="zipBtn" href="#">&#11015; Download all (ZIP)</a>
+                    <a class="btn ghost small" id="zipBtn" href="#">&#11015; Download all as ZIP</a>
                     <button type="button" class="btn ghost small" id="closeJobBtn" title="Close this conversion and start a new one">Close / new conversion</button>
                 </div>
             </div>
             <div class="done-banner" id="doneBanner" hidden>
                 <span>&#10004; Conversion finished</span>
-                <a class="btn small" id="doneZipBtn" href="#">&#11015; Download all converted code (ZIP)</a>
+                <a class="btn small" id="doneZipBtn" href="#">&#11015; Download all converted code as ZIP</a>
             </div>
             <div class="progress"><div class="bar" id="jobBar"></div></div>
             <p class="job-status" id="jobStatus"></p>
@@ -244,13 +243,13 @@
                         <input type="text" id="pushRepo" placeholder="https://github.com/owner/repo.git"/></label>
                     <label class="field"><span>New branch</span>
                         <input type="text" id="pushBranch" placeholder="converted/python"/></label>
-                    <label class="field"><span>Based on (optional)</span>
+                    <label class="field"><span>Based on</span>
                         <input type="text" id="pushBase" placeholder="main"/></label>
                     <label class="field"><span>Folder in repo</span>
                         <input type="text" id="pushFolder" placeholder="converted/python"/></label>
-                    <label class="field wide"><span>Commit message (optional)</span>
+                    <label class="field wide"><span>Commit message</span>
                         <input type="text" id="pushMessage" placeholder="Convert project to Python"/></label>
-                    <label class="field wide"><span th:text="${isHost} ? 'GitHub token (optional here: the saved Git login of this computer is used if blank)' : 'Your GitHub token (required)'">Token</span>
+                    <label class="field wide"><span th:text="${isHost} ? 'GitHub token. Leave blank to use the saved login on this computer.' : 'Your GitHub token'">Token</span>
                         <input type="password" id="pushToken" autocomplete="off" placeholder="ghp_... or github_pat_..."/></label>
                     <label class="check wide"><input type="checkbox" id="pushPull" checked="checked"/>
                         Pull first: start from the latest code on that branch, then add these files</label>
@@ -1096,7 +1095,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       if (currentJob.projectSummary && (!info || currentJob.files.length > 1)) parts.push('Whole project:\n' + currentJob.projectSummary);
       renderLogic($('fileLogic'), parts.join('\n\n') || (currentJob.explainLogic
         ? 'No plain-English description for this file.'
-        : 'Tick "Explain the business logic in plain English" before converting to get a description of every file.'));
+        : 'Tick "Describe what the code does in everyday language" before converting to get a description of every file.'));
     }
   }
 

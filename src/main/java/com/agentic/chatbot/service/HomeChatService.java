@@ -49,11 +49,28 @@ public class HomeChatService {
             "(?i)^\\s*(hi|hello|hey|yo|thanks|thank you|thx|ok|okay|cool|great|nice|awesome|perfect|"
                     + "good (?:morning|afternoon|evening)|help)\\b[\\s\\S]{0,40}$");
     private static final Pattern SITE_WORDS = Pattern.compile(
-            "(?i)\\b(web\\s?site|web\\s?page|landing page|site|portal|app|application|dashboard|login|chat\\s?bot|agent)\\b");
+            "(?i)\\b(web\\s?site|web\\s?page|landing page|site|portal|app|application|dashboard|login|chat\\s?bot|agent|"
+                    + "restaurant|resturant|dhaba|dhabha|cafe|caf[eé]|bistro)\\b");
     private static final Pattern STORY_FORM = Pattern.compile("(?i)\\bas an? [^.\\n]{2,60},? i (?:want|need)\\b");
+    /** Leading filler people type before the real request. */
+    private static final Pattern LEAD_IN = Pattern.compile(
+            "(?i)^\\s*(?:hi+|hii|hello|hey(?:\\s+bot)?|yo|please|plz|kindly|ok(?:ay)?)[\\s,!.:-]*");
+    /**
+     * A new website, including broken English: "develop website for Indian Resturant",
+     * "I would like to build site", "make restaurant website".
+     */
     private static final Pattern NEW_BUILD = Pattern.compile(
-            "(?i)\\b(?:build|create|generate|develop|design|make)\\s+(?:me\\s+)?(?:a|an|my|our|another|new)\\b[^.\\n]{0,80}?"
-                    + "\\b(?:web\\s?site|web\\s?page|landing page|site|portal)\\b");
+            "(?i)\\b(?:i\\s+(?:would like|want|need|wish)(?:\\s+to)?\\s+)?"
+                    + "(?:to\\s+)?"
+                    + "(?:build|create|generate|develop|design|make|need)\\b"
+                    + ".{0,160}?"
+                    + "\\b(?:web\\s*sites?|web\\s*pages?|landing pages?|sites?|portals?|restaurants?|resturants?|"
+                    + "dhaba|dhabha|apps?)\\b");
+    private static final Pattern SITE_FOR = Pattern.compile(
+            "(?i)\\b(?:web\\s*)?sites?\\s+for\\b|\\bfor\\s+(?:an?\\s+)?(?:indian|chinese|italian|mexican|thai)?"
+                    + "\\s*(?:restaurants?|resturants?|dhaba|dhabha|cafes?|baker(?:y|ies))\\b");
+    private static final Pattern WANT_SITE = Pattern.compile(
+            "(?i)\\b(?:i\\s+(?:would like|want|need)|lets?|please).{0,100}\\b(?:web\\s*)?sites?\\b");
     private static final Pattern EXPLICIT_EDIT = Pattern.compile(
             "(?i)\\b(?:edit|change|update|modify|restyle|recolor|redesign)\\s+(?:the\\s+|this\\s+|my\\s+)?"
                     + "(?:web\\s?site|site|page|colou?rs?|fonts?|images?|theme)\\b");
@@ -61,12 +78,19 @@ public class HomeChatService {
             "(?i)\\b(colou?rs?|fonts?|typeface|background|accent|theme|palette|dark mode|light mode|images?|photos?|pictures?|"
                     + "pink|blue|red|green|orange|purple|violet|teal|turquoise|yellow|gold|black|white|dark|darker|light|lighter)\\b");
     private static final Pattern REFINE_START = Pattern.compile(
-            "(?i)^\\s*(?:(?:ok|okay|now|then|and|also|please|can you|could you|would you|can we|let's|lets|i want you to|i'd like you to)\\s+)*"
+            "(?i)^\\s*(?:(?:ok|okay|now|then|and|also|please|can you|could you|would you|can we|let's|lets|"
+                    + "i want you to|i(?:'d| would) like you to|i(?:'d| would) like to)\\s+)*"
                     + "(add|include|insert|put|remove|delete|drop|replace|shorten|lengthen|rename|move|hide|enable|give|"
-                    + "with an?|with the|make|show|use)\\b");
+                    + "with an?|with the|with|make|show|use)\\b");
+    private static final Pattern SITE_CHANGE = Pattern.compile(
+            "(?i)\\b(add|include|insert|put|remove|delete|drop|replace|shorten|lengthen|rename|move|hide|enable|"
+                    + "change|update|edit|modify|show|use|give|make|with)\\b"
+                    + ".{0,100}\\b(rating|ratings|review|reviews|menu|page|section|hero|button|form|colou?r|font|"
+                    + "image|photo|contact|about|price|pricing|booking|reservation|chat\\s?bot|agent|header|footer|"
+                    + "title|heading|name|logo|user rating)\\b");
 
     public static final String DOWNLOAD_URL = "/download/site.zip";
-    public static final String DOWNLOAD_LABEL = "Download ZIP (user stories + code + website)";
+    public static final String DOWNLOAD_LABEL = "Download ZIP";
     private static final String FOLLOW_UP_HEADER = "Follow-up changes requested in the conversation (apply all of them):";
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -85,10 +109,33 @@ public class HomeChatService {
      * @param hasSite  a website has been generated already
      * @param hasBrief the brief of that website is known, so a follow-up can be added to it
      */
-    public static Intent classify(String message, boolean hasSite, boolean hasBrief) {
+    /** Spelling and greeting cleanup so broken English still reads as a website request. */
+    public static String normalizeRequest(String message) {
         String m = message == null ? "" : message.trim();
-        if (m.isEmpty() || UploadedStory.hasUploads(m)) {
+        m = LEAD_IN.matcher(m).replaceFirst("").trim();
+        m = m.replaceAll("(?i)\\bresturants?\\b", "restaurant")
+                .replaceAll("(?i)\\bdhabha\\b", "dhaba")
+                .replaceAll("(?i)\\blangauge\\b", "language")
+                .replaceAll("(?i)\\bwebsit\\b", "website")
+                .replaceAll("(?i)\\bdevelp\\b", "develop");
+        return m;
+    }
+
+    private static boolean wantsNewSite(String m) {
+        if (EXPLICIT_EDIT.matcher(m).find()) {
+            return false;
+        }
+        return NEW_BUILD.matcher(m).find() || SITE_FOR.matcher(m).find() || WANT_SITE.matcher(m).find();
+    }
+
+    public static Intent classify(String message, boolean hasSite, boolean hasBrief) {
+        String raw = message == null ? "" : message.trim();
+        if (raw.isEmpty() || UploadedStory.hasUploads(raw)) {
             return Intent.BUILD;
+        }
+        String m = normalizeRequest(raw);
+        if (m.isEmpty()) {
+            m = raw;
         }
         boolean storyForm = STORY_FORM.matcher(m).find();
         if (!storyForm && m.length() < 400) {
@@ -102,8 +149,7 @@ public class HomeChatService {
         if (!hasSite || storyForm) {
             return Intent.BUILD;
         }
-        boolean brandNew = NEW_BUILD.matcher(m).find() && !EXPLICIT_EDIT.matcher(m).find();
-        if (brandNew) {
+        if (wantsNewSite(m)) {
             return Intent.BUILD;
         }
         boolean edit = SiteEditService.isEditMessage(m);
@@ -111,6 +157,7 @@ public class HomeChatService {
             return Intent.EDIT;
         }
         boolean refinement = edit
+                || SITE_CHANGE.matcher(m).find()
                 || (m.length() < 300 && REFINE_START.matcher(m).find())
                 || (m.length() < 200 && SiteAgent.wantsAgent(m));
         if (refinement) {
@@ -182,7 +229,7 @@ public class HomeChatService {
     public static String activeLabel(String botName) {
         return switch (kind(botName)) {
             case "analyst" -> "Writing the user stories";
-            case "developer" -> "Building the website and its code";
+            case "developer" -> "Writing the code";
             case "unit" -> "Writing the unit tests";
             case "functional" -> "Writing the functional tests";
             case "trainer" -> "Saving what I learned";
@@ -195,7 +242,7 @@ public class HomeChatService {
     public static String doneLabel(String botName) {
         return switch (kind(botName)) {
             case "analyst" -> "Wrote the user stories";
-            case "developer" -> "Built the website and its code";
+            case "developer" -> "Wrote the code";
             case "unit" -> "Wrote the unit tests";
             case "functional" -> "Wrote the functional tests";
             case "trainer" -> "Saved what I learned";
@@ -256,8 +303,6 @@ public class HomeChatService {
         String preview = r.getPreviewUrl() == null ? "/site/home" : r.getPreviewUrl();
         sb.append("\n**Take a look**\n")
                 .append("- [Open the website](").append(preview).append(")\n")
-                .append("- [User stories + code](").append(r.getCodeUrl() == null ? "/code" : r.getCodeUrl()).append(")")
-                .append(r.getLanguageLabel() == null ? "" : " \u2014 the code is in " + r.getLanguageLabel()).append('\n')
                 .append("- [").append(DOWNLOAD_LABEL).append("](").append(DOWNLOAD_URL).append(")\n");
         if (r.getLanguageLabel() != null) {
             sb.append("- [Download the ").append(r.getLanguageLabel()).append(" code](")
@@ -406,22 +451,21 @@ public class HomeChatService {
     public String chatSystemPrompt(String userSystemPrompt) {
         String brand = siteBrand();
         StringBuilder sb = new StringBuilder("""
-                You are BOT, a friendly assistant that works like ChatGPT inside a tool that turns a plain-English \
-                description into a working website. Behind the scenes a Business Analyst writes user stories, a Developer \
-                writes the site and its code, Testers write unit and functional tests, and a Trainer saves what was learned. \
-                You can also convert code between programming languages (/convert) and run each stage on its own (/stages).
+                You are BOT, a friendly assistant that turns everyday language into a working website. \
+                Casual wording is fine: "I would like to build an Indian dhaba restaurant site in Java with user ratings" \
+                is a complete request. Behind the scenes a Business Analyst writes user stories, a Developer writes the \
+                site and its code, Testers write tests, and a Trainer saves what was learned. You can also convert code \
+                (/convert) and run each stage on its own (/stages).
                 Rules: answer in a few short, plain sentences, in the user's language; use light markdown (bold, short \
                 lists, `code`) when it helps; never mention internal bot names or pipeline jargon unless asked; \
                 never invent features or links you were not told about. If the user wants something built or changed, \
-                tell them they can simply describe it (for example "build a bakery website called Crumb Hearth with a \
-                chatbot agent, backend language Python") and you will build it.
-                Useful links: [User stories + code](/code), [Download ZIP of stories + code + site](/download/site.zip), [Edit the site](/edit), [Code converter](/convert), \
-                [5-stage pipeline](/stages).
+                treat any website-related message as an instruction and apply it. They can simply describe it.
+                Useful links: [Code converter](/convert), [Stage bots](/stages).
                 """);
         if (Files.exists(outputDir.resolve("SITE_META.json"))) {
             sb.append("A website has already been built in this conversation")
                     .append(brand.isBlank() ? "" : " for \"" + brand + "\"")
-                    .append(": it is at [/site/home](/site/home).\n");
+                    .append(": it is at [/site/home](/site/home). Any later message about the site should change that site, not start over.\n");
         } else {
             sb.append("No website has been built yet in this conversation.\n");
         }
@@ -440,12 +484,11 @@ public class HomeChatService {
             return "You're welcome! Tell me if you'd like anything else changed" + (site ? " on the site." : ".");
         }
         if (site && m.matches("(?s).*\\b(where|link|open|see|view|show)\\b.*")) {
-            return "Your website is at [/site/home](/site/home), and the user stories and code are in "
-                    + "[User stories + code](/code). You can also [edit the site](/edit).";
+            return "Open the [code converter](/convert) or [Stage bots](/stages).";
         }
-        return "Hi! I'm **BOT**. Describe a website, app or code conversion and I'll build it \u2014 for example "
-                + "*\"build a bakery website called Crumb Hearth with a chatbot agent, backend language Python\"*.\n\n"
-                + (site ? "Your current site is at [/site/home](/site/home); tell me what to change and I'll update it.\n\n" : "")
+        return "Hi! I'm **BOT**. Describe a website, app, or code conversion and I'll build it. For example: "
+                + "*I would like to build an Indian dhaba restaurant site in Java with user ratings*.\n\n"
+                + (site ? "Your current site is at [/site/home](/site/home). Tell me what to change and I'll update it.\n\n" : "")
                 + "I'm running without a connected language model right now, so I can build and convert, "
                 + "but open-ended chat is limited.";
     }

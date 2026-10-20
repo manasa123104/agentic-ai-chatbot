@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>BOT · Website generated with code</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <link rel="stylesheet" th:href="@{/css/code.css}"/>
+        <link rel="stylesheet" th:href="@{/css/site.css}"/>
+    <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
+</head>
+<body class="code-app">
+<header class="code-top">
+    <div class="code-brand">
+        <a class="rail-mark" href="/">B</a>
+        <div>
+            <strong>Website generated with code</strong>
+            <small>3 bots: Story bot, Code bot and Site bot</small>
+        </div>
+    </div>
+    <nav class="code-actions">
+        <span class="run-timer done" id="lastRun" th:if="${lastRunMs != null}" th:attr="data-ms=${lastRunMs}"></span>
+        <a class="btn ghost" href="/">Home</a>
+        <a class="btn ghost" href="/stages">Stage bots</a>
+        <a class="btn ghost" href="/convert">Code converter</a>
+        <a class="btn ghost" href="/code" aria-current="page">Website generated with code</a>
+        <a class="btn ghost" href="/edit">Edit site</a>
+        <a class="btn ghost" href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
+        <a class="btn" th:if="${hasCode or hasUserStory}" href="/download/site.zip" id="downloadZip"
+           title="Website and code in one ZIP">&#11015; Download ZIP</a>
+        <a class="btn" th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
+    </nav>
+</header>
+
+<section class="three-bots" aria-label="The 3 bots on this page">
+    <h3>3 bots work on this page</h3>
+    <div class="bot-trio">
+        <a class="bot-card" href="#story-bot">
+            <span class="bot-num">1</span>
+            <strong>Story bot</strong>
+            <span>Turns your prompt into a user story. Every story is read for its own business, offers and place.</span>
+        </a>
+        <a class="bot-card" href="#code-bot">
+            <span class="bot-num">2</span>
+            <strong>Code bot</strong>
+            <span>Writes the website code and pages from that story, so different stories give different sites.</span>
+        </a>
+        <div class="bot-card">
+            <span class="bot-num">3</span>
+            <strong>Site bot</strong>
+            <span>Shows the finished website, lets you edit it, and pushes it to your GitHub.</span>
+            <span class="bot-links">
+                <a th:if="${previewUrl}" th:href="${previewUrl}">Open website</a>
+                <a href="/edit">Edit site</a>
+                <a th:if="${hasCode or hasUserStory}" href="/download/site.zip">&#11015; Download ZIP</a>
+                <a href="#" data-site-push th:attr="data-host=${isHost}">&#11014; Push to GitHub</a>
+            </span>
+        </div>
+    </div>
+</section>
+
+<section class="story-banner" id="story-bot" th:if="${hasUserStory}">
+    <div class="story-banner-inner">
+        <p class="pipe-label">Story bot · user story</p>
+        <pre class="story-pre" th:text="${userStoryText}">User story</pre>
+    </div>
+</section>
+
+<section class="downloads-panel" id="downloads" th:if="${hasCode or hasUserStory}">
+    <div class="downloads-inner">
+        <p class="pipe-label">Download · generated in <strong th:text="${siteLanguage}">Java</strong></p>
+        <p class="downloads-run" th:if="${bundle.runCommand}">Run it: <code th:text="${bundle.runCommand}">mvn spring-boot:run</code></p>
+        <p class="downloads-actions">
+            <a class="btn ghost" th:if="${hasUserStory}" href="/code/download/stories" id="dlStories">&#11015; User stories (.md)</a>
+            <a class="btn ghost" th:if="${hasCode}" href="/code/download/code.zip" id="dlCode">&#11015; <span th:text="${siteLanguage}">Java</span> code (ZIP)</a>
+            <a class="btn" th:if="${hasCode or hasUserStory}" href="/code/download/site.zip" id="dlSite">&#11015; Whole site ZIP (stories + code + pages)</a>
+            <a class="btn ghost" th:if="${selected}" th:href="'/code/download/file?file=' + ${#uris.escapeQueryParam(selected)}" id="dlFile">&#11015; This file</a>
+        </p>
+    </div>
+</section>
+
+<main class="code-layout" id="code-bot" th:if="${hasCode}">
+    <aside class="code-files">
+        <p class="pipe-label">Code bot · generated files</p>
+        <div th:each="g : ${groups}" class="file-group" th:attr="data-group=${g.id}">
+            <p class="group-title" th:attr="title=${g.hint}">
+                <span th:text="${g.title}">Group</span>
+                <small th:text="${#lists.size(g.files)}">1</small>
+            </p>
+            <a th:each="f : ${g.files}"
+               class="file-link"
+               th:classappend="${f == selected} ? ' active' : ''"
+               th:href="@{/code(file=${f})}"
+               th:text="${f}">src/…</a>
+        </div>
+    </aside>
+    <section class="code-pane">
+        <div class="code-meta">
+            <span class="lang" th:text="${language}">java</span>
+            <span class="lang site-lang" th:text="${siteLanguage} + ' site'">Java site</span>
+            <code th:text="${selected}">file</code>
+        </div>
+        <p class="code-error" th:if="${error}" th:text="${error}">Error</p>
+        <pre th:if="${content}"><code th:text="${content}">// code</code></pre>
+    </section>
+</main>
+
+<main class="code-empty" th:unless="${hasCode}">
+    <div class="bubble">
+        <h1>No user story or website code yet</h1>
+        <p>Ask BOT to create a website. The Story bot writes the user story, the Code bot writes the website code, and the Site bot shows and publishes it.</p>
+        <p class="actions"><a class="btn" href="/">Create a website with BOT</a>
+            <a class="btn ghost" href="/stages">Open the 5-stage pipeline</a></p>
+    </div>
+</main>
+<script th:src="@{/js/runtimer.js}"></script>
+<script th:src="@{/js/runcontrol.js}"></script>
+<script th:src="@{/js/menu.js}"></script>
+<script th:src="@{/js/sitepush.js}"></script>
+<script>
+  (function () {
+    var el = document.getElementById('lastRun');
+    if (el) el.textContent = 'Generated in ' + RunTimer.format(Number(el.getAttribute('data-ms')));
+  })();
+</script>
+</body>
+</html>

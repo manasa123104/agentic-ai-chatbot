@@ -1,11 +1,11 @@
 .convert-main [hidden] { display: none !important; }
 
 .convert-main {
-  max-width: 1040px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: .7rem 1rem 1.6rem;
+  padding: .55rem .9rem 1.3rem;
   display: grid;
-  gap: .75rem;
+  gap: .65rem;
 }
 
 .convert-status {

@@ -18,14 +18,13 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Stage bots</strong>
-            <small>Business Analyst → Developer → Tester → Data Analyst → Deploy → Trainer · MCP and guardrails · any language, any domain</small>
+            <small>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer. Any language, any domain.</small>
         </div>
     </div>
     <nav class="code-actions">
         <a class="btn ghost" href="/">Home</a>
         <a class="btn ghost" href="/stages" aria-current="page">Stage bots</a>
         <a class="btn ghost" href="/convert">Code converter</a>
-        <a class="btn ghost" href="/code">User stories + code</a>
     </nav>
 </header>
 
@@ -33,16 +32,16 @@
     <section class="convert-status" th:classappend="${llmReady} ? ' on' : ' off'">
         <span class="dot"></span>
         <p th:if="${llmReady}"><strong>Language model connected: <span th:text="${llmName}">model</span>.</strong>
-            Each stage applies a domain and language persona, together with any training examples you have approved. A small local model may require a minute or more per stage.</p>
+            Each stage uses the domain and language you select, together with any training examples you have approved. A small local model may need a minute or more per stage.</p>
         <p th:unless="${llmReady}"><strong>Offline mode.</strong> Built-in templates provide implementation and unit tests in Java, Python, JavaScript,
-            TypeScript, C#, Go and Kotlin for any domain (including dedicated banking fund-transfer and logistics shipment-tracking samples),
-            Selenium or Playwright tests, and deployment files for every supported language.
+            TypeScript, C#, Go, and Kotlin for any domain, including banking fund-transfer and logistics shipment-tracking samples.
+            They also include Selenium or Playwright tests and deployment files for every supported language.
             Start Ollama or set <code>OPENAI_API_KEY</code> to generate output with a language model, including languages not covered by the templates.</p>
     </section>
 
     <section class="convert-card stage-setup">
         <div class="setup-row">
-            <label class="field slim domain-field"><span th:text="'Domain (' + ${domainCount} + ' + your own)'">Domain</span>
+            <label class="field slim domain-field"><span>Domain</span>
                 <select id="domain">
                     <optgroup th:each="g : ${domainGroups}" th:label="${g.group}">
                         <option th:each="d : ${g.domains}" th:value="${d.label}" th:text="${d.label}"

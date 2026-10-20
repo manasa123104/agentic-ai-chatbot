@@ -12,9 +12,9 @@ body.code-app {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: .7rem;
   flex-wrap: wrap;
-  padding: .9rem 1.25rem;
+  padding: .55rem 1rem;
   background: rgba(251, 249, 245, .9);
   border-bottom: 1px solid var(--line, #d8d3c8);
   backdrop-filter: blur(8px);
@@ -52,7 +52,7 @@ body.code-app {
 
 .code-actions {
   display: flex;
-  gap: .5rem;
+  gap: .35rem;
   flex-wrap: wrap;
 }
 

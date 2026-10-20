@@ -12,8 +12,8 @@ import java.util.Set;
 public final class BusinessLogicFiles {
 
     public static final String PROJECT_FILE = "BUSINESS_LOGIC.md";
-    static final String NOT_REQUESTED = "Business logic was not requested for this conversion. Tick \"Explain the business "
-            + "logic in plain English\" before converting to get a description of every file.";
+    static final String NOT_REQUESTED = "A description was not requested for this conversion. Tick \"Describe what the "
+            + "code does in everyday language\" before converting to get a description of every file.";
 
     private BusinessLogicFiles() {
     }

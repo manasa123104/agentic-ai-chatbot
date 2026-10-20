@@ -64,6 +64,17 @@ class HomeChatTest {
         assertEquals(Intent.BUILD, HomeChatService.classify(
                 "Build a website from the user stories and requirements below.\n\n=== User stories and requirements "
                         + "(from the uploaded file) ===\nHow do I log in?", true, true));
+        // casual typed request: language, restaurant, and ratings in one message
+        assertEquals(Intent.BUILD, HomeChatService.classify(
+                "I would like to build a Indian Dhaba Resturant site in Java Language\n\nWith User rating", false, false));
+        assertEquals(Intent.REFINE, HomeChatService.classify("With User rating", true, true));
+        assertEquals(Intent.REFINE, HomeChatService.classify("add user ratings", true, true));
+        assertEquals(Intent.REFINE, HomeChatService.classify("please include guest reviews on the home page", true, true));
+        // broken English must start a new site, even if another site already exists
+        assertEquals(Intent.BUILD, HomeChatService.classify(
+                "HI I would like to develop website for Indian Resturant", true, true));
+        assertEquals(Intent.BUILD, HomeChatService.classify("develop website for Indian restaurant", true, true));
+        assertEquals(Intent.BUILD, HomeChatService.classify("i want site for dhaba", true, true));
     }
 
     @Test
@@ -87,7 +98,7 @@ class HomeChatTest {
         assertTrue(text.contains("**Crumb Hearth** website is ready"), text);
         assertTrue(text.contains("Wrote the user stories") && text.contains("(3 files)"), text);
         assertTrue(text.contains("chatbot agent"), text);
-        assertTrue(text.contains("[Open the website](/site/home)") && text.contains("(/code)"), text);
+        assertTrue(text.contains("[Open the website](/site/home)"), text);
         assertFalse(text.contains("Bot 1"), "no internal bot names: " + text);
     }
 
