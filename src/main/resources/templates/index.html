@@ -31,8 +31,6 @@
             <small>From idea to release</small>
         </div>
     </div>
-    <button type="button" class="new-chat" id="newChat">+ New prompt</button>
-
     <div class="history-head">
         <span>Previous results</span>
         <button type="button" class="history-clear" id="clearHistory" title="Clear all history">Clear</button>
@@ -1206,7 +1204,8 @@
     });
   });
 
-  document.getElementById('newChat').addEventListener('click', function () {
+  var newChat = document.getElementById('newChat');
+  if (newChat) newChat.addEventListener('click', function () {
     window.location.href = '/';
   });
 

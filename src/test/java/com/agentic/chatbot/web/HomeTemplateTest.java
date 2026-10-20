@@ -31,5 +31,6 @@ class HomeTemplateTest {
         assertFalse(markup.contains("href=\"/edit\""));
         assertFalse(markup.contains("composer-tools"));
         assertFalse(markup.contains("OliveGrove"));
+        assertFalse(markup.contains("New prompt"));
     }
 }
