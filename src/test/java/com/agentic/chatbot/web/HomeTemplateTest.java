@@ -28,5 +28,6 @@ class HomeTemplateTest {
         assertFalse(markup.contains("Websites in your language"));
         assertFalse(markup.contains("OliveGrove"));
         assertFalse(markup.contains("<ol>"));
+        assertFalse(markup.contains("From idea to release"));
     }
 }
