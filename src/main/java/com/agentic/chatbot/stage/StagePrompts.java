@@ -9,8 +9,8 @@ import java.util.Map;
  */
 public final class StagePrompts {
 
-    private static final int EXAMPLE_INPUT_CHARS = 300;
-    private static final int EXAMPLE_OUTPUT_CHARS = 1200;
+    private static final int EXAMPLE_INPUT_CHARS = 200;
+    private static final int EXAMPLE_OUTPUT_CHARS = 400;
 
     private StagePrompts() {
     }
@@ -36,44 +36,25 @@ public final class StagePrompts {
         boolean java = language == StageLanguage.JAVA;
         String d = domain.label();
         return switch (stage) {
-            case BA -> "You are a senior Business Analyst for the " + d + " domain."
-                    + " You work for " + domain.organisation() + " and know " + domain.expertise() + ".\n"
-                    + "Turn the requirement into 3 to 5 user stories. Format in Markdown exactly like this:\n"
-                    + "# Feature: <short feature name>\n"
-                    + "## Story 1: <title>\n"
-                    + "As a <role>, I want <goal>, so that <benefit>.\n"
-                    + "### Acceptance criteria\n"
-                    + "Scenario: <name>\n  Given ...\n  When ...\n  Then ...\n"
-                    + "Give every story 2 or 3 scenarios, including validation and error cases, with concrete example values. "
-                    + "End with a short '## Assumptions' list. No code.";
-            case DEVELOPER -> "You are a senior " + languageName + " developer in the " + d + " domain."
-                    + " You know " + domain.expertise() + ".\n"
+            case BA -> "You are a Business Analyst for the " + d + " domain.\n"
+                    + "Write exactly 3 short user stories. Markdown:\n"
+                    + "# Feature: <name>\n## Story 1: <title>\nAs a <role>, I want <goal>, so that <benefit>.\n"
+                    + "### Acceptance criteria\nScenario: <name>\n  Given ...\n  When ...\n  Then ...\n"
+                    + "Two scenarios per story. End with ## Assumptions. No code.";
+            case DEVELOPER -> "You are a " + languageName + " developer for " + d + ".\n"
                     + (java
-                    ? "Write clean, compilable Java 17 using only the JDK (no frameworks unless asked). "
-                    : "Write clean, idiomatic, runnable " + languageName + " using only the standard library unless asked. ")
-                    + (bank ? "Use exact decimal types for money (BigDecimal, Decimal, ...), never binary floating point. "
-                    : "Model statuses as enums or constants with explicit allowed transitions. ")
-                    + (java
-                    ? "Every public class and public method has a Javadoc comment. "
-                    : "Every public type and function has a doc comment in the language's usual style. ")
-                    + "Every business rule has an inline comment starting with 'Business rule:' that says which rule it "
-                    + "enforces. Validate inputs and raise clear errors.";
-            case TESTER -> "You are a senior software tester (unit tests, UI automation and manual functional testing) for " + d + " software.\n"
-                    + (java
-                    ? "Write JUnit 5 tests (org.junit.jupiter.api) for the given Java code. "
-                    : "Write " + unitFramework + " unit tests for the given " + languageName + " code. ")
-                    + "Use only constructors and functions that exist in the code shown. Cover the happy path, every "
-                    + "validation rule and edge case. Use descriptive test names and a short comment on what each test "
-                    + "proves. No mocking libraries.\n"
-                    + "For UI automation (" + automation.label() + ") use the page-object pattern: each Given/When/Then "
-                    + "scenario becomes one test, use id locators with clear ids, explicit waits, and read the base URL "
-                    + "from configuration. Add a short comment above each test naming its scenario.\n"
-                    + "Manual (functional) test cases are for a person to run by hand: ID, title, preconditions, numbered steps and "
-                    + "expected results taken from the Given/When/Then scenarios.";
+                    ? "Write short, compilable Java 17 (JDK only). "
+                    : "Write short, runnable " + languageName + " (standard library only). ")
+                    + (bank ? "Use exact decimal types for money. " : "")
+                    + "Add brief Javadoc or doc comments and a 'Business rule:' comment on validations.";
+            case TESTER -> "You write " + (java ? "JUnit 5" : unitFramework) + " unit tests for " + d + ".\n"
+                    + "Use only constructors and functions that exist in the code shown. Cover the happy path and one "
+                    + "validation case. Reply with test files only.";
             case DATA_ANALYST -> "You are a senior Data Analyst for the " + d + " domain."
                     + " You know " + domain.expertise() + ".\n"
                     + "From the project's stories, code and tests, produce clear KPIs, short statistical summaries and "
-                    + "chart-ready series (weekly volume, success rate, test mix). Prefer Markdown tables and JSON; "
+                    + "chart-ready series (weekly volume, success rate, test mix, quality snapshot). For every chart, "
+                    + "write what the graph shows and a short analysis of the numbers. Prefer Markdown tables and JSON; "
                     + "do not invent a live database connection. Keep numbers realistic for " + d + ".";
             case DEPLOY -> "You are a senior DevOps engineer for " + d + " systems. You write minimal, secure, "
                     + "production-ready Dockerfiles, build scripts and GitHub Actions pipelines for " + languageName
@@ -85,7 +66,7 @@ public final class StagePrompts {
     /** User prompt for the Developer in any language other than Java. */
     public static String developerAny(String stories, String languageName, String fence, String srcDir, String feature) {
         String tag = fence == null || fence.isBlank() ? "" : fence;
-        return "User stories:\n" + clip(stories, 2500) + "\n\n"
+        return "User stories:\n" + clip(stories, 1600) + "\n\n"
                 + "Write the complete " + languageName + " implementation of these stories (feature " + feature + "): "
                 + "domain model, errors and a service with the business rules. Use 1 to 4 files under " + srcDir + "/. "
                 + "Precede each file with a line 'FILE: <path>' and put its code in its own ```" + tag + " block. "
@@ -119,7 +100,7 @@ public final class StagePrompts {
 
     /** BA prompt for stories the user uploaded or pulled from GitHub: organise them, never drop or invent any. */
     public static String baRefine(String stories) {
-        return "These are existing user stories (possibly from several files):\n" + clip(stories, 9000) + "\n\n"
+        return "These are existing user stories (possibly from several files):\n" + clip(stories, 3500) + "\n\n"
                 + "Organise them into the Markdown format from your instructions, grouped by feature. Keep EVERY story and its "
                 + "acceptance criteria; do not invent new stories. Add Given/When/Then scenarios only where they are missing. "
                 + "Write the user stories now.";
@@ -136,7 +117,16 @@ public final class StagePrompts {
     }
 
     public static String baUser(String requirement) {
-        return "Requirement:\n" + clip(requirement, 1500) + "\n\nWrite the user stories now.";
+        return "Requirement:\n" + clip(requirement, 800) + "\n\nWrite the user stories now.";
+    }
+
+    /** One-shot Java implementation: every class in a single model call (faster than a plan plus per-class writes). */
+    public static String developerJava(String stories, String pkg, String feature) {
+        return "User stories:\n" + clip(stories, 1600) + "\n\n"
+                + "Write the complete Java 17 implementation of these stories in package " + pkg
+                + " (feature " + feature + "). Use exactly 2 files: a domain class and a service. "
+                + "Precede each file with a line 'FILE: <ClassName>.java' and put its code in its own ```java block. "
+                + "Brief Javadoc and 'Business rule:' comments. No other text.";
     }
 
     public static String developerPlan(String stories, String pkg) {
@@ -171,6 +161,15 @@ public final class StagePrompts {
                 + (otherSignatures.isBlank() ? "" : "Other classes (signatures only):\n" + clip(otherSignatures, 1200) + "\n")
                 + "Package: " + pkg + "\n"
                 + "Write the JUnit 5 test class " + testName + " in that package. Reply with one ```java block.";
+    }
+
+    /** One-shot JUnit suite: every test class in a single model call. */
+    public static String unitTestsJava(String classes, String stories, String pkg, List<String> testNames) {
+        return "Classes under test:\n```java\n" + clip(classes, 4000) + "\n```\n"
+                + (stories.isBlank() ? "" : "Expected behaviour (user stories):\n" + clip(stories, 800) + "\n")
+                + "Package: " + pkg + "\n"
+                + "Write the JUnit 5 test class for each of: " + String.join(", ", testNames) + ". "
+                + "Precede each file with a line 'FILE: <Type>Test.java' and put it in its own ```java block.";
     }
 
     public static String seleniumJava(String stories, String pkg, String feature, String baseUrl) {

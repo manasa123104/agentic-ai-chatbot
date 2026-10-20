@@ -4,7 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT · Stage bots</title>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
     <link rel="stylesheet" th:href="@{/css/convert.css}"/>
@@ -18,7 +18,7 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Stage bots</strong>
-            <small>Business Analyst → Developer → Tester → Data Analyst → Deploy → Trainer · MCP + Guardrails · any language, any domain</small>
+            <small>Business Analyst → Developer → Tester → Data Analyst → Deploy → Trainer · MCP and guardrails · any language, any domain</small>
         </div>
     </div>
     <nav class="code-actions">
@@ -32,12 +32,12 @@
 <main class="convert-main stages-main">
     <section class="convert-status" th:classappend="${llmReady} ? ' on' : ' off'">
         <span class="dot"></span>
-        <p th:if="${llmReady}"><strong>AI model connected: <span th:text="${llmName}">model</span>.</strong>
-            Each stage uses a domain and language persona prompt plus your approved training examples. A small local model can take a minute or more per stage.</p>
-        <p th:unless="${llmReady}"><strong>Offline mode.</strong> Built-in templates cover code and unit tests in Java, Python, JavaScript,
-            TypeScript, C#, Go and Kotlin for any domain (with dedicated banking fund-transfer and logistics shipment-tracking samples),
-            Selenium/Playwright tests, and deployment files for every language.
-            Start Ollama or set <code>OPENAI_API_KEY</code> for AI-generated output and for code in any other language.</p>
+        <p th:if="${llmReady}"><strong>Language model connected: <span th:text="${llmName}">model</span>.</strong>
+            Each stage applies a domain and language persona, together with any training examples you have approved. A small local model may require a minute or more per stage.</p>
+        <p th:unless="${llmReady}"><strong>Offline mode.</strong> Built-in templates provide implementation and unit tests in Java, Python, JavaScript,
+            TypeScript, C#, Go and Kotlin for any domain (including dedicated banking fund-transfer and logistics shipment-tracking samples),
+            Selenium or Playwright tests, and deployment files for every supported language.
+            Start Ollama or set <code>OPENAI_API_KEY</code> to generate output with a language model, including languages not covered by the templates.</p>
     </section>
 
     <section class="convert-card stage-setup">
@@ -48,7 +48,7 @@
                         <option th:each="d : ${g.domains}" th:value="${d.label}" th:text="${d.label}"
                                 th:selected="${d.label == 'Banking'}">Banking</option>
                     </optgroup>
-                    <option value="other">Other (type your own)</option>
+                    <option value="other">Other (specify)</option>
                 </select>
             </label>
             <label class="field slim" id="otherDomainField" hidden><span>Other domain</span>
@@ -64,7 +64,7 @@
                         <option th:each="l : ${moreLanguages}" th:value="${l.id}" th:text="${l.label}"
                                 th:attr="data-unit=${l.unit},data-automation=${l.automation},data-ext=${l.ext},data-label=${l.label}">Scala</option>
                     </optgroup>
-                    <option value="other" th:attr="data-unit=${otherLanguage.unit},data-automation=${otherLanguage.automation}">Other (type your own)</option>
+                    <option value="other" th:attr="data-unit=${otherLanguage.unit},data-automation=${otherLanguage.automation}">Other (specify)</option>
                 </select>
             </label>
             <label class="field slim" id="otherLanguageField" hidden><span>Other language</span>
@@ -102,86 +102,86 @@
             <span class="pipe-step" th:each="s, it : ${stageList}" th:attr="data-stage=${s.id}">
                 <button type="button" class="pipe-btn" aria-expanded="false"
                         th:id="'pipeBtn-' + ${s.id}" th:attr="aria-controls='pipeHelp-' + ${s.id},data-help=${s.id}"
-                        th:title="'What is ' + ${s.title} + '? Click to read'">
+                        th:title="'About the ' + ${s.title} + ' stage. Select to read the overview.'">
                     <b th:text="${it.count}">1</b><span class="pipe-name" th:text="${s.title}">Stage</span><i class="pipe-chev" aria-hidden="true">&#9662;</i>
                 </button>
             </span>
         </div>
-        <p class="pipe-hint" id="pipeHint"><span aria-hidden="true">&#9662;</span> What is this? Tap any stage above to see what it does, what goes in, what comes out and what happens next.</p>
+        <p class="pipe-hint" id="pipeHint"><span aria-hidden="true">&#9662;</span> Select a stage to review its role, inputs, outputs and the following step.</p>
         <div class="pipe-help-wrap" id="pipeHelpWrap" role="region" aria-live="polite">
             <article class="pipe-help" id="pipeHelp-ba" data-help="ba" role="region" aria-labelledby="pipeBtn-ba" hidden>
                 <h3>What is BA (Business Analyst)?</h3>
-                <p class="pipe-lead">The Business Analyst turns a plain requirement (for example &ldquo;transfer money between accounts&rdquo;) into clear <strong>user stories</strong> for the domain you picked, each with acceptance criteria written as Given / When / Then.</p>
+                <p class="pipe-lead">The Business Analyst translates a business requirement (for example, &ldquo;transfer money between accounts&rdquo;) into structured <strong>user stories</strong> for the selected domain, each with Given / When / Then acceptance criteria.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 1. Plays a senior Business Analyst for your domain: it decides who the users are, what they want and how we know a story is done.</dd>
-                    <dt>Input</dt><dd>A requirement you type, <em>or</em> story files you already have (.md, .txt, .docx, .csv, .feature, a folder or a ZIP, about 100 stories is fine), <em>or</em> stories pulled from a GitHub repository.</dd>
-                    <dt>Output</dt><dd>User stories with Given / When / Then acceptance criteria. You can edit them, download them, or ask it to use your own stories as-is or refine them (it keeps every story).</dd>
-                    <dt>Next stage</dt><dd>The stories become the input of the <strong>Developer</strong>. Press &ldquo;Send to next stage&rdquo;, or let <em>Run all stages</em> hand them over for you.</dd>
+                    <dt>Role</dt><dd>Stage 1. Acts as a senior business analyst: it identifies the users, their goals, and the evidence that a story is complete.</dd>
+                    <dt>Input</dt><dd>A requirement you enter, <em>or</em> existing story files (.md, .txt, .docx, .csv, .feature, a folder or a ZIP), <em>or</em> stories imported from a GitHub repository. Limits: 55,000 characters in the input field, 5 MB per file, 1,000 files or 100 MB per ZIP.</dd>
+                    <dt>Output</dt><dd>User stories with Given / When / Then acceptance criteria. You may edit or download them, pass them through unchanged, or request a refinement that preserves every story.</dd>
+                    <dt>Next stage</dt><dd>The stories become the input to the <strong>Developer</strong>. Use &ldquo;Send to next stage&rdquo;, or run all stages to pass them forward automatically.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="ba">Go to the Business Analyst &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-developer" data-help="developer" role="region" aria-labelledby="pipeBtn-developer" hidden>
                 <h3>What is Developer?</h3>
-                <p class="pipe-lead">The Developer reads the user stories and writes <strong>working, commented code</strong> that implements them, in the language you chose (Java, Python, JavaScript, C#, Go and many more).</p>
+                <p class="pipe-lead">The Developer reads the user stories and produces <strong>commented, working source code</strong> in the selected language (Java, Python, JavaScript, C#, Go and others).</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 2. Plays a senior developer for your domain and language, following the stories and your approved training examples.</dd>
-                    <dt>Input</dt><dd>The user stories from the Business Analyst (or stories you paste in).</dd>
-                    <dt>Output</dt><dd>Source code files with comments. Edit the code, download it (a file, the stage ZIP, or a business-logic summary), or push it to GitHub.</dd>
-                    <dt>Next stage</dt><dd>The code goes to the <strong>Tester</strong>, which writes tests for it. The <strong>Deploy</strong> stage also builds on this same code.</dd>
+                    <dt>Role</dt><dd>Stage 2. Acts as a senior engineer for the chosen domain and language, following the stories and any approved training examples.</dd>
+                    <dt>Input</dt><dd>User stories from the Business Analyst, or stories you paste directly.</dd>
+                    <dt>Output</dt><dd>Source files with comments. You may edit the code, download a file, the stage ZIP or a business-logic summary, or push it to GitHub.</dd>
+                    <dt>Next stage</dt><dd>The code proceeds to the <strong>Tester</strong>. The <strong>Deploy</strong> stage uses the same implementation.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="developer">Go to the Developer &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-tester" data-help="tester" role="region" aria-labelledby="pipeBtn-tester" hidden>
                 <h3>What is Tester?</h3>
-                <p class="pipe-lead">The Tester checks that the Developer&rsquo;s code works. It can write three kinds of test, any one or all of them:</p>
+                <p class="pipe-lead">The Tester verifies that the Developer&rsquo;s implementation behaves as specified. It can produce any combination of three test types:</p>
                 <ul>
-                    <li><strong>Unit tests</strong> &ndash; automated checks of small pieces of the code (one function or class at a time).</li>
-                    <li><strong>Automation (Selenium)</strong> &ndash; scripts that open a real browser and click through the app like a robot user.</li>
-                    <li><strong>Manual / Functional testing</strong> &ndash; step-by-step test cases (preconditions, steps, expected result) that a person runs by hand against the running app.</li>
+                    <li><strong>Unit tests</strong> &ndash; automated checks of individual functions or classes.</li>
+                    <li><strong>Automation (Selenium)</strong> &ndash; browser scripts that exercise the application as an end user would.</li>
+                    <li><strong>Manual / functional testing</strong> &ndash; step-by-step cases (preconditions, steps, expected result) for a person to execute against the running application.</li>
                 </ul>
                 <dl>
-                    <dt>Role</dt><dd>Stage 3. Plays a tester who proves the stories were built correctly.</dd>
-                    <dt>Input</dt><dd>The Developer&rsquo;s code, plus the run&rsquo;s user stories for the automation and manual cases.</dd>
-                    <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Pick which to write in the drop-down above the results, and download them as files or a ZIP.</dd>
-                    <dt>Next stage</dt><dd>Once the tests look right, the <strong>Data Analyst</strong> turns the run into KPIs and charts, then <strong>Deploy</strong> packages the code.</dd>
+                    <dt>Role</dt><dd>Stage 3. Acts as a tester who demonstrates that the stories were implemented correctly.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, together with the run&rsquo;s user stories for automation and manual cases.</dd>
+                    <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Select which types to generate from the list above the results, then download them as files or a ZIP archive.</dd>
+                    <dt>Next stage</dt><dd>When the tests are acceptable, the <strong>Data Analyst</strong> produces KPIs and charts, then <strong>Deploy</strong> packages the code.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="tester">Go to the Tester &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-data-analyst" data-help="data-analyst" role="region" aria-labelledby="pipeBtn-data-analyst" hidden>
                 <h3>What is Data Analyst?</h3>
-                <p class="pipe-lead">The Data Analyst turns the run into <strong>graphs and statistics</strong>: KPIs, a Chart.js dashboard and a metrics JSON file you can open or push with the rest of the project.</p>
+                <p class="pipe-lead">The Data Analyst produces <strong>graphs and statistics</strong> for the run: key performance indicators, a Chart.js dashboard and a metrics JSON file. Open <code>dashboard.html</code> — each chart includes a <em>high-level overview</em> and an <em>analysis</em> of the figures.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 4. Plays a data analyst for your domain: volume, success rate, test mix and open-defect estimates.</dd>
-                    <dt>Input</dt><dd>The Developer&rsquo;s code (and the run&rsquo;s stories / tests when available).</dd>
-                    <dt>Output</dt><dd><code>analytics/STATS.md</code>, <code>analytics/dashboard.html</code> (interactive charts) and <code>analytics/metrics.json</code>. Download them from this card or open the HTML in a browser.</dd>
+                    <dt>Role</dt><dd>Stage 4. Acts as a data analyst for the selected domain. The dashboard presents nine charts (operations and quality), each with a description and an analysis, together with a KPI summary.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, and the run&rsquo;s stories and tests when they are available.</dd>
+                    <dt>Output</dt><dd><code>analytics/STATS.md</code> (written analysis), <code>analytics/dashboard.html</code> (interactive charts with descriptions) and <code>analytics/metrics.json</code>. Download them from this card or open the HTML file in a browser.</dd>
                     <dt>Next stage</dt><dd>The <strong>Deploy</strong> stage prepares the same Developer code for release.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="data-analyst">Go to the Data Analyst &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-deploy" data-help="deploy" role="region" aria-labelledby="pipeBtn-deploy" hidden>
                 <h3>What is Deploy?</h3>
-                <p class="pipe-lead">Deploy prepares the code so the app can be <strong>packaged and released</strong>. It only produces the files; it does not publish or run anything for you.</p>
+                <p class="pipe-lead">Deploy prepares the implementation so the application can be <strong>packaged and released</strong>. It generates the files only; it does not publish or start the application.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 5. Plays a DevOps engineer for your language: it writes everything needed to build and run the app anywhere.</dd>
+                    <dt>Role</dt><dd>Stage 5. Acts as a DevOps engineer for the selected language: it writes the artefacts required to build and run the application in a typical environment.</dd>
                     <dt>Input</dt><dd>The Developer&rsquo;s code.</dd>
-                    <dt>Output</dt><dd>A Dockerfile, build scripts, a CI/CD workflow (GitHub Actions), Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide that explains how to run it. Download them from the Deploy card as a file or a ZIP. You can also tick &ldquo;Build image locally&rdquo; if Docker is installed.</dd>
-                    <dt>Next stage</dt><dd>The <strong>Trainer</strong> reviews the finished run and saves the outputs you approve.</dd>
+                    <dt>Output</dt><dd>A Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide. Download them from the Deploy card as a file or a ZIP archive. You may also select &ldquo;Build image locally&rdquo; when Docker is installed.</dd>
+                    <dt>Next stage</dt><dd>The <strong>Trainer</strong> reviews the completed run and stores the outputs you approve.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="deploy">Go to Deploy &darr;</button>
             </article>
             <article class="pipe-help" id="pipeHelp-trainer" data-help="trainer" role="region" aria-labelledby="pipeBtn-trainer" hidden>
                 <h3>What is Trainer?</h3>
-                <p class="pipe-lead">The Trainer is BOT&rsquo;s memory. It does not write or deploy anything itself: it keeps the outputs <em>you approve</em> so the next runs in the same domain (and language) come out better.</p>
+                <p class="pipe-lead">The Trainer is BOT&rsquo;s memory. It does not generate or deploy artefacts; it retains the outputs <em>you approve</em> so later runs in the same domain and language improve.</p>
                 <dl>
-                    <dt>Role</dt><dd>Stage 6, the last one. Reviews the run and saves approved (and corrected) outputs as few-shot examples.</dd>
-                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases, Data Analyst charts and Deploy files. Tick the stages to save. Your own corrections to an output are saved as you edited them, and you can add feedback such as &ldquo;always add an AML screening story&rdquo;.</dd>
-                    <dt>Output</dt><dd>A training report, and examples saved in <code>data/bot-training.json</code> on the machine running BOT. On the public Render site that file is temporary and is wiped on restart or redeploy, so treat training there as a demo. Nothing is saved automatically: press <em>Save this run as training</em>.</dd>
-                    <dt>Next stage</dt><dd>There is no next stage: the pipeline is complete. The saved examples are shown to the model the next time you run a stage for the same domain, and an <strong>All 6 stages done &mdash; Push to GitHub</strong> panel appears at the very end of the page so you can push the whole run to a new GitHub branch and get a new link.</dd>
+                    <dt>Role</dt><dd>Stage 6, the final stage. Reviews the run and stores approved (and corrected) outputs as few-shot examples.</dd>
+                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases, Data Analyst charts and Deploy files. Select the stages to store. Edits you make in an output field are saved as corrected, and you may add feedback such as &ldquo;always include an AML screening story&rdquo;.</dd>
+                    <dt>Output</dt><dd>A training report, with examples stored in <code>data/bot-training.json</code> on the machine that runs BOT. On the public hosted site that file is temporary and is cleared on restart or redeploy, so treat training there as a demonstration. Nothing is stored automatically: use <em>Save this run as training</em>.</dd>
+                    <dt>Next stage</dt><dd>The pipeline is complete. Stored examples are provided to the model the next time you run a stage for the same domain. An <strong>All 6 stages done &mdash; Push to GitHub</strong> panel at the end of the page lets you push the full run to a new GitHub branch and obtain a link.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
             </article>
         </div>
-        <p class="run-info" id="runInfo">No run yet. Run any stage on its own, or press Run all stages.</p>
+        <p class="run-info" id="runInfo">No run in progress. Execute any stage individually, or select Run all stages.</p>
         <p class="run-timer-row"><span id="totalTimer"></span></p>
     </section>
 
@@ -209,6 +209,18 @@
         <details class="help-tip" open="open" th:if="${s.id == 'data-analyst'}">
             <summary>What is Data Analyst?</summary>
             <p>The Data Analyst turns this run into <strong>graphs and statistics</strong>: a KPI summary (<code>STATS.md</code>), a Chart.js <code>dashboard.html</code> you can open in a browser, and <code>metrics.json</code> for the chart data.</p>
+            <p>Open the dashboard to see nine charts in two groups. Each one has a title, a <em>High-level overview</em> note, and an <em>Analysis</em> box that interprets the numbers for this domain:</p>
+            <ul>
+                <li><strong>Weekly volume</strong> &mdash; demand across the week (transfers, appointments, shipments or requests).</li>
+                <li><strong>Success rate</strong> &mdash; how much of that demand completed on the happy path.</li>
+                <li><strong>Daily outcomes</strong> &mdash; the same volume split into completed vs unsuccessful.</li>
+                <li><strong>Channel mix</strong> &mdash; which channel raised the work (app, web, branch, API&hellip;).</li>
+                <li><strong>Cycle / wait / transit time</strong> &mdash; how long the work takes each day.</li>
+                <li><strong>Test mix</strong> &mdash; unit vs automation vs manual coverage from the Tester stage.</li>
+                <li><strong>Quality snapshot</strong> &mdash; estimated defects vs how many are still open.</li>
+                <li><strong>Failure reasons</strong> &mdash; why items left the happy path.</li>
+                <li><strong>Defect severity</strong> &mdash; critical / major / minor / info split of estimated defects.</li>
+            </ul>
             <p>Figures are illustrative, domain-flavoured metrics derived from the stories, code and tests in the run &mdash; not a live database. Deploy still uses the Developer&rsquo;s code next.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'deploy'}">
@@ -219,8 +231,18 @@
         <div class="ba-import" th:if="${s.id == 'ba'}">
             <div class="ba-import-head">
                 <strong>Already have user stories? Bring them in</strong>
-                <span class="hint">Upload story files (.md, .txt, .docx, .csv, .feature), a whole folder or a ZIP (about 100 stories is fine), or pull them from a GitHub repo.
-                    They fill the Input box below, where you can still edit them. Or skip this and type a requirement as usual.</span>
+                <span class="hint">Upload story files (.md, .txt, .docx, .csv, .feature), a whole folder or a ZIP, or pull them from a GitHub repo.
+                    They fill the Input box below, where you can still edit them. Or skip this and type a requirement as usual.
+                    <a href="/samples/example-user-stories.md" download="example-user-stories.md">Download an example .md</a></span>
+            </div>
+            <div class="ba-import-limits" role="note">
+                <strong>Upload limits</strong>
+                <ul>
+                    <li><b>55,000</b> characters in the Input box</li>
+                    <li><b>5 MB</b> per file</li>
+                    <li><b>1,000 files</b> / <b>100 MB</b> per ZIP</li>
+                    <li>Types: .md, .txt, .docx, .csv, .feature, .json</li>
+                </ul>
             </div>
             <div class="ba-import-grid">
                 <div class="ba-import-col">
@@ -228,7 +250,7 @@
                     <div class="upload-pick">
                         <label class="upload-btn" for="storyFiles">
                             <span class="u-title">Upload files or a ZIP</span>
-                            <span class="u-sub">.md, .txt, .docx, .csv, .feature, .json or .zip</span>
+                            <span class="u-sub">.md, .txt, .docx, .csv, .feature, .json or .zip · max 5 MB each</span>
                         </label>
                         <input type="file" id="storyFiles" class="u-input" multiple="multiple" accept=".md,.markdown,.txt,.docx,.csv,.tsv,.feature,.story,.json,.zip"/>
                         <span class="u-count">Nothing chosen yet</span>
@@ -446,7 +468,7 @@
 
     <p class="convert-message error" id="runGone" role="alert" hidden></p>
 
-    <!-- Always visible at the bottom of /stages: enabled once BA → Developer → Tester → Deploy → Trainer have finished. -->
+    <!-- Always visible at the bottom of /stages: enabled once BA → Developer → Tester → Data Analyst → Deploy → Trainer have finished. -->
     <section class="convert-card final-push" id="finalPush" aria-labelledby="finalPushTitle">
         <div class="final-push-head">
             <span class="final-push-badge" aria-hidden="true">&#10003;</span>
@@ -509,7 +531,7 @@
     'ba': ['Requirement', 'Describe what the business needs, e.g. "fund transfer between accounts".'],
     'developer': ['User stories', 'Paste user stories, or run the Business Analyst stage and press "Send to next stage".'],
     'tester': ['Code (+ stories)', 'Paste code to test (several files can be separated by === FILE: path === lines). Automation and manual test cases use the run\'s user stories, or stories pasted here.'],
-    'data-analyst': ['Code (+ stories)', 'Paste the Developer code (or run Developer / Tester first). Data Analyst writes analytics/STATS.md, dashboard.html and metrics.json.'],
+    'data-analyst': ['Code (+ stories)', 'Paste the Developer code (or run Developer / Tester first). Data Analyst writes analytics/STATS.md, dashboard.html (each chart explained) and metrics.json.'],
     'deploy': ['Code to deploy', 'Paste the code (or run the Developer stage). Deploy writes a Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML and DEPLOY.md.']
   };
   const MODES = { llm: 'AI model', template: 'Offline template', trained: 'From training', trainer: 'Training report',
@@ -559,7 +581,7 @@
       'ba': 'Senior Business Analyst, ' + d + ' domain · user stories with Given/When/Then',
       'developer': 'Senior ' + lang + ' developer, ' + d + ' domain · commented ' + lang + ' code',
       'tester': 'Tester · unit tests with ' + unit + ' + automation with ' + automationLabel() + ' + manual (functional) test cases',
-      'data-analyst': 'Data Analyst, ' + d + ' domain · KPIs, Chart.js dashboard and statistics for the run',
+      'data-analyst': 'Data Analyst, ' + d + ' domain · KPIs and Chart.js dashboard; each graph is explained',
       'deploy': 'DevOps · Dockerfile, build scripts, GitHub Actions CI/CD, Kubernetes for ' + lang
     };
   }
@@ -776,7 +798,7 @@
     updateFinalPush();
   }
 
-  /** The end-of-page "All 5 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished. */
+  /** The end-of-page "All 6 stages done" push panel: shown once every stage (or the Trainer on a known run) has finished. */
   const RUN_GONE_MSG = 'This run is no longer on the server (hosting restarted). Press New run, then Run all stages, then push again.';
   let verifiedRun = null; // the run id the server confirmed this session: no need to ask again
   let verifySeq = 0;
@@ -796,7 +818,7 @@
     }
   }
 
-  /** The run's files are gone from the server: clear results, the Trainer run box and the "All 5 stages done" panel. */
+  /** The run's files are gone from the server: clear results, the Trainer run box and the "All 6 stages done" panel. */
   function runGone(id) {
     verifiedRun = null;
     verifySeq++;
@@ -828,7 +850,7 @@
     if (await checkRun(id) === false && !busy && locks === 0 && currentRunId() === id) runGone(id);
   }
 
-  /** True when the whole-run push is allowed (all five stages done this session, or Trainer finished on a known run). */
+  /** True when the whole-run push is allowed (all six stages done this session, or Trainer finished on a known run). */
   function pipelineComplete() {
     return STAGES.every((s) => results[s]) || (!!results.trainer && !!currentRunId());
   }
@@ -863,12 +885,12 @@
     if (status) {
       status.textContent = ready
         ? ('Ready: push whole run ' + id + ' to a new GitHub branch and get your link below.')
-        : 'Waiting: run all 5 stages first (or press Run all stages), then you can push.';
+        : 'Waiting: run all 6 stages first (or press Run all stages), then you can push.';
     }
     if (blurb) {
       blurb.innerHTML = ready
-        ? 'Business Analyst, Developer, Tester, Deploy and Trainer are finished. Push the <strong>whole run</strong> (stories, code, tests and deployment files) to a <strong>new branch</strong> and get a new GitHub link to open it.'
-        : 'Finish <strong>Business Analyst, Developer, Tester, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.';
+        ? 'Business Analyst, Developer, Tester, Data Analyst, Deploy and Trainer are finished. Push the <strong>whole run</strong> (stories, code, tests, analytics and deployment files) to a <strong>new branch</strong> and get a new GitHub link to open it.'
+        : 'Finish <strong>Business Analyst, Developer, Tester, Data Analyst, Deploy and Trainer</strong> (or press <em>Run all stages</em>), then push the <strong>whole run</strong> to a <strong>new branch</strong> and get a GitHub link here.';
     }
   }
 
@@ -877,7 +899,7 @@
     await updateFinalPush();
     const panel = $('finalPush');
     if (!panel || !pipelineComplete()) return;
-    setMessage('trainer', 'All 5 stages done. Push everything this run generated to GitHub from the panel below.', 'ok');
+    setMessage('trainer', 'All 6 stages done. Push everything this run generated to GitHub from the panel below.', 'ok');
     panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -1303,8 +1325,21 @@
     }
   }
 
-  /** The next stage's input: the (possibly corrected) output; Deploy gets the Developer's code. */
+  /** Developer code for Data Analyst and Deploy (they do not consume Tester or dashboard prose). */
+  function developerCodeForLaterStages(fromStage) {
+    return q('developer', '.stage-output').value.trim()
+      || (results[fromStage] && results[fromStage].nextInput)
+      || q('tester', '.stage-input').value;
+  }
+
+  /** The next stage's input: the (possibly corrected) output; Deploy and Data Analyst get the Developer's code. */
   function handOff(stage) {
+    if (stage === 'tester') {
+      const code = developerCodeForLaterStages(stage);
+      q('data-analyst', '.stage-input').value = code;
+      q('deploy', '.stage-input').value = code;
+      return 'data-analyst';
+    }
     const i = STAGES.indexOf(stage);
     const next = STAGES[i + 1];
     if (!next) return null;
@@ -1313,11 +1348,8 @@
       return next;
     }
     let value = getOut(stage);
-    // Deploy and Data Analyst both need the Developer code, not the previous stage's prose/tests/charts.
     if (next === 'deploy' || next === 'data-analyst') {
-      value = q('developer', '.stage-output').value.trim()
-        || (results[stage] && results[stage].nextInput)
-        || q('tester', '.stage-input').value;
+      value = developerCodeForLaterStages(stage);
     }
     q(next, '.stage-input').value = value;
     return next;
@@ -1346,16 +1378,34 @@
       document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
     }
     let ended = null; // why the loop ended early: 'stopped' or 'failed'
+    const together = new Set(['data-analyst', 'deploy']);
     try {
       for (const stage of STAGES) {
-        if (resume && results[stage]) { handOff(stage); continue; } // already done before the stop
-        if (stopRequested) { ended = 'stopped'; break; }
-        btn.textContent = 'Running ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + '…';
-        BotRun.running('stage ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + ': ' + stage, runId);
-        card(stage).scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const data = await runStage(stage, true);
-        if (!data) { ended = stopRequested ? 'stopped' : 'failed'; break; }
-        handOff(stage);
+        if (together.has(stage)) continue; // Data Analyst + Deploy share one step after Tester
+        if (resume && results[stage]) {
+          handOff(stage);
+        } else {
+          if (stopRequested) { ended = 'stopped'; break; }
+          btn.textContent = 'Running ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + '…';
+          BotRun.running('stage ' + (STAGES.indexOf(stage) + 1) + ' of ' + STAGES.length + ': ' + stage, runId);
+          card(stage).scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const data = await runStage(stage, true);
+          if (!data) { ended = stopRequested ? 'stopped' : 'failed'; break; }
+          handOff(stage);
+        }
+        if (stage === 'tester') {
+          const pair = ['data-analyst', 'deploy'].filter((s) => !(resume && results[s]));
+          if (pair.length && !stopRequested) {
+            btn.textContent = pair.length === 2
+              ? 'Running Data Analyst and Deploy together…'
+              : 'Running ' + (STAGES.indexOf(pair[0]) + 1) + ' of ' + STAGES.length + '…';
+            BotRun.running(pair.length === 2 ? 'Data Analyst and Deploy together' : pair[0], runId);
+            pair.forEach((s) => card(s).scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            const parts = await Promise.all(pair.map((s) => runStage(s, true)));
+            if (parts.some((d) => !d)) { ended = stopRequested ? 'stopped' : 'failed'; break; }
+            pair.forEach((s) => handOff(s));
+          }
+        }
         if (stopRequested && STAGES.some((s) => !results[s])) { ended = 'stopped'; break; }
       }
       const doneCount = STAGES.filter((s) => results[s]).length;

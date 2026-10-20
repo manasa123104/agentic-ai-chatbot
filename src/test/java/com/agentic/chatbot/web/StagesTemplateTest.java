@@ -117,6 +117,27 @@ class StagesTemplateTest {
         String html = page();
         assertTrue(html.contains("'data-analyst':"));
         assertTrue(html.contains("analytics/STATS.md"));
-        assertTrue(html.contains("next === 'deploy' || next === 'data-analyst'"));
+        assertTrue(html.contains("next === 'deploy' || next === 'data-analyst'")
+                || html.contains("developerCodeForLaterStages"));
+        assertTrue(html.contains("Running Data Analyst and Deploy together"));
+        assertTrue(html.contains("Promise.all"));
+        assertTrue(html.contains("High-level overview"));
+        assertTrue(html.contains("Quality snapshot"));
+        assertTrue(html.contains("Daily outcomes"));
+        assertTrue(html.contains("Failure reasons"));
+        assertTrue(html.contains("nine charts"));
+    }
+
+    @Test
+    void storyUploadShowsLimitsAboveThePicker() throws Exception {
+        String html = page();
+        int limits = html.indexOf("class=\"ba-import-limits\"");
+        int upload = html.indexOf("id=\"storyFiles\"");
+        assertTrue(limits > 0 && upload > limits, "upload limits must sit above the file picker");
+        assertTrue(html.contains("55,000"));
+        assertTrue(html.contains("5 MB"));
+        assertTrue(html.contains("1,000 files"));
+        assertTrue(html.contains("100 MB"));
+        assertFalse(html.contains("about 100 stories is fine"));
     }
 }

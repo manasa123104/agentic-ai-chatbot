@@ -283,7 +283,7 @@ table { max-width: 100%; }
   font: 500 12.5px var(--font-ui, system-ui, sans-serif);
   color: var(--text, #1d2430);
 }
-.run-bar.is-idle { opacity: .72; }
+.run-bar.is-idle { display: none; }
 .run-bar.is-running { border-color: #c98a2b; }
 .run-bar.is-stopped { border-color: #b5483a; }
 .run-bar-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
