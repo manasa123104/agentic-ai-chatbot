@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
-/** Home is a landing page for converter and Stage bots. */
+/** Home is a flash-card landing for converter and Stage bots. */
 class HomeTemplateTest {
 
     @Test
@@ -16,19 +16,17 @@ class HomeTemplateTest {
                 StandardCharsets.UTF_8);
         String markup = html.contains("<script") ? html.substring(0, html.indexOf("<script")) : html;
         assertTrue(markup.contains("Welcome to BOT"));
-        assertTrue(markup.contains("home-landing"));
-        assertTrue(markup.contains("home-starts"));
+        assertTrue(markup.contains("flash-card"));
+        assertTrue(markup.contains("Code converter"));
+        assertTrue(markup.contains("Stage bots"));
+        assertTrue(markup.contains("Delivery stages"));
         assertTrue(markup.contains("/convert"));
         assertTrue(markup.contains("/stages"));
-        assertTrue(markup.contains("The six stages"));
         assertTrue(markup.contains("class=\"chat-composer\" hidden"));
         assertFalse(markup.contains("New prompt"));
-        assertFalse(markup.contains("start-convert"));
-        assertFalse(markup.contains("Code conversion"));
+        assertFalse(markup.contains("Choose a workspace"));
         assertFalse(markup.contains("Websites in your language"));
-        assertFalse(markup.contains("on-page chatbot"));
-        assertFalse(markup.contains("href=\"/edit\""));
-        assertFalse(markup.contains("composer-tools"));
         assertFalse(markup.contains("OliveGrove"));
+        assertFalse(markup.contains("<ol>"));
     }
 }
