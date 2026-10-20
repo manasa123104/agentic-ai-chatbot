@@ -29,6 +29,7 @@ public final class DataAnalystTemplates {
         out.put("analytics/metrics.json", m.json());
         out.put("analytics/STATS.md", statsMd(ctx, m));
         out.put("analytics/dashboard.html", dashboardHtml(ctx, m));
+        out.putAll(chartImages(m));
         return out;
     }
 
@@ -276,6 +277,8 @@ public final class DataAnalystTemplates {
 
                 **Analysis:** %s
 
+                Chart images (SVG) sit in the [`charts/`](charts/) folder so you can save them locally. The dashboard also has **Download PNG** and **Download SVG** on every graph. Trainer and the whole-run ZIP include `analytics/charts/`.
+
                 Raw numbers are in [`metrics.json`](metrics.json).
 
                 ## Recommendations
@@ -358,6 +361,240 @@ public final class DataAnalystTemplates {
             }
         }
         return idx;
+    }
+
+    /** Nine SVG images plus a README in analytics/charts/ so the run (and Trainer) keep downloadable chart files. */
+    static Map<String, String> chartImages(Metrics m) {
+        Map<String, String> out = new LinkedHashMap<>();
+        String ink = "#2c5d68";
+        String gold = "#c4a35a";
+        String good = "#3d7a6a";
+        String bad = "#a12b2b";
+        List<String> palette = List.of(ink, good, gold, "#6b8cae", "#8b5e3c");
+        out.put("analytics/charts/01-volume.svg", barSvg(m.volumeTitle(), m.labels(), m.volume(), m.volumeUnit(), ink, false));
+        out.put("analytics/charts/02-success.svg", lineSvg(m.successTitle(), m.labels(), toDouble(m.success()), "percent", ink, false));
+        out.put("analytics/charts/03-outcomes.svg", stackedBarSvg("Daily outcomes", m.labels(),
+                m.completed(), m.failed(), "Completed", "Unsuccessful", good, bad, m.volumeUnit()));
+        out.put("analytics/charts/04-channels.svg", doughnutSvg(m.channels().title(), m.channels().labels(),
+                m.channels().values(), palette));
+        out.put("analytics/charts/05-cycle.svg", lineSvg(m.cycle().title(), m.labels(), m.cycle().values(),
+                m.cycle().unit(), gold, true));
+        out.put("analytics/charts/06-test-mix.svg", doughnutSvg("Test mix", List.of("Unit", "Automation", "Manual"),
+                m.testMix(), List.of(ink, good, gold)));
+        out.put("analytics/charts/07-quality.svg", barSvg("Quality snapshot",
+                List.of("Estimated defects", "Still open"), List.of(m.defects(), m.openDefects()), "count", ink, false));
+        out.put("analytics/charts/08-failure-reasons.svg", barSvg(m.reasons().title(), m.reasons().labels(),
+                m.reasons().values(), "count", ink, true));
+        out.put("analytics/charts/09-severity.svg", doughnutSvg(m.severity().title(), m.severity().labels(),
+                m.severity().values(), List.of(bad, "#c47a3a", gold, "#6b8cae")));
+        out.put("analytics/charts/README.md", """
+                # Chart images
+
+                The Data Analyst stage wrote one SVG for each dashboard graph. Save them to your computer from this
+                folder, or open `../dashboard.html` and use **Download PNG** / **Download SVG** on each chart.
+
+                This folder is part of the run, so Trainer and the whole-run ZIP include it.
+
+                | File | Chart |
+                | --- | --- |
+                | `01-volume.svg` | Weekly volume |
+                | `02-success.svg` | Success / kept / on-time rate |
+                | `03-outcomes.svg` | Daily completed vs unsuccessful |
+                | `04-channels.svg` | Channel mix |
+                | `05-cycle.svg` | Cycle / wait / transit time |
+                | `06-test-mix.svg` | Unit vs automation vs manual |
+                | `07-quality.svg` | Defects found vs still open |
+                | `08-failure-reasons.svg` | Why items left the happy path |
+                | `09-severity.svg` | Defect severity |
+                """);
+        return out;
+    }
+
+    private static List<Double> toDouble(List<Integer> values) {
+        List<Double> out = new ArrayList<>();
+        for (int v : values) {
+            out.add((double) v);
+        }
+        return out;
+    }
+
+    private static String barSvg(String title, List<String> labels, List<Integer> values, String unit, String color,
+                                 boolean horizontal) {
+        int w = 720;
+        int h = 380;
+        int left = horizontal ? 150 : 56;
+        int right = 24;
+        int top = 48;
+        int bottom = 56;
+        int plotW = w - left - right;
+        int plotH = h - top - bottom;
+        int max = Math.max(1, values.stream().mapToInt(Integer::intValue).max().orElse(1));
+        StringBuilder sb = svgHead(w, h, title, unit);
+        int n = values.size();
+        if (horizontal) {
+            double row = plotH / (double) n;
+            for (int i = 0; i < n; i++) {
+                double bar = values.get(i) / (double) max * (plotW - 8);
+                double y = top + i * row + row * 0.18;
+                sb.append("<rect x=\"").append(left).append("\" y=\"").append(round(y)).append("\" width=\"")
+                        .append(round(bar)).append("\" height=\"").append(round(row * 0.64)).append("\" fill=\"")
+                        .append(color).append("\"/>");
+                sb.append("<text x=\"").append(left - 8).append("\" y=\"").append(round(y + row * 0.52))
+                        .append("\" text-anchor=\"end\" font-size=\"12\" fill=\"#1c2430\">")
+                        .append(escape(labels.get(i))).append("</text>");
+            }
+        } else {
+            double col = plotW / (double) n;
+            for (int i = 0; i < n; i++) {
+                double bar = values.get(i) / (double) max * plotH;
+                double x = left + i * col + col * 0.18;
+                sb.append("<rect x=\"").append(round(x)).append("\" y=\"").append(round(top + plotH - bar))
+                        .append("\" width=\"").append(round(col * 0.64)).append("\" height=\"").append(round(bar))
+                        .append("\" fill=\"").append(color).append("\"/>");
+                sb.append("<text x=\"").append(round(x + col * 0.32)).append("\" y=\"").append(h - 18)
+                        .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
+                        .append(escape(labels.get(i))).append("</text>");
+            }
+        }
+        return sb.append("</svg>\n").toString();
+    }
+
+    private static String stackedBarSvg(String title, List<String> labels, List<Integer> bottom, List<Integer> topSeries,
+                                        String bottomName, String topName, String bottomColor, String topColor,
+                                        String unit) {
+        int w = 720;
+        int h = 380;
+        int left = 56;
+        int top = 48;
+        int plotW = w - left - 24;
+        int plotH = h - top - 72;
+        int n = labels.size();
+        int max = 1;
+        for (int i = 0; i < n; i++) {
+            max = Math.max(max, bottom.get(i) + topSeries.get(i));
+        }
+        StringBuilder sb = svgHead(w, h, title, unit);
+        double col = plotW / (double) n;
+        for (int i = 0; i < n; i++) {
+            double b = bottom.get(i) / (double) max * plotH;
+            double t = topSeries.get(i) / (double) max * plotH;
+            double x = left + i * col + col * 0.18;
+            sb.append("<rect x=\"").append(round(x)).append("\" y=\"").append(round(top + plotH - b))
+                    .append("\" width=\"").append(round(col * 0.64)).append("\" height=\"").append(round(b))
+                    .append("\" fill=\"").append(bottomColor).append("\"/>");
+            sb.append("<rect x=\"").append(round(x)).append("\" y=\"").append(round(top + plotH - b - t))
+                    .append("\" width=\"").append(round(col * 0.64)).append("\" height=\"").append(round(t))
+                    .append("\" fill=\"").append(topColor).append("\"/>");
+            sb.append("<text x=\"").append(round(x + col * 0.32)).append("\" y=\"").append(h - 36)
+                    .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
+                    .append(escape(labels.get(i))).append("</text>");
+        }
+        sb.append("<rect x=\"56\" y=\"").append(h - 22).append("\" width=\"12\" height=\"12\" fill=\"").append(bottomColor)
+                .append("\"/><text x=\"72\" y=\"").append(h - 12).append("\" font-size=\"12\">").append(escape(bottomName))
+                .append("</text>");
+        sb.append("<rect x=\"180\" y=\"").append(h - 22).append("\" width=\"12\" height=\"12\" fill=\"").append(topColor)
+                .append("\"/><text x=\"196\" y=\"").append(h - 12).append("\" font-size=\"12\">").append(escape(topName))
+                .append("</text>");
+        return sb.append("</svg>\n").toString();
+    }
+
+    private static String lineSvg(String title, List<String> labels, List<Double> values, String unit, String color,
+                                  boolean fill) {
+        int w = 720;
+        int h = 380;
+        int left = 56;
+        int top = 48;
+        int plotW = w - left - 24;
+        int plotH = h - top - 56;
+        double max = Math.max(1, values.stream().mapToDouble(Double::doubleValue).max().orElse(1));
+        double min = Math.min(0, values.stream().mapToDouble(Double::doubleValue).min().orElse(0));
+        if ("percent".equals(unit)) {
+            min = 80;
+            max = 100;
+        }
+        double span = Math.max(0.001, max - min);
+        StringBuilder sb = svgHead(w, h, title, unit);
+        int n = values.size();
+        StringBuilder pts = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            double x = left + (n == 1 ? plotW / 2.0 : i * (plotW / (double) (n - 1)));
+            double y = top + plotH - (values.get(i) - min) / span * plotH;
+            if (i > 0) {
+                pts.append(' ');
+            }
+            pts.append(round(x)).append(',').append(round(y));
+            sb.append("<circle cx=\"").append(round(x)).append("\" cy=\"").append(round(y))
+                    .append("\" r=\"4\" fill=\"").append(color).append("\"/>");
+            sb.append("<text x=\"").append(round(x)).append("\" y=\"").append(h - 18)
+                    .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
+                    .append(escape(labels.get(i))).append("</text>");
+        }
+        if (fill) {
+            String last = round(left + plotW) + "," + (top + plotH) + " " + left + "," + (top + plotH);
+            sb.append("<polygon points=\"").append(pts).append(' ').append(last)
+                    .append("\" fill=\"").append(color).append("\" fill-opacity=\"0.18\"/>");
+        }
+        sb.append("<polyline fill=\"none\" stroke=\"").append(color).append("\" stroke-width=\"2.5\" points=\"")
+                .append(pts).append("\"/>");
+        return sb.append("</svg>\n").toString();
+    }
+
+    private static String doughnutSvg(String title, List<String> labels, List<Integer> values, List<String> colors) {
+        int w = 720;
+        int h = 380;
+        int total = Math.max(1, sum(values));
+        double cx = 250;
+        double cy = 210;
+        double r = 110;
+        double inner = 58;
+        StringBuilder sb = svgHead(w, h, title, "");
+        double angle = -Math.PI / 2;
+        for (int i = 0; i < values.size(); i++) {
+            double slice = values.get(i) / (double) total * Math.PI * 2;
+            String color = colors.get(i % colors.size());
+            sb.append(donutSlice(cx, cy, r, inner, angle, angle + slice, color));
+            sb.append("<rect x=\"430\" y=\"").append(88 + i * 28).append("\" width=\"14\" height=\"14\" fill=\"")
+                    .append(color).append("\"/>");
+            sb.append("<text x=\"452\" y=\"").append(100 + i * 28).append("\" font-size=\"13\" fill=\"#1c2430\">")
+                    .append(escape(labels.get(i))).append(" (").append(values.get(i)).append(")</text>");
+            angle += slice;
+        }
+        return sb.append("</svg>\n").toString();
+    }
+
+    private static String donutSlice(double cx, double cy, double r, double inner, double a0, double a1, String color) {
+        if (a1 - a0 < 0.001) {
+            return "";
+        }
+        double large = (a1 - a0) > Math.PI ? 1 : 0;
+        String outer = arc(cx, cy, r, a0, a1);
+        String innerArc = "A " + inner + " " + inner + " 0 " + (int) large + " 0 "
+                + round(cx + Math.cos(a0) * inner) + " " + round(cy + Math.sin(a0) * inner);
+        return "<path d=\"M " + round(cx + Math.cos(a0) * r) + " " + round(cy + Math.sin(a0) * r)
+                + " A " + r + " " + r + " 0 " + (int) large + " 1 " + outer
+                + " L " + round(cx + Math.cos(a1) * inner) + " " + round(cy + Math.sin(a1) * inner)
+                + " " + innerArc + " Z\" fill=\"" + color + "\"/>";
+    }
+
+    private static String arc(double cx, double cy, double r, double a0, double a1) {
+        return round(cx + Math.cos(a1) * r) + " " + round(cy + Math.sin(a1) * r);
+    }
+
+    private static StringBuilder svgHead(int w, int h, String title, String unit) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(w).append("\" height=\"").append(h)
+                .append("\" viewBox=\"0 0 ").append(w).append(' ').append(h).append("\" role=\"img\">");
+        sb.append("<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>");
+        sb.append("<text x=\"24\" y=\"28\" font-size=\"16\" font-family=\"Times New Roman, Times, serif\" fill=\"#1c2430\">")
+                .append(escape(title)).append("</text>");
+        if (unit != null && !unit.isBlank()) {
+            sb.append("<text x=\"24\" y=\"44\" font-size=\"11\" fill=\"#5c6570\">").append(escape(unit)).append("</text>");
+        }
+        return sb;
+    }
+
+    private static String round(double v) {
+        return String.format(Locale.ROOT, "%.1f", v);
     }
 
     private static String dashboardHtml(Context ctx, Metrics m) {
@@ -455,6 +692,10 @@ public final class DataAnalystTemplates {
                 .analysis strong { color: #7a5a1a; }
                 canvas { max-height: 280px; }
                 .card.wide canvas { max-height: 300px; }
+                .dl-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+                .dl-bar button, .dl a, .dl button { font: 13px/1.3 "Times New Roman", Times, serif; color: var(--accent); background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: .28rem .65rem; cursor: pointer; text-decoration: none; }
+                .dl { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0; }
+                .dl-bar span { color: var(--muted); font-size: .85rem; }
                 footer { color: var(--muted); font-size: .8rem; padding: 0 1.5rem 1.5rem; max-width: 1140px; margin: 0 auto; }
               </style>
             </head>
@@ -467,6 +708,10 @@ public final class DataAnalystTemplates {
                 <section class="how">
                   <strong>How to read this dashboard</strong>
                   <p>__HOW__</p>
+                  <div class="dl-bar">
+                    <button type="button" id="dlAllPng">Download all charts as PNG</button>
+                    <span>SVG copies are in the <code>charts/</code> folder of this run (kept through Trainer).</span>
+                  </div>
                 </section>
                 <section class="kpis">
                   <div class="kpi"><b>__COVERAGE__%</b><span class="lbl">Est. test coverage</span>
@@ -488,30 +733,40 @@ public final class DataAnalystTemplates {
                     <h2>1. __VOL_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __VOL_WHAT__</p>
                     <canvas id="vol" role="img" aria-label="__VOL_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/01-volume.svg" download="01-volume.svg">Download SVG</a>
+                      <button type="button" data-chart="vol" data-file="01-volume">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __VOL_ANALYSIS__</p>
                   </article>
                   <article class="card">
                     <h2>2. __OK_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __OK_WHAT__</p>
                     <canvas id="ok" role="img" aria-label="__OK_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/02-success.svg" download="02-success.svg">Download SVG</a>
+                      <button type="button" data-chart="ok" data-file="02-success">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __OK_ANALYSIS__</p>
                   </article>
                   <article class="card wide">
                     <h2>3. Daily outcomes</h2>
                     <p class="what"><em>High-level overview.</em> __OUT_WHAT__</p>
                     <canvas id="out" role="img" aria-label="Daily outcomes"></canvas>
+                    <p class="dl"><a href="charts/03-outcomes.svg" download="03-outcomes.svg">Download SVG</a>
+                      <button type="button" data-chart="out" data-file="03-outcomes">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __OUT_ANALYSIS__</p>
                   </article>
                   <article class="card">
                     <h2>4. __CH_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __CH_WHAT__</p>
                     <canvas id="ch" role="img" aria-label="__CH_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/04-channels.svg" download="04-channels.svg">Download SVG</a>
+                      <button type="button" data-chart="ch" data-file="04-channels">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __CH_ANALYSIS__</p>
                   </article>
                   <article class="card">
                     <h2>5. __CY_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __CY_WHAT__</p>
                     <canvas id="cycle" role="img" aria-label="__CY_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/05-cycle.svg" download="05-cycle.svg">Download SVG</a>
+                      <button type="button" data-chart="cycle" data-file="05-cycle">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __CY_ANALYSIS__</p>
                   </article>
                 </section>
@@ -521,24 +776,32 @@ public final class DataAnalystTemplates {
                     <h2>6. Test mix</h2>
                     <p class="what"><em>High-level overview.</em> How this run is tested: unit tests (one function or class at a time), UI automation, and manual cases a person runs from the stories' Given / When / Then.</p>
                     <canvas id="mix" role="img" aria-label="Test mix"></canvas>
+                    <p class="dl"><a href="charts/06-test-mix.svg" download="06-test-mix.svg">Download SVG</a>
+                      <button type="button" data-chart="mix" data-file="06-test-mix">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __MIX_ANALYSIS__</p>
                   </article>
                   <article class="card">
                     <h2>7. Quality snapshot</h2>
                     <p class="what"><em>High-level overview.</em> Estimated defects found in this run versus how many are still open. Coverage is in the KPI strip so these two bars stay in the same unit (count of defects).</p>
                     <canvas id="qual" role="img" aria-label="Quality snapshot"></canvas>
+                    <p class="dl"><a href="charts/07-quality.svg" download="07-quality.svg">Download SVG</a>
+                      <button type="button" data-chart="qual" data-file="07-quality">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __QUAL_ANALYSIS__</p>
                   </article>
                   <article class="card wide">
                     <h2>8. __RSN_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __RSN_WHAT__</p>
                     <canvas id="rsn" role="img" aria-label="__RSN_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/08-failure-reasons.svg" download="08-failure-reasons.svg">Download SVG</a>
+                      <button type="button" data-chart="rsn" data-file="08-failure-reasons">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __RSN_ANALYSIS__</p>
                   </article>
                   <article class="card">
                     <h2>9. __SEV_TITLE__</h2>
                     <p class="what"><em>High-level overview.</em> __SEV_WHAT__</p>
                     <canvas id="sev" role="img" aria-label="__SEV_TITLE__"></canvas>
+                    <p class="dl"><a href="charts/09-severity.svg" download="09-severity.svg">Download SVG</a>
+                      <button type="button" data-chart="sev" data-file="09-severity">Download PNG</button></p>
                     <p class="analysis"><strong>Analysis.</strong> __SEV_ANALYSIS__</p>
                   </article>
                 </section>
@@ -612,6 +875,25 @@ public final class DataAnalystTemplates {
                   type: 'doughnut',
                   data: { labels: sevLabels, datasets: [{ data: sevValues, backgroundColor: [bad, '#c47a3a', gold, '#6b8cae'] }] },
                   options: { plugins: { legend: { position: 'bottom' } } }
+                });
+                function savePng(id, file) {
+                  var canvas = document.getElementById(id);
+                  if (!canvas || !canvas.toDataURL) return;
+                  var a = document.createElement('a');
+                  a.href = canvas.toDataURL('image/png');
+                  a.download = file + '.png';
+                  a.click();
+                }
+                document.querySelectorAll('[data-chart]').forEach(function (btn) {
+                  btn.addEventListener('click', function () {
+                    savePng(btn.getAttribute('data-chart'), btn.getAttribute('data-file'));
+                  });
+                });
+                var all = document.getElementById('dlAllPng');
+                if (all) all.addEventListener('click', function () {
+                  document.querySelectorAll('[data-chart]').forEach(function (btn) {
+                    savePng(btn.getAttribute('data-chart'), btn.getAttribute('data-file'));
+                  });
                 });
               </script>
             </body>

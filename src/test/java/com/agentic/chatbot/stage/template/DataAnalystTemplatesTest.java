@@ -38,6 +38,11 @@ class DataAnalystTemplatesTest {
         String json = files.get("analytics/metrics.json");
         assertTrue(json.contains("\"id\": \"volume\""));
         assertTrue(json.contains("\"analysis\""));
+        assertTrue(dash.contains("Download PNG"));
+        assertTrue(dash.contains("Download SVG"));
+        assertTrue(dash.contains("Download all charts as PNG"));
+        assertTrue(files.containsKey("analytics/charts/01-volume.svg"));
+        assertTrue(files.containsKey("analytics/charts/09-severity.svg"));
     }
 
     @Test

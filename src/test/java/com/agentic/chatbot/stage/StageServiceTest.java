@@ -123,6 +123,7 @@ class StageServiceTest {
         assertTrue(content(analyst, "dashboard.html").contains("chart.js"), content(analyst, "dashboard.html"));
         assertTrue(content(analyst, "dashboard.html").contains("High-level overview"), content(analyst, "dashboard.html"));
         assertTrue(content(analyst, "dashboard.html").contains("Weekly transfer volume"), content(analyst, "dashboard.html"));
+        assertTrue(content(analyst, "dashboard.html").contains("Download PNG"), content(analyst, "dashboard.html"));
         assertTrue(content(analyst, "STATS.md").contains("What each graph shows"), content(analyst, "STATS.md"));
         assertTrue(analyst.nextInput().contains("FundTransferService"), "deploy still gets the developer's code");
 

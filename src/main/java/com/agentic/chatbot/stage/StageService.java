@@ -1044,16 +1044,26 @@ public class StageService {
         if (unitTests == 0) {
             unitTests = Math.max(2, sources.size());
         }
-        Map<String, String> files = new LinkedHashMap<>(DataAnalystTemplates.files(new DataAnalystTemplates.Context(
+        Map<String, String> all = new LinkedHashMap<>(DataAnalystTemplates.files(new DataAnalystTemplates.Context(
                 ctx.domain(), ctx.languageName(), feature, storyCount, Math.max(sources.size(), 1),
                 unitTests, Math.max(automation, 1), Math.max(manual, 1))));
+        Map<String, String> files = new LinkedHashMap<>();
+        Map<String, String> extras = new LinkedHashMap<>();
+        all.forEach((path, content) -> {
+            if (path.startsWith("analytics/charts/")) {
+                extras.put(path, content);
+            } else {
+                files.put(path, content);
+            }
+        });
         List<String> notes = new ArrayList<>();
         notes.add("Data Analyst used the built-in analytics template (Chart.js dashboard, STATS.md, metrics.json) "
                 + "for " + ctx.domain().label() + " / " + feature + ".");
-        notes.add("Open analytics/dashboard.html in a browser. Each of the nine graphs has a high-level overview "
-                + "and an analysis (volume, success, outcomes, channels, cycle time, tests, defects, failure "
-                + "reasons, severity). Figures are illustrative KPIs derived from this run, not a live database.");
-        return new Generated(files, new LinkedHashMap<>(), notes, "template", "data analyst templates");
+        notes.add("Open analytics/dashboard.html in a browser. Each graph has Download PNG and Download SVG. "
+                + "SVG images are also written to analytics/charts/ in this run folder, so they are present for "
+                + "Trainer and the whole-run ZIP.");
+        notes.add("Figures are illustrative KPIs derived from this run, not a live database.");
+        return new Generated(files, extras, notes, "template", "data analyst templates");
     }
 
     private static int countMatches(String text, String regex) {
