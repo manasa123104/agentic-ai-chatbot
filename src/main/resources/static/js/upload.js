@@ -59,7 +59,7 @@
   }
 
   function describe(entries) {
-    if (!entries.length) return 'Nothing chosen yet';
+    if (!entries.length) return 'No files selected';
     var first = entries[0].path;
     var folder = first.indexOf('/') > 0 ? first.split('/')[0] : null;
     var total = entries.reduce(function (n, e) { return n + e.file.size; }, 0);

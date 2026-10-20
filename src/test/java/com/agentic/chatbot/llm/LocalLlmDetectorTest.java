@@ -39,8 +39,8 @@ class LocalLlmDetectorTest {
 
     @Test
     void sizesTheContextWindowToThePrompt() {
-        assertEquals(4096, OllamaLlmClient.contextSize(500));
-        assertEquals(8192, OllamaLlmClient.contextSize(6_000));
+        assertEquals(1024, OllamaLlmClient.contextSize(500));
+        assertEquals(4096, OllamaLlmClient.contextSize(6_000));
         assertEquals(32768, OllamaLlmClient.contextSize(200_000));
     }
 }

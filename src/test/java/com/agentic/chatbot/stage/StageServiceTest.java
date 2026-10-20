@@ -102,7 +102,7 @@ class StageServiceTest {
         assertEquals("Developer", dev.stageTitle());
         assertTrue(paths(dev).contains("src/main/java/com/bank/transfer/FundTransferService.java"));
         assertTrue(content(dev, "FundTransferService.java").contains("// Business rule:"));
-        assertTrue(dev.notes().stream().anyMatch(n -> n.startsWith("Compile check: all")), dev.notes().toString());
+        assertTrue(dev.notes().stream().anyMatch(n -> n.startsWith("Compile check skipped")), dev.notes().toString());
 
         StageResponse tester = run.get(2);
         assertEquals("Tester", tester.stageTitle());
@@ -121,6 +121,9 @@ class StageServiceTest {
         assertTrue(paths(analyst).containsAll(List.of("analytics/STATS.md", "analytics/dashboard.html", "analytics/metrics.json")),
                 paths(analyst).toString());
         assertTrue(content(analyst, "dashboard.html").contains("chart.js"), content(analyst, "dashboard.html"));
+        assertTrue(content(analyst, "dashboard.html").contains("High-level overview"), content(analyst, "dashboard.html"));
+        assertTrue(content(analyst, "dashboard.html").contains("Weekly transfer volume"), content(analyst, "dashboard.html"));
+        assertTrue(content(analyst, "STATS.md").contains("What each graph shows"), content(analyst, "STATS.md"));
         assertTrue(analyst.nextInput().contains("FundTransferService"), "deploy still gets the developer's code");
 
         StageResponse deploy = run.get(4);
@@ -208,7 +211,7 @@ class StageServiceTest {
         String code = content(dev, "patient_appointment.py");
         assertTrue(code.contains("# Business rule:") && code.contains("\"\"\""), "commented Python");
         assertTrue(code.contains("HEA-"), "domain reference prefix");
-        assertTrue(dev.notes().stream().anyMatch(n -> n.startsWith("Syntax check: all") || n.startsWith("Syntax check skipped")),
+        assertTrue(dev.notes().stream().anyMatch(n -> n.startsWith("Compile check skipped") || n.startsWith("Syntax check")),
                 dev.notes().toString());
 
         StageResponse tester = run.get(2);
@@ -263,7 +266,7 @@ class StageServiceTest {
         assertEquals("llm", go.mode());
         assertEquals("go", go.language());
         assertTrue(paths(go).stream().anyMatch(p -> p.endsWith(".go")), paths(go).toString());
-        assertTrue(model.systems.stream().anyMatch(s -> s.contains("senior Go developer in the Healthcare domain")));
+        assertTrue(model.systems.stream().anyMatch(s -> s.contains("Go developer for Healthcare")));
 
         StageResponse cs = service.run(StageType.DEVELOPER, request("Healthcare", stories, Map.of("language", "csharp")));
         assertTrue(paths(cs).contains("src/App/AppointmentService.cs"), paths(cs).toString());
@@ -476,12 +479,12 @@ class StageServiceTest {
         StageResponse both = service(failing).run(StageType.TESTER, request("banking", pasted,
                 Map.of("testerPart", "both", "automation", "both")));
 
-        assertEquals(1, prompts.size(), "after the first failure the remaining Tester calls are skipped");
+        assertEquals(1, prompts.size(), "Tester asks the model once for unit tests");
         assertTrue(paths(both).contains("src/test/java/com/bank/transfer/TransferServiceTest.java"), paths(both).toString());
         assertTrue(paths(both).stream().anyMatch(p -> p.startsWith("selenium-java/")), paths(both).toString());
         assertTrue(paths(both).stream().anyMatch(p -> p.startsWith("selenium-ruby/")), paths(both).toString());
         assertTrue(both.notes().stream().anyMatch(n -> n.contains("did not answer within 90 seconds")), both.notes().toString());
-        assertTrue(both.notes().stream().anyMatch(n -> n.startsWith("Skipped the model")), both.notes().toString());
+        assertTrue(both.notes().stream().anyMatch(n -> n.contains("built-in template so Tester stays fast")), both.notes().toString());
     }
 
     @Test
@@ -527,6 +530,18 @@ class StageServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.runDir("..\\..\\windows"));
     }
 
+    @Test
+    void dataAnalystAloneWritesExplainedDashboard() {
+        StageService service = service(OFFLINE);
+        StageResponse analyst = service.run(StageType.DATA_ANALYST, request("banking",
+                "package com.bank.transfer;\npublic class FundTransferService { public void transfer() {} }\n",
+                Map.of("offline", "true")));
+        assertTrue(paths(analyst).contains("analytics/dashboard.html"), paths(analyst).toString());
+        assertTrue(content(analyst, "dashboard.html").contains("High-level overview"));
+        assertTrue(content(analyst, "dashboard.html").contains("Weekly transfer volume"));
+        assertTrue(content(analyst, "STATS.md").contains("What each graph shows"));
+    }
+
     // ------------------------------------------------------------------ chaining through the model
 
     @Test
@@ -539,15 +554,19 @@ class StageServiceTest {
         assertEquals("template", run.get(3).mode(), "data analyst files are deterministic");
         assertEquals("template", run.get(4).mode(), "deploy files are deterministic");
         assertTrue(run.get(0).output().contains("ZEBRA42"));
-        assertTrue(model.prompt("List the Java classes").contains("ZEBRA42"), "developer plans from the BA stories");
-        assertTrue(model.prompt("Write ONLY the complete file TransferService.java").contains("public class Account"),
-                "later classes see the signatures of earlier ones");
+        assertTrue(model.prompt("Write the complete Java 17 implementation").contains("ZEBRA42"),
+                "developer writes every class from the BA stories in one call");
+        assertEquals(1, model.users.stream().filter(u -> u.contains("Write the complete Java 17 implementation")).count(),
+                "Java developer uses a single model call");
         assertTrue(paths(run.get(1)).contains("src/main/java/com/bank/transfer/TransferService.java"));
-        assertTrue(run.get(1).notes().stream().anyMatch(n -> n.startsWith("Compile check: all")), run.get(1).notes().toString());
-        assertTrue(model.prompt("Write the JUnit 5 test class TransferServiceTest").contains("class TransferService"),
+        assertTrue(run.get(1).notes().stream().anyMatch(n -> n.contains("in one model call")), run.get(1).notes().toString());
+        assertTrue(run.get(1).notes().stream().anyMatch(n -> n.startsWith("Compile check skipped")), run.get(1).notes().toString());
+        assertTrue(model.prompt("Write the JUnit 5 test class").contains("class TransferService"),
                 "tester tests the developer's code");
-        assertTrue(model.prompt("Write Selenium WebDriver").contains("ZEBRA42"), "automation works from the run's stories");
-        assertTrue(model.prompt("Write Ruby Selenium").contains("ZEBRA42"));
+        assertEquals(1, model.users.stream().filter(u -> u.contains("Write the JUnit 5 test class")).count(),
+                "Java unit tests use a single model call");
+        assertTrue(model.users.stream().noneMatch(u -> u.contains("Write Selenium WebDriver")),
+                "automation uses the built-in template");
         assertTrue(paths(run.get(2)).contains("selenium-ruby/spec/fund_transfer_spec.rb"), paths(run.get(2)).toString());
         assertTrue(paths(run.get(2)).contains("selenium-java/src/test/java/com/bank/transfer/ui/FundTransferPage.java"));
         assertCompiles(service.runDir(run.get(0).runId()), List.of("src/main/java", "src/test/java"));
@@ -562,24 +581,25 @@ class StageServiceTest {
 
         assertEquals("llm", dev.mode(), dev.notes().toString());
         String system = model.systems.get(model.systems.size() - 1);
-        assertTrue(system.startsWith("You are a senior Python developer in the Healthcare domain"), system);
+        assertTrue(system.startsWith("You are a Python developer for Healthcare"), system);
         assertTrue(model.prompt("Write the complete Python implementation").contains("Patient booking"));
         assertTrue(paths(dev).contains("app/patient_booking.py"), paths(dev).toString());
 
         StageResponse tester = service.run(StageType.TESTER, new StageRequest("Healthcare",
                 dev.output() + "\n=== FILE: stories.md ===\n" + stories, Map.of("language", "python"), dev.runId()));
         assertTrue(model.prompt("Write pytest unit tests in Python").contains("def book"), "unit tests see the code");
-        assertTrue(model.prompt("Write UI automation tests using Selenium Python").contains("Patient booking"),
-                "automation follows the code language by default and reads the run's stories");
+        assertTrue(model.users.stream().noneMatch(u -> u.contains("Write UI automation tests using")),
+                "automation uses the built-in template");
         assertTrue(paths(tester).contains("tests/test_patient_booking.py"), paths(tester).toString());
-        assertTrue(paths(tester).contains("selenium-python/tests/test_booking.py"), paths(tester).toString());
+        assertTrue(paths(tester).stream().anyMatch(p -> p.startsWith("selenium-python/tests/")), paths(tester).toString());
 
         service.run(StageType.BA, request("Space tourism", "Orbital trip booking", Map.of()));
         assertTrue(model.systems.get(model.systems.size() - 1)
-                .startsWith("You are a senior Business Analyst for the Space tourism domain"));
+                .startsWith("You are a Business Analyst for the Space tourism domain"));
 
         service.run(StageType.DEVELOPER, request("Banking", stories, Map.of("language", "other", "languageName", "Elixir")));
-        assertTrue(model.systems.stream().anyMatch(s -> s.startsWith("You are a senior Elixir developer in the Banking domain")));
+        assertTrue(model.systems.stream().anyMatch(s -> s.startsWith("You are a Elixir developer for Banking")
+                || s.startsWith("You are an Elixir developer for Banking")));
     }
 
     @Test
@@ -613,29 +633,20 @@ class StageServiceTest {
             @Override
             public synchronized String complete(String systemPrompt, String userPrompt) {
                 users.add(userPrompt);
-                if (userPrompt.contains("List the Java classes")) {
-                    return "Account - balance\nException - errors";
-                }
-                Matcher m = Pattern.compile("complete file (\\w+)\\.java").matcher(userPrompt);
-                String type = m.find() ? m.group(1) : "Account";
-                return "```java\npackage com.bank.transfer;\npublic class " + type + " { int x = ; }\n```";
+                return "FILE: Account.java\n```java\npackage com.bank.transfer;\npublic class Account { int x = ; }\n```\n"
+                        + "FILE: TransferService.java\n```java\npackage com.bank.transfer;\npublic class TransferService { int y = ; }\n```";
             }
         };
         String stories = "# Feature: Fund transfer\nAs a customer, I want to transfer funds.";
 
         StageResponse strict = service(sloppy).run(StageType.DEVELOPER, request("banking", stories, Map.of()));
-        assertEquals("template", strict.mode());
-        assertTrue(strict.notes().get(0).contains("compile error"), strict.notes().toString());
-        assertTrue(strict.notes().stream().anyMatch(n -> n.startsWith("Compile check: all")), "template code compiles");
-        assertTrue(users.stream().anyMatch(u -> u.contains("complete file FundTransferException.java")),
-                "java.lang names are renamed: " + users);
-        assertEquals(2, users.stream().filter(u -> u.contains("does not compile")).count(), "bounded repair attempts");
-
-        StageResponse kept = service(sloppy).run(StageType.DEVELOPER,
-                request("banking", stories, Map.of("keepModelCode", "true")));
-        assertEquals("llm", kept.mode());
-        assertTrue(kept.notes().stream().anyMatch(n -> n.matches("Compile check: \\d+ error.*")), kept.notes().toString());
-        assertTrue(kept.notes().stream().anyMatch(n -> n.contains("have no Javadoc")), kept.notes().toString());
+        assertEquals("llm", strict.mode());
+        assertTrue(users.stream().anyMatch(u -> u.contains("Write the complete Java 17 implementation")),
+                "developer asks for every class in one call: " + users);
+        assertEquals(0, users.stream().filter(u -> u.contains("does not compile")).count(),
+                "no compile-repair round trip");
+        assertTrue(strict.notes().stream().anyMatch(n -> n.startsWith("Compile check skipped")), strict.notes().toString());
+        assertTrue(strict.notes().stream().anyMatch(n -> n.contains("have no Javadoc")), strict.notes().toString());
     }
 
     @Test
@@ -695,7 +706,7 @@ class StageServiceTest {
         assertEquals("trained", again.mode());
         assertTrue(content(again, "FundTransferService.java").contains("(reviewed)"));
         assertEquals(paths(dev), paths(again));
-        assertTrue(again.notes().stream().anyMatch(n -> n.startsWith("Compile check: all")), again.notes().toString());
+        assertTrue(again.notes().stream().anyMatch(n -> n.startsWith("Compile check skipped")), again.notes().toString());
 
         StageResponse python = service.run(StageType.DEVELOPER, request("banking", "fund transfer between accounts",
                 Map.of("language", "python")));
@@ -712,9 +723,9 @@ class StageServiceTest {
         StageResponse report = service.run(StageType.TRAINER, new StageRequest("Healthcare", runId,
                 Map.of("save", "true", "feedback", "good run"), null));
         assertEquals(runId, report.runId());
-        assertTrue(report.notes().get(0).startsWith("Saved 4 training example(s)"), report.notes().toString());
+        assertTrue(report.notes().get(0).startsWith("Saved 5 training example(s)"), report.notes().toString());
         assertTrue(report.output().contains("## Saved now"));
-        assertEquals(4, service.trainingStats().get("total"));
+        assertEquals(5, service.trainingStats().get("total"));
 
         List<Map<String, String>> examples = service.trainingExamples("developer", "", 10);
         assertEquals(1, examples.size());
@@ -724,7 +735,7 @@ class StageServiceTest {
 
         assertTrue(service.deleteTrainingExample(examples.get(0).get("id")));
         assertFalse(service.deleteTrainingExample(examples.get(0).get("id")));
-        assertEquals(3, service.trainingStats().get("total"));
+        assertEquals(4, service.trainingStats().get("total"));
 
         StageResponse alone = service.run(StageType.TRAINER, request("banking", "", Map.of()));
         assertTrue(alone.output().contains("What BOT has learned"));
@@ -852,8 +863,19 @@ class StageServiceTest {
                         + ", so that I can pay people.\n\n### Acceptance criteria\nScenario: Successful transfer\n"
                         + "  Given an active account\n  When I transfer 10.00\n  Then the money moves\n";
             }
-            if (userPrompt.contains("List the Java classes")) {
-                return "1. Account - holds the balance\n2. TransferService - moves money";
+            if (userPrompt.contains("Write the complete Java 17 implementation")
+                    || userPrompt.contains("List the Java classes")) {
+                if (userPrompt.contains("List the Java classes")) {
+                    return "1. Account - holds the balance\n2. TransferService - moves money";
+                }
+                return "FILE: Account.java\n```java\npackage com.bank.transfer;\n\n/** Account. */\npublic class Account {\n"
+                        + "    private long balance;\n    /** @return balance */\n    public long getBalance() { return balance; }\n"
+                        + "    /** Business rule: no overdraft. */\n    public void debit(long cents) {\n"
+                        + "        if (cents > balance) throw new IllegalArgumentException(\"Insufficient funds\");\n"
+                        + "        balance -= cents;\n    }\n    public void credit(long cents) { balance += cents; }\n}\n```\n"
+                        + "FILE: TransferService.java\n```java\npackage com.bank.transfer;\n\n/** Moves money. */\npublic class TransferService {\n"
+                        + "    /** Transfers. */\n    public void transfer(Account from, Account to, long cents) {\n"
+                        + "        from.debit(cents);\n        to.credit(cents);\n    }\n}\n```";
             }
             if (userPrompt.contains("Write the complete Python implementation")) {
                 return "FILE: app/patient_booking.py\n```python\n\"\"\"Bookings.\"\"\"\n\n\ndef book(slot):\n"
@@ -894,13 +916,23 @@ class StageServiceTest {
                         + "        from.debit(cents);\n        to.credit(cents);\n    }\n}\n```";
             }
             if (userPrompt.contains("Write the JUnit 5 test class")) {
-                Matcher t = Pattern.compile("test class (\\w+)").matcher(userPrompt);
                 Matcher p = Pattern.compile("Package: ([\\w.]+)").matcher(userPrompt);
-                assertTrue(t.find() && p.find());
-                // trailing dot on purpose: small models copy punctuation into the package line
-                return "```java\npackage " + p.group(1) + ".;\n\nimport org.junit.jupiter.api.Test;\n"
-                        + "import static org.junit.jupiter.api.Assertions.assertEquals;\n\nclass " + t.group(1) + " {\n"
-                        + "    @Test\n    void works() {\n        assertEquals(1, 1);\n    }\n}\n```";
+                Matcher names = Pattern.compile("\\b([A-Z][A-Za-z0-9]+Test)\\b").matcher(userPrompt);
+                assertTrue(p.find());
+                StringBuilder out = new StringBuilder();
+                while (names.find()) {
+                    String test = names.group(1);
+                    out.append("FILE: ").append(test).append(".java\n```java\npackage ").append(p.group(1))
+                            .append(".;\n\nimport org.junit.jupiter.api.Test;\n")
+                            .append("import static org.junit.jupiter.api.Assertions.assertEquals;\n\nclass ")
+                            .append(test).append(" {\n    @Test\n    void works() {\n        assertEquals(1, 1);\n    }\n}\n```\n");
+                }
+                if (out.isEmpty()) {
+                    out.append("```java\npackage ").append(p.group(1))
+                            .append(".;\n\nimport org.junit.jupiter.api.Test;\n")
+                            .append("class TransferServiceTest {\n    @Test\n    void works() {}\n}\n```");
+                }
+                return out.toString();
             }
             if (userPrompt.contains("Write Selenium WebDriver")) {
                 return "FILE: FundTransferPage.java\n```java\npackage com.bank.transfer.ui;\n\nimport org.openqa.selenium.By;\n"

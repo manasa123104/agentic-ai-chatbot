@@ -78,14 +78,16 @@ public class StageService {
     private static final String DEFAULT_BASE_URL = "http://localhost:8080";
     static final int MAX_INPUT_CHARS = 60_000;
     private static final int MAX_DEVELOPER_CLASSES = 4;
-    private static final int MAX_TESTED_CLASSES = 3;
-    private static final int MAX_REPAIRS = 2;
+    private static final int MAX_TESTED_CLASSES = 1;
+    private static final Duration STAGE_CALL_TIMEOUT = Duration.ofSeconds(60);
+    private static final int BA_MAX_TOKENS = 700;
+    private static final int DEVELOPER_MAX_TOKENS = 1600;
     /** Per model call in the Tester stage; a small local model on low RAM can otherwise run for many minutes. */
-    static final Duration TESTER_CALL_TIMEOUT = Duration.ofSeconds(90);
+    static final Duration TESTER_CALL_TIMEOUT = Duration.ofSeconds(45);
     /** Wall-clock limit for all Tester model calls together, so a slow model cannot keep the stage running forever. */
-    static final Duration TESTER_BUDGET = Duration.ofSeconds(240);
-    private static final Duration TESTER_MIN_CALL = Duration.ofSeconds(15);
-    private static final int TESTER_MAX_TOKENS = 1200;
+    static final Duration TESTER_BUDGET = Duration.ofSeconds(50);
+    private static final Duration TESTER_MIN_CALL = Duration.ofSeconds(10);
+    private static final int TESTER_MAX_TOKENS = 700;
     /** Longer Tester code is sent as signatures plus stories instead of the full source. */
     private static final int TESTER_FULL_CODE_CHARS = 3000;
     private static final ExecutorService MODEL_CALLS = Executors.newCachedThreadPool(r -> {
@@ -93,9 +95,7 @@ public class StageService {
         t.setDaemon(true);
         return t;
     });
-    private static final Set<String> JAVA_LANG_TYPES = Set.of("Exception", "Error", "Object", "String", "Integer", "Long",
-            "Double", "Boolean", "Number", "Record", "Enum", "Class", "System", "Thread", "Math", "Override", "Void");
-    private static final int FEW_SHOT_EXAMPLES = 2;
+    private static final int FEW_SHOT_EXAMPLES = 1;
     private static final double RECALL_SIMILARITY = 0.8;
     private static final List<StageType> WORK_STAGES = List.of(StageType.BA, StageType.DEVELOPER, StageType.TESTER,
             StageType.DATA_ANALYST, StageType.DEPLOY);
@@ -212,7 +212,10 @@ public class StageService {
                 g.model(), output, files, g.notes(), nextStage, nextInput, elapsed);
     }
 
-    /** Runs all work stages plus Trainer, each fed from the previous one, into a single run folder. */
+    /**
+     * Runs all work stages plus Trainer into a single run folder. Data Analyst and Deploy both read the Developer
+     * code, so they run together after Tester.
+     */
     public List<StageResponse> runAll(StageRequest request) {
         List<StageResponse> results = new ArrayList<>();
         StageResponse ba = run(StageType.BA, request);
@@ -222,9 +225,24 @@ public class StageService {
         results.add(dev);
         StageResponse tester = run(StageType.TESTER, request.withInput(dev.nextInput(), runId).withOption("testerPart", null));
         results.add(tester);
-        StageResponse analyst = run(StageType.DATA_ANALYST, request.withInput(tester.nextInput(), runId));
-        results.add(analyst);
-        results.add(run(StageType.DEPLOY, request.withInput(analyst.nextInput(), runId)));
+        StageRequest afterTester = request.withInput(tester.nextInput(), runId);
+        Future<StageResponse> analystJob = MODEL_CALLS.submit(() -> run(StageType.DATA_ANALYST, afterTester));
+        Future<StageResponse> deployJob = MODEL_CALLS.submit(() -> run(StageType.DEPLOY, afterTester));
+        try {
+            results.add(analystJob.get());
+            results.add(deployJob.get());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            analystJob.cancel(true);
+            deployJob.cancel(true);
+            throw new IllegalStateException("Run all was interrupted", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException(cause.getMessage(), cause);
+        }
         results.add(run(StageType.TRAINER, request.withInput("", runId).withOption("save", null)));
         return results;
     }
@@ -567,7 +585,8 @@ public class StageService {
             case BA -> {
                 String user = ctx.request().option("baMode", "").equalsIgnoreCase("refine")
                         ? StagePrompts.baRefine(input) : StagePrompts.baUser(input);
-                String answer = StageFiles.collapseRepeats(StageFiles.stripFences(model.complete(system, user))).strip();
+                String answer = StageFiles.collapseRepeats(StageFiles.stripFences(
+                        model.complete(system, user, STAGE_CALL_TIMEOUT, BA_MAX_TOKENS))).strip();
                 if (!looksLikeStories(answer)) {
                     return null;
                 }
@@ -605,66 +624,18 @@ public class StageService {
         StageDomain domain = ctx.domain();
         String pkg = ctx.request().option("package", CodeTemplates.packageFor(domain, stories));
         String feature = StageSample.detect(stories, domain).featureName(stories);
-        List<String> plan = parsePlan(model.complete(system, StagePrompts.developerPlan(stories, pkg))).stream()
-                .map(t -> JAVA_LANG_TYPES.contains(t) ? feature + t : t)
-                .distinct()
-                .toList();
-        if (plan.isEmpty()) {
-            plan = List.of(feature, feature + "Service");
-            notes.add("The model did not list classes; generating " + String.join(" and ", plan) + ".");
-        } else {
-            notes.add("Planned classes: " + String.join(", ", plan) + ".");
-        }
-        StringBuilder signatures = new StringBuilder();
-        for (String type : plan) {
-            String answer = model.complete(system, StagePrompts.developerClass(stories, pkg, plan, type, signatures.toString()));
-            Map<String, String> parsed = modelJava(answer, "src/main/java", pkg);
-            if (parsed.isEmpty()) {
-                notes.add("No Java code came back for " + type + "; skipped.");
-                continue;
-            }
-            parsed.forEach((path, code) -> {
-                files.put(path, code);
-                signatures.append(StageFiles.signatures(code));
-            });
-        }
+        files.putAll(modelJava(model.complete(system, StagePrompts.developerJava(stories, pkg, feature),
+                STAGE_CALL_TIMEOUT, DEVELOPER_MAX_TOKENS), "src/main/java", pkg));
         if (files.isEmpty()) {
             return false;
         }
-        JavaCompileCheck.Result check = JavaCompileCheck.compile(files, List.of());
-        int repairs = 0;
-        while (!check.ok() && !check.skipped() && repairs < MAX_REPAIRS) {
-            String failing = check.errors().get(0);
-            String path = failing.substring(0, Math.max(0, failing.indexOf(".java:") + 5));
-            if (!files.containsKey(path)) {
-                break;
-            }
-            List<String> errors = check.errors().stream().filter(e -> e.startsWith(path)).toList();
-            String type = path.substring(path.lastIndexOf('/') + 1, path.length() - 5);
-            Map<String, String> fixed = StageFiles.javaSources(
-                    model.complete(system, StagePrompts.repair(type, files.get(path), errors)), "src/main/java", pkg);
-            repairs++;
-            if (fixed.containsKey(path)) {
-                files.put(path, fixed.get(path));
-            } else {
-                break;
-            }
-            check = JavaCompileCheck.compile(files, List.of());
-        }
-        if (repairs > 0) {
-            notes.add("Asked the model to fix compile errors " + repairs + " time(s).");
-        }
-        if (!check.ok() && !check.skipped() && !ctx.request().flag("keepModelCode")) {
-            throw new IllegalStateException("its Java still had " + check.errors().size()
-                    + " compile error(s) after " + repairs + " repair attempt(s), first: " + check.errors().get(0)
-                    + ". Pass option keepModelCode=true to keep it anyway");
-        }
+        notes.add("Generated " + files.size() + " Java class(es) in one model call.");
         long undocumented = files.values().stream().filter(c -> !c.contains("/**")).count();
         if (undocumented > 0) {
             notes.add(undocumented + " of " + files.size() + " file(s) from the model have no Javadoc; add comments or approve a "
                     + "commented version so future runs follow it.");
         }
-        notes.add(check.summary(files.size()));
+        notes.add(checkNote(ctx.lang(), files));
         return true;
     }
 
@@ -673,7 +644,7 @@ public class StageService {
         LanguageProfile lang = ctx.lang();
         String feature = StageSample.detect(stories, ctx.domain()).featureName(stories);
         String answer = model.complete(system, StagePrompts.developerAny(stories, ctx.languageName(), lang.fence(),
-                lang.srcDir(), feature));
+                lang.srcDir(), feature), STAGE_CALL_TIMEOUT, DEVELOPER_MAX_TOKENS);
         files.putAll(codeFiles(answer, lang.srcDir(), lang.ext(), StagePrompts.snake(feature)));
         if (files.isEmpty()) {
             return false;
@@ -708,10 +679,12 @@ public class StageService {
         }
         if (wantsAutomation(part) && ctx.automation() != StageAutomation.NONE) {
             String stories = in.stories().isBlank() ? in.code() : in.stories();
-            functionalViaModel(ctx, stories, budget, files, extras, notes);
+            notes.add("UI automation uses the built-in template so Tester stays fast.");
+            automationTemplates(ctx, stories, files, extras, notes);
         }
         if (wantsManual(part)) {
-            manualViaModel(ctx, in, budget, files, notes);
+            notes.add("Manual cases use the built-in template so Tester stays fast.");
+            manualTemplate(ctx, in, files, notes);
         }
         if (files.isEmpty()) {
             throw new IllegalArgumentException("Nothing to test: paste code for unit tests or user stories for automation and manual tests.");
@@ -818,43 +791,32 @@ public class StageService {
             targets = sources.entrySet().stream().limit(1).toList();
         }
         Map<String, String> tests = new LinkedHashMap<>();
+        String pkg = StageFiles.packageOf(targets.get(0).getValue()).orElse("");
+        List<String> testNames = new ArrayList<>();
+        StringBuilder bundle = new StringBuilder();
         for (Map.Entry<String, String> target : targets) {
             String classCode = target.getValue();
-            String pkg = StageFiles.packageOf(classCode).orElse("");
             String type = StageFiles.primaryType(classCode).orElse("Unit");
-            StringBuilder others = new StringBuilder();
-            sources.forEach((p, c) -> {
-                if (!p.equals(target.getKey())) {
-                    others.append(StageFiles.signatures(c));
-                }
-            });
-            boolean trimmed = classCode.length() > TESTER_FULL_CODE_CHARS;
-            String prompt = StagePrompts.unitTest(trimmed ? trimmedCode(classCode) : classCode, others.toString(),
-                    trimmed ? stories : "", pkg, type + "Test");
-            Optional<String> answer = budget.call(prompt, "the " + type + " unit tests");
-            if (answer.isEmpty()) {
-                if (budget.stopped()) {
-                    break;
-                }
-                continue;
-            }
+            testNames.add(type + "Test");
+            bundle.append(classCode.length() > TESTER_FULL_CODE_CHARS ? trimmedCode(classCode) : classCode).append("\n\n");
+        }
+        boolean trimmed = targets.stream().anyMatch(e -> e.getValue().length() > TESTER_FULL_CODE_CHARS);
+        Optional<String> answer = budget.call(
+                StagePrompts.unitTestsJava(bundle.toString(), trimmed ? stories : "", pkg, testNames),
+                "the unit tests");
+        if (answer.isPresent()) {
             Map<String, String> parsed = modelJava(answer.get(), "src/test/java", pkg);
-            parsed.entrySet().stream().filter(e -> e.getValue().contains("@Test")).findFirst()
-                    .ifPresentOrElse(e -> tests.put(e.getKey(), e.getValue()),
-                            () -> notes.add("No usable JUnit test came back for " + type + "."));
+            parsed.entrySet().stream().filter(e -> e.getValue().contains("@Test"))
+                    .forEach(e -> tests.put(e.getKey(), e.getValue()));
+            if (tests.isEmpty()) {
+                notes.add("No usable JUnit test came back for " + String.join(", ", testNames) + ".");
+            }
         }
         if (tests.isEmpty()) {
             return false;
         }
         files.putAll(tests);
-        Optional<Path> junit = junitJar();
-        if (junit.isPresent()) {
-            Map<String, String> all = new LinkedHashMap<>(sources);
-            all.putAll(tests);
-            notes.add(JavaCompileCheck.compile(all, List.of(junit.get())).summary(all.size()));
-        } else {
-            notes.add("Compile check of the tests skipped: JUnit is not on BOT's runtime classpath. Run mvn test in the run folder.");
-        }
+        notes.add(checkNote(LanguageProfile.resolve("java", "Java"), tests));
         return true;
     }
 
@@ -1056,22 +1018,10 @@ public class StageService {
         }
     }
 
-    /** Java: javac; Python: py_compile; other languages: say how to check. */
+    /** Skip in-process javac / py_compile so each stage returns as soon as files are written. */
     private static String checkNote(LanguageProfile lang, Map<String, String> files) {
-        if (lang.kind() == StageLanguage.JAVA) {
-            return compileNote(files, List.of());
-        }
-        if (lang.kind() == StageLanguage.PYTHON) {
-            Map<String, String> py = new LinkedHashMap<>();
-            files.forEach((p, c) -> {
-                if (p.endsWith(".py")) {
-                    py.put(p, c);
-                }
-            });
-            return PythonCompileCheck.summary(PythonCompileCheck.compile(py), py.size());
-        }
-        return "No compile check for " + lang.label() + " inside BOT; verify with " + lang.checkCommand()
-                + " or the CI workflow from the Deploy stage.";
+        return "Compile check skipped so this stage stays fast. Verify with " + lang.checkCommand()
+                + " in the run folder (" + files.size() + " file(s)).";
     }
 
     // ---------------------------------------------------------------- data analyst
@@ -1100,9 +1050,10 @@ public class StageService {
         List<String> notes = new ArrayList<>();
         notes.add("Data Analyst used the built-in analytics template (Chart.js dashboard, STATS.md, metrics.json) "
                 + "for " + ctx.domain().label() + " / " + feature + ".");
-        notes.add("Open analytics/dashboard.html in a browser for interactive graphs. Numbers are illustrative KPIs "
-                + "derived from this run, not a live database.");
-        return new Generated(files, Map.of(), notes, "template", "data analyst templates");
+        notes.add("Open analytics/dashboard.html in a browser. Each of the nine graphs has a high-level overview "
+                + "and an analysis (volume, success, outcomes, channels, cycle time, tests, defects, failure "
+                + "reasons, severity). Figures are illustrative KPIs derived from this run, not a live database.");
+        return new Generated(files, new LinkedHashMap<>(), notes, "template", "data analyst templates");
     }
 
     private static int countMatches(String text, String regex) {
@@ -1153,7 +1104,7 @@ public class StageService {
             if (model.isPresent()) {
                 try {
                     String answer = StageFiles.stripFences(model.get().complete(system(StageType.DEPLOY, ctx),
-                            StagePrompts.deployAny(code, ctx.languageName(), port))).strip();
+                            StagePrompts.deployAny(code, ctx.languageName(), port), STAGE_CALL_TIMEOUT, 800)).strip();
                     if (answer.contains("FROM ")) {
                         files.put("Dockerfile", answer + "\n");
                         mode = "llm";
@@ -1717,7 +1668,7 @@ public class StageService {
         return root.resolve(runId);
     }
 
-    private void writeFiles(Path dir, Map<String, String> files) {
+    private synchronized void writeFiles(Path dir, Map<String, String> files) {
         try {
             for (Map.Entry<String, String> e : files.entrySet()) {
                 Path target = resolveInside(dir, e.getKey());

@@ -18,7 +18,7 @@ import java.time.Duration;
  */
 public class OllamaLlmClient implements LlmClient {
 
-    private static final int MIN_CONTEXT = 4096;
+    private static final int MIN_CONTEXT = 1024;
     private static final int MAX_CONTEXT = 32768;
 
     private final String baseUrl;
@@ -66,6 +66,7 @@ public class OllamaLlmClient implements LlmClient {
             ObjectNode body = mapper.createObjectNode();
             body.put("model", model);
             body.put("stream", true);
+            body.put("keep_alive", "30m");
             ArrayNode messages = body.putArray("messages");
             messages.addObject().put("role", "system").put("content", systemPrompt);
             int promptChars = systemPrompt.length();
@@ -169,7 +170,7 @@ public class OllamaLlmClient implements LlmClient {
 
     /** Room for the prompt (about 3 characters per token) plus an answer of similar size. */
     static int contextSize(int promptChars) {
-        int needed = (promptChars / 3) * 2 + 1024;
+        int needed = promptChars / 3 + 256;
         int size = MIN_CONTEXT;
         while (size < needed && size < MAX_CONTEXT) {
             size *= 2;
@@ -182,6 +183,6 @@ public class OllamaLlmClient implements LlmClient {
      * model that starts repeating itself keeps generating until the request times out.
      */
     static int answerLimit(int promptChars) {
-        return Math.min(MAX_CONTEXT / 2, promptChars / 3 + 1024);
+        return Math.min(MAX_CONTEXT / 2, Math.max(400, promptChars / 4 + 400));
     }
 }

@@ -1,4 +1,4 @@
-.stages-main { max-width: 1320px; }
+.stages-main { max-width: 1040px; }
 
 .setup-row {
   display: flex;
@@ -132,8 +132,8 @@
 .stage-num {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border-radius: 11px;
   background: linear-gradient(145deg, #8fb3bc, #c9a27a);
   color: #222a33;
@@ -151,8 +151,8 @@
 
 .stage-io {
   margin: 0;
-  min-height: 300px;
-  max-height: 560px;
+  min-height: 220px;
+  max-height: 420px;
   padding: .85rem 1rem;
   font: 400 12.5px/1.55 "IBM Plex Mono", Consolas, monospace;
   color: #edf2f4;
@@ -326,13 +326,31 @@
 
 /* Business Analyst: bring your own stories */
 .ba-import, .help-tip, .gh-panel {
-  margin: 0 0 .9rem;
-  padding: .8rem 1rem;
+  margin: 0 0 .7rem;
+  padding: .6rem .8rem;
   border: 1px solid var(--line, #d8d3c8);
   border-radius: 12px;
   background: #f6f3ee;
 }
 .ba-import-head { display: grid; gap: .25rem; margin-bottom: .6rem; }
+.ba-import-limits {
+  margin: 0 0 .75rem;
+  padding: .65rem .8rem;
+  border: 1px dashed #b7c9ce;
+  border-radius: 10px;
+  background: #eef5f6;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ba-import-limits strong { color: #2c5d68; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.ba-import-limits ul {
+  display: grid;
+  gap: .25rem;
+  margin: .4rem 0 0;
+  padding-left: 1.2rem;
+}
+.ba-import-limits li { color: #1c2430; }
+.ba-import-limits b { color: #2c5d68; }
 .ba-import-grid { display: flex; flex-wrap: wrap; gap: 1.2rem; }
 .ba-import-col { flex: 1 1 240px; display: grid; gap: .4rem; align-content: start; }
 .ba-import-col input[type="text"], .ba-import-col input[type="password"], .gh-grid input {
