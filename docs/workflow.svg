@@ -1,69 +1,72 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 330" width="1100" height="330" font-family="Segoe UI, Helvetica, Arial, sans-serif">
-  <title>BOT 5-stage pipeline</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 340" width="1360" height="340" font-family="Times New Roman, Times, serif">
+  <title>BOT 6-stage pipeline</title>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#4f46e5"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="#2c5d68"/>
     </marker>
     <marker id="arrowDash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#d97706"/>
+      <path d="M0,0 L10,5 L0,10 z" fill="#b45309"/>
     </marker>
   </defs>
-  <rect width="1100" height="330" rx="14" fill="#ffffff" stroke="#e5e7eb"/>
+  <rect width="1360" height="340" rx="14" fill="#ffffff" stroke="#d8d3c8"/>
 
-  <!-- input -->
-  <text x="550" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#111827">BOT: 5-stage AI development pipeline (each stage runs alone or chained, or use Run all)</text>
+  <text x="680" y="32" text-anchor="middle" font-size="17" font-weight="700" fill="#1d2430">BOT: 6-stage pipeline (run one stage, or Run all)</text>
 
-  <!-- stage boxes: x = 30, 240, 450, 660, 870 ; width 190 -->
   <g font-size="13" text-anchor="middle">
     <g>
-      <rect x="30" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
-      <text x="125" y="86" font-size="15" font-weight="700" fill="#312e81">1. Business Analyst</text>
-      <text x="125" y="112" fill="#374151">In: prompt + domain</text>
-      <text x="125" y="130" fill="#374151">39 domains, domain sample</text>
-      <text x="125" y="160" font-weight="600" fill="#065f46">Out: user stories</text>
+      <rect x="24" y="56" width="200" height="132" rx="10" fill="#f4f8f8" stroke="#2c5d68" stroke-width="2"/>
+      <text x="124" y="82" font-size="15" font-weight="700" fill="#244a54">1. Business Analyst</text>
+      <text x="124" y="108" fill="#3a424c">In: requirement + domain</text>
+      <text x="124" y="126" fill="#3a424c">Stories and acceptance</text>
+      <text x="124" y="158" font-weight="600" fill="#166534">Out: user stories</text>
     </g>
     <g>
-      <rect x="240" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
-      <text x="335" y="86" font-size="15" font-weight="700" fill="#312e81">2. Developer</text>
-      <text x="335" y="112" fill="#374151">In: user stories</text>
-      <text x="335" y="130" fill="#374151">57 languages, with comments</text>
-      <text x="335" y="160" font-weight="600" fill="#065f46">Out: source code</text>
+      <rect x="248" y="56" width="200" height="132" rx="10" fill="#f4f8f8" stroke="#2c5d68" stroke-width="2"/>
+      <text x="348" y="82" font-size="15" font-weight="700" fill="#244a54">2. Developer</text>
+      <text x="348" y="108" fill="#3a424c">In: user stories</text>
+      <text x="348" y="126" fill="#3a424c">Any language, with comments</text>
+      <text x="348" y="158" font-weight="600" fill="#166534">Out: source code</text>
     </g>
     <g>
-      <rect x="450" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
-      <text x="545" y="86" font-size="15" font-weight="700" fill="#312e81">3. Tester</text>
-      <text x="545" y="112" fill="#374151">In: source code</text>
-      <text x="545" y="130" fill="#374151">JUnit, pytest, Jest, Selenium</text>
-      <text x="545" y="160" font-weight="600" fill="#065f46">Out: unit + UI tests</text>
+      <rect x="472" y="56" width="200" height="132" rx="10" fill="#f4f8f8" stroke="#2c5d68" stroke-width="2"/>
+      <text x="572" y="82" font-size="15" font-weight="700" fill="#244a54">3. Tester</text>
+      <text x="572" y="108" fill="#3a424c">In: source code</text>
+      <text x="572" y="126" fill="#3a424c">Unit, automation, manual</text>
+      <text x="572" y="158" font-weight="600" fill="#166534">Out: tests</text>
     </g>
     <g>
-      <rect x="660" y="60" width="190" height="130" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
-      <text x="755" y="86" font-size="15" font-weight="700" fill="#312e81">4. Deploy</text>
-      <text x="755" y="112" fill="#374151">In: code + tests</text>
-      <text x="755" y="130" fill="#374151">Docker, CI/CD, Kubernetes</text>
-      <text x="755" y="160" font-weight="600" fill="#065f46">Out: DEPLOY.md + configs</text>
+      <rect x="696" y="56" width="200" height="132" rx="10" fill="#f4f8f8" stroke="#2c5d68" stroke-width="2"/>
+      <text x="796" y="82" font-size="15" font-weight="700" fill="#244a54">4. Data Analyst</text>
+      <text x="796" y="108" fill="#3a424c">In: code + tests</text>
+      <text x="796" y="126" fill="#3a424c">KPIs, PNG / SVG charts</text>
+      <text x="796" y="158" font-weight="600" fill="#166534">Out: dashboard</text>
     </g>
     <g>
-      <rect x="870" y="60" width="200" height="130" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
-      <text x="970" y="86" font-size="15" font-weight="700" fill="#78350f">5. Trainer</text>
-      <text x="970" y="112" fill="#374151">In: approved outputs</text>
-      <text x="970" y="130" fill="#374151">learns from your approvals</text>
-      <text x="970" y="160" font-weight="600" fill="#065f46">Out: bot-training.json</text>
+      <rect x="920" y="56" width="200" height="132" rx="10" fill="#f4f8f8" stroke="#2c5d68" stroke-width="2"/>
+      <text x="1020" y="82" font-size="15" font-weight="700" fill="#244a54">5. Deploy</text>
+      <text x="1020" y="108" fill="#3a424c">In: application code</text>
+      <text x="1020" y="126" fill="#3a424c">Docker, CI/CD, Kubernetes</text>
+      <text x="1020" y="158" font-weight="600" fill="#166534">Out: DEPLOY.md</text>
+    </g>
+    <g>
+      <rect x="1144" y="56" width="192" height="132" rx="10" fill="#fff8ee" stroke="#b45309" stroke-width="2"/>
+      <text x="1240" y="82" font-size="15" font-weight="700" fill="#7c2d12">6. Trainer</text>
+      <text x="1240" y="108" fill="#3a424c">In: approved outputs</text>
+      <text x="1240" y="126" fill="#3a424c">Learns from your reviews</text>
+      <text x="1240" y="158" font-weight="600" fill="#166534">Out: training store</text>
     </g>
   </g>
 
-  <!-- forward arrows -->
-  <g stroke="#4f46e5" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
-    <line x1="221" y1="125" x2="238" y2="125"/>
-    <line x1="431" y1="125" x2="448" y2="125"/>
-    <line x1="641" y1="125" x2="658" y2="125"/>
-    <line x1="851" y1="125" x2="868" y2="125"/>
+  <g stroke="#2c5d68" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <line x1="225" y1="122" x2="246" y2="122"/>
+    <line x1="449" y1="122" x2="470" y2="122"/>
+    <line x1="673" y1="122" x2="694" y2="122"/>
+    <line x1="897" y1="122" x2="918" y2="122"/>
+    <line x1="1121" y1="122" x2="1142" y2="122"/>
   </g>
 
-  <!-- feedback loop from Trainer back to Business Analyst / Developer -->
-  <path d="M970 192 L970 255 L125 255 L125 194" fill="none" stroke="#d97706" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrowDash)"/>
-  <text x="548" y="248" text-anchor="middle" font-size="13" font-style="italic" fill="#92400e">feedback loop: trained examples improve the next run of every stage</text>
+  <path d="M1240 192 L1240 258 L124 258 L124 192" fill="none" stroke="#b45309" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrowDash)"/>
+  <text x="680" y="250" text-anchor="middle" font-size="13" font-style="italic" fill="#92400e">feedback loop: approved examples improve the next run of every stage</text>
 
-  <!-- footer -->
-  <text x="550" y="300" text-anchor="middle" font-size="12" fill="#6b7280">Runs on a local Ollama model (qwen2.5-coder:1.5b) or any OpenAI compatible API. Web pages: / (chat)  /stages  /convert</text>
+  <text x="680" y="312" text-anchor="middle" font-size="12" fill="#5b6570">Pages: /  ·  /convert  ·  /stages    ·    Converter and Stage bots requests are saved in Previous results</text>
 </svg>
