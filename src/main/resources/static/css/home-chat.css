@@ -20,9 +20,10 @@
   max-width: none;
   min-height: 0;
   overscroll-behavior: contain;
-  padding: .75rem max(1rem, calc((100% - 860px) / 2)) .5rem;
+  padding: 1rem max(1rem, calc((100% - 960px) / 2)) 1.25rem;
   scroll-padding-bottom: 1rem;
 }
+body:not(.has-thread) .chat-thread { align-content: start; }
 .chat-composer { padding: .35rem 1rem .7rem; }
 .chat-composer[hidden] { display: none !important; }
 #welcomeMsg[hidden] { display: none; }

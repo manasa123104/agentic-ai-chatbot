@@ -81,16 +81,55 @@
     </header>
 
     <main class="chat-thread" id="thread" aria-live="polite">
-        <div class="msg bot" id="welcomeMsg">
-            <div class="avatar-sm">B</div>
-            <div class="bubble">
-                <p>Welcome to <strong>BOT</strong>.</p>
-                <p>Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
-                <nav class="welcome-links" aria-label="Where to start">
-                    <a href="/convert"><strong>Code converter</strong><span>Translate a snippet or an entire project</span></a>
-                    <a href="/stages"><strong>Stage bots</strong><span>Six stages from user stories to training</span></a>
-                </nav>
-            </div>
+        <div class="home-landing" id="welcomeMsg">
+            <section class="home-hero">
+                <p class="home-kicker">From idea to release</p>
+                <h1>Welcome to BOT</h1>
+                <p class="home-lead">Convert code between languages, or run the six-stage analysis from user stories to training. Choose a workspace below.</p>
+            </section>
+            <nav class="home-starts" aria-label="Where to start">
+                <a href="/convert" class="home-start">
+                    <span class="home-start-icon" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" width="40" height="40"><rect x="6" y="8" width="36" height="32" rx="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 20h16M16 26h10M16 32h13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </span>
+                    <strong>Code converter</strong>
+                    <span>Paste a snippet or upload a project. BOT translates it and can explain the business logic in everyday language.</span>
+                    <em>Open converter</em>
+                </a>
+                <a href="/stages" class="home-start">
+                    <span class="home-start-icon" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" width="40" height="40"><circle cx="10" cy="24" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="38" cy="24" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 24h4M29 24h4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                    </span>
+                    <strong>Stage bots</strong>
+                    <span>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer. Download dashboard graphs as PNG or SVG.</span>
+                    <em>Open Stage bots</em>
+                </a>
+            </nav>
+            <section class="home-pipe">
+                <h2>The six stages</h2>
+                <ol>
+                    <li><a href="/stages"><b>1</b><span>Business Analyst</span></a></li>
+                    <li><a href="/stages"><b>2</b><span>Developer</span></a></li>
+                    <li><a href="/stages"><b>3</b><span>Tester</span></a></li>
+                    <li><a href="/stages"><b>4</b><span>Data Analyst</span></a></li>
+                    <li><a href="/stages"><b>5</b><span>Deploy</span></a></li>
+                    <li><a href="/stages"><b>6</b><span>Trainer</span></a></li>
+                </ol>
+            </section>
+            <section class="home-points">
+                <article>
+                    <strong>Any language</strong>
+                    <p>Built-in samples convert instantly. Your own code uses the connected model.</p>
+                </article>
+                <article>
+                    <strong>Graphs you can save</strong>
+                    <p>Data Analyst writes a dashboard. Each chart has Download PNG and Download SVG.</p>
+                </article>
+                <article>
+                    <strong>Whole-run ZIP</strong>
+                    <p>Stories, code, tests, charts, and deploy files stay together for GitHub or download.</p>
+                </article>
+            </section>
         </div>
     </main>
 
