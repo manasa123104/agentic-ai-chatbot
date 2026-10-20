@@ -72,59 +72,20 @@ button.btn { cursor: pointer; }
 .muted-note { color: var(--muted); font-size: .86rem; line-height: 1.5; margin: .9rem 0 0; }
 
 /* ---------- welcome: two places to start ---------- */
-#welcomeMsg { max-width: 100%; align-items: stretch; }
-#welcomeMsg .welcome-panel {
-  width: 100%;
-  max-width: 680px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+#welcomeMsg .bubble { max-width: min(760px, 100%); padding: 1.35rem 1.5rem 1.4rem; }
+#welcomeMsg .bubble > p:first-child { font: 600 1.7rem/1.2 var(--font-head); margin: 0 0 .6rem; letter-spacing: -.01em; }
+#welcomeMsg .bubble > p:nth-child(2) { color: #3a424c; font-size: 1rem; line-height: 1.55; }
+.welcome-links { display: grid; gap: 0; margin: .9rem 0 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.welcome-links a {
+  display: grid; gap: .15rem; padding: .75rem 1rem .8rem 1.1rem;
+  color: var(--text); text-decoration: none; border-left: 3px solid transparent;
+  transition: background .15s, border-color .15s;
 }
-.welcome-kicker {
-  margin: 0 0 .2rem;
-  font: 600 .72rem/1.2 var(--font-ui);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--accent-strong);
-}
-#welcomeMsg h1 {
-  margin: 0 0 .35rem;
-  font: 600 1.45rem/1.2 var(--font-head);
-  letter-spacing: -.01em;
-}
-.welcome-lead { margin: 0 0 .75rem; color: #3a424c; font-size: .95rem; line-height: 1.45; }
-.start-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
-.start-card {
-  display: block;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  color: var(--text);
-  text-decoration: none;
-  box-shadow: var(--shadow-sm);
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-.start-card:hover,
-.start-card:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--accent);
-  box-shadow: var(--shadow-md);
-}
-.start-photo { display: block; overflow: hidden; aspect-ratio: 16 / 8.4; background: var(--accent-soft); }
-.start-card img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform .35s ease;
-}
-.start-card:hover img,
-.start-card:focus-visible img { transform: scale(1.04); }
-.start-copy { display: grid; gap: .15rem; padding: .6rem .75rem .7rem; }
-.start-copy strong { font: 600 .95rem/1.25 var(--font-ui); color: var(--accent-strong); }
-.start-copy span { font-size: .82rem; line-height: 1.35; color: var(--muted); }
+.welcome-links a + a { border-top: 1px solid var(--line); }
+.welcome-links a:hover,
+.welcome-links a:focus-visible { background: var(--accent-soft); border-left-color: var(--accent); }
+.welcome-links strong { font: 600 .95rem/1.3 var(--font-ui); color: var(--accent-strong); }
+.welcome-links span { font-size: .84rem; line-height: 1.4; color: var(--muted); }
 
 /* ---------- rail ---------- */
 .new-chat { border-radius: 8px; }
@@ -206,10 +167,11 @@ button.btn { cursor: pointer; }
 .mode-tab, .out-tab, .view-tab { border-radius: 8px; }
 input[type="text"], input[type="password"], select, textarea { border-radius: 8px; }
 
+.chat-composer[hidden] { display: none !important; }
+
 @media (max-width: 720px) {
-  #welcomeMsg h1 { font-size: 1.25rem; }
-  .start-cards { grid-template-columns: 1fr; gap: .55rem; }
-  .start-photo { aspect-ratio: 16 / 7.2; }
+  #welcomeMsg .bubble { padding: 1.05rem 1.05rem 1.15rem; }
+  #welcomeMsg .bubble > p:first-child { font-size: 1.4rem; }
   .tool-select { margin-left: 0; width: 100%; }
   .tool-select select { flex: 1; }
   .chat-top, .code-top { padding: .55rem .8rem; }

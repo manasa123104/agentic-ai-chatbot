@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
-/** Home chat offers conversion and the 6-stage pipeline, not website generation chips. */
+/** Home offers converter and Stage bots. The prompt bar and website chips stay off the start screen. */
 class HomeTemplateTest {
 
     @Test
@@ -15,23 +15,20 @@ class HomeTemplateTest {
         String html = new String(new ClassPathResource("templates/index.html").getInputStream().readAllBytes(),
                 StandardCharsets.UTF_8);
         String markup = html.contains("<script") ? html.substring(0, html.indexOf("<script")) : html;
+        assertTrue(markup.contains("Welcome to"));
+        assertTrue(markup.contains("welcome-links"));
         assertTrue(markup.contains("/convert"));
         assertTrue(markup.contains("/stages"));
-        assertTrue(markup.contains("start-convert"));
-        assertTrue(markup.contains("start-stages"));
-        assertTrue(markup.contains("chat-composer"));
+        assertTrue(markup.contains("class=\"chat-composer\" hidden"));
+        assertFalse(markup.contains("start-convert"));
+        assertFalse(markup.contains("start-stages"));
         assertFalse(markup.contains("Code conversion"));
         assertFalse(markup.contains("Python → Java"));
         assertFalse(markup.contains("FizzBuzz"));
         assertFalse(markup.contains("Edit generated site"));
         assertFalse(markup.contains("Websites in your language"));
         assertFalse(markup.contains("on-page chatbot"));
-        assertFalse(markup.contains("Open website"));
         assertFalse(markup.contains("href=\"/edit\""));
-        assertFalse(markup.contains("Describe a website"));
-        assertFalse(markup.contains("user stories + website"));
-        assertFalse(markup.contains("System prompt"));
-        assertFalse(markup.contains("From your prompt"));
         assertFalse(markup.contains("composer-tools"));
         assertFalse(markup.contains("OliveGrove"));
     }

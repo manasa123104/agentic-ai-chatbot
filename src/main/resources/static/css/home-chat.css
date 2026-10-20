@@ -24,6 +24,7 @@
   scroll-padding-bottom: 1rem;
 }
 .chat-composer { padding: .35rem 1rem .7rem; }
+.chat-composer[hidden] { display: none !important; }
 #welcomeMsg[hidden] { display: none; }
 
 /* ---------- bubbles: clearly "you" and "BOT" ---------- */

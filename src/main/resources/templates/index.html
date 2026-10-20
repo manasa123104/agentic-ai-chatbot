@@ -83,32 +83,20 @@
     </header>
 
     <main class="chat-thread" id="thread" aria-live="polite">
-        <div class="msg bot welcome" id="welcomeMsg">
-            <div class="welcome-panel">
-                <p class="welcome-kicker">BOT</p>
-                <h1>From idea to release</h1>
-                <p class="welcome-lead">Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
-                <nav class="start-cards" aria-label="Where to start">
-                    <a href="/convert" class="start-card">
-                        <span class="start-photo"><img th:src="@{/img/start-convert.jpg}" alt="" width="640" height="360"/></span>
-                        <span class="start-copy">
-                            <strong>Code converter</strong>
-                            <span>Translate a snippet or an entire project</span>
-                        </span>
-                    </a>
-                    <a href="/stages" class="start-card">
-                        <span class="start-photo"><img th:src="@{/img/start-stages.jpg}" alt="" width="640" height="360"/></span>
-                        <span class="start-copy">
-                            <strong>Stage bots</strong>
-                            <span>Six stages from user stories to training</span>
-                        </span>
-                    </a>
+        <div class="msg bot" id="welcomeMsg">
+            <div class="avatar-sm">B</div>
+            <div class="bubble">
+                <p>Welcome to <strong>BOT</strong>.</p>
+                <p>Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
+                <nav class="welcome-links" aria-label="Where to start">
+                    <a href="/convert"><strong>Code converter</strong><span>Translate a snippet or an entire project</span></a>
+                    <a href="/stages"><strong>Stage bots</strong><span>Six stages from user stories to training</span></a>
                 </nav>
             </div>
         </div>
     </main>
 
-    <footer class="chat-composer">
+    <footer class="chat-composer" hidden>
         <form id="chatForm" th:action="@{/run}" method="post" th:object="${request}">
             <input type="hidden" name="runUnitTests" value="true"/>
             <input type="hidden" name="runFunctionalTests" value="true"/>
@@ -1094,19 +1082,21 @@
   document.getElementById('toStages').addEventListener('click', function () { handOff('stages', '/stages'); });
 
   var composerBox = document.getElementById('composerBox');
-  composerBox.addEventListener('dragover', function (e) {
-    if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) {
+  if (composerBox) {
+    composerBox.addEventListener('dragover', function (e) {
+      if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) {
+        e.preventDefault();
+        composerBox.classList.add('drag');
+      }
+    });
+    composerBox.addEventListener('dragleave', function () { composerBox.classList.remove('drag'); });
+    composerBox.addEventListener('drop', function (e) {
+      composerBox.classList.remove('drag');
+      if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
       e.preventDefault();
-      composerBox.classList.add('drag');
-    }
-  });
-  composerBox.addEventListener('dragleave', function () { composerBox.classList.remove('drag'); });
-  composerBox.addEventListener('drop', function (e) {
-    composerBox.classList.remove('drag');
-    if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return;
-    e.preventDefault();
-    routeFiles(Array.prototype.slice.call(e.dataTransfer.files));
-  });
+      routeFiles(Array.prototype.slice.call(e.dataTransfer.files));
+    });
+  }
 
   /** The prompt with the attached text / code files added as context (or as the code to convert). */
   async function composeStory(text) {
