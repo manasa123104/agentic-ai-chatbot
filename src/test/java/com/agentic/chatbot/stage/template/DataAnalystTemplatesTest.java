@@ -43,6 +43,8 @@ class DataAnalystTemplatesTest {
         assertTrue(dash.contains("Download all charts as PNG"));
         assertTrue(files.containsKey("analytics/charts/01-volume.svg"));
         assertTrue(files.containsKey("analytics/charts/09-severity.svg"));
+        assertTrue(files.get("analytics/charts/01-volume.svg").contains("fill=\"#ffffff\""));
+        assertTrue(dash.contains("fillStyle = '#ffffff'"));
     }
 
     @Test

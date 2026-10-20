@@ -690,7 +690,7 @@ public final class DataAnalystTemplates {
                 .what em { font-style: normal; font-weight: 700; color: var(--accent); }
                 .analysis { background: #f7f1e4; border-left: 3px solid var(--gold); padding: .55rem .7rem; border-radius: 0 8px 8px 0; }
                 .analysis strong { color: #7a5a1a; }
-                canvas { max-height: 280px; }
+                canvas { max-height: 280px; background: #fff; }
                 .card.wide canvas { max-height: 300px; }
                 .dl-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
                 .dl-bar button, .dl a, .dl button { font: 13px/1.3 "Times New Roman", Times, serif; color: var(--accent); background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: .28rem .65rem; cursor: pointer; text-decoration: none; }
@@ -821,6 +821,17 @@ public final class DataAnalystTemplates {
                 const sevLabels = __SEV_LABELS__;
                 const sevValues = __SEV_VALUES__;
                 const cycle = __CYCLE__;
+                Chart.register({
+                  id: 'whiteBg',
+                  beforeDraw: function (chart) {
+                    var ctx = chart.ctx;
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'destination-over';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, chart.width, chart.height);
+                    ctx.restore();
+                  }
+                });
                 const ink = '#2c5d68';
                 const gold = '#c4a35a';
                 const good = '#3d7a6a';
@@ -879,8 +890,15 @@ public final class DataAnalystTemplates {
                 function savePng(id, file) {
                   var canvas = document.getElementById(id);
                   if (!canvas || !canvas.toDataURL) return;
+                  var out = document.createElement('canvas');
+                  out.width = canvas.width;
+                  out.height = canvas.height;
+                  var ctx = out.getContext('2d');
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, out.width, out.height);
+                  ctx.drawImage(canvas, 0, 0);
                   var a = document.createElement('a');
-                  a.href = canvas.toDataURL('image/png');
+                  a.href = out.toDataURL('image/png');
                   a.download = file + '.png';
                   a.click();
                 }
