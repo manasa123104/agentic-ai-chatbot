@@ -48,7 +48,6 @@
                     <span class="history-text" th:text="${item.userStory}">Story</span>
                     <span class="history-actions">
                         <span class="history-meta" th:text="${item.createdLabel}">When</span>
-                        <a class="history-edit" href="/edit" onclick="event.stopPropagation()">Edit</a>
                     </span>
                 </span>
                 <span class="history-del" title="Delete" aria-label="Delete">×</span>
@@ -84,51 +83,27 @@
     </header>
 
     <main class="chat-thread" id="thread" aria-live="polite">
-        <div class="msg bot" id="welcomeMsg">
-            <div class="avatar-sm">B</div>
-            <div class="bubble">
-                <p>Welcome to <strong>BOT</strong>.</p>
-                <p>Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
-                <nav class="welcome-links" aria-label="Where to start">
-                    <a href="/convert"><strong>Code converter</strong><span>Translate a snippet or an entire project</span></a>
-                    <a href="/stages"><strong>Stage bots</strong><span>Six stages from user stories to training</span></a>
+        <div class="msg bot welcome" id="welcomeMsg">
+            <div class="welcome-panel">
+                <p class="welcome-kicker">BOT</p>
+                <h1>From idea to release</h1>
+                <p class="welcome-lead">Describe what you need in everyday language. Convert code, or run the six-stage analysis from user stories to training.</p>
+                <nav class="start-cards" aria-label="Where to start">
+                    <a href="/convert" class="start-card">
+                        <span class="start-photo"><img th:src="@{/img/start-convert.jpg}" alt="" width="640" height="360"/></span>
+                        <span class="start-copy">
+                            <strong>Code converter</strong>
+                            <span>Translate a snippet or an entire project</span>
+                        </span>
+                    </a>
+                    <a href="/stages" class="start-card">
+                        <span class="start-photo"><img th:src="@{/img/start-stages.jpg}" alt="" width="640" height="360"/></span>
+                        <span class="start-copy">
+                            <strong>Stage bots</strong>
+                            <span>Six stages from user stories to training</span>
+                        </span>
+                    </a>
                 </nav>
-                <p class="chip-label">Code conversion</p>
-                <p class="muted-note">Convert code here. Type <em>Convert this Python code to Java:</em> then paste the code on the next line. You can also upload a file or try a sample.</p>
-                <div class="suggestions">
-                    <button type="button" class="chip" data-story="Convert this Python code to Java:
-def factorial(n: int) -&gt; int:
-    if n &lt;= 1:
-        return 1
-    return n * factorial(n - 1)
-
-
-if __name__ == &quot;__main__&quot;:
-    n = 10
-    print(f&quot;{n}! = {factorial(n)}&quot;)">Python → Java</button>
-                    <button type="button" class="chip" data-story="Show FizzBuzz in COBOL">FizzBuzz in COBOL</button>
-                    <button type="button" class="chip" data-story="Translate binary search from Java to Rust">Binary search → Rust</button>
-                    <button type="button" class="chip" data-story="Show Hello World in PL/SQL">Hello World in PL/SQL</button>
-                </div>
-                <p class="muted-note">Pick a language, upload a file, or try an example. Every site gets its own name, headings, palette and fonts.</p>
-                <p class="chip-label">Websites in your language of choice</p>
-                <div class="suggestions">
-                    <button type="button" class="chip" data-story="As a Business Analyst, generate a full multi-page restaurant website called OliveGrove in Java (Spring Boot + Thymeleaf controllers, HTML templates, and pages for menu, pricing, and reservations). Use warm orange colors and Playfair font. Topic images must match a restaurant.">Java restaurant</button>
-                    <button type="button" class="chip" data-story="Build a bakery website called Crumb Hearth with menu, pricing, blog and contact pages. Backend language: Python. Cream and terracotta palette.">Python bakery</button>
-                    <button type="button" class="chip" data-story="Generate a travel company website called SkyTrail Travels with destinations, packages and contact pages. Backend language: TypeScript. Calm blue colors.">TypeScript travel</button>
-                    <button type="button" class="chip" data-story="Create a music academy website called Harmony Notes with piano, guitar and vocals pages and a contact form. Backend language: Go.">Go music academy</button>
-                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with florals, venues and photography pages. Backend language: Kotlin.">Kotlin wedding</button>
-                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with services, pricing, careers and contact pages. Backend language: C#.">C# clinic</button>
-                    <button type="button" class="chip" data-story="Build a coffee roastery website called Ember Oak with a story page, pricing and a blog. Backend language: Rust.">Rust roastery</button>
-                    <button type="button" class="chip" data-story="Change the website color to blue and use Poppins font">Edit: blue + Poppins</button>
-                </div>
-                <p class="chip-label">Websites with an on-page chatbot agent</p>
-                <div class="suggestions">
-                    <button type="button" class="chip" data-story="Build a restaurant website called OliveGrove with an on-page chatbot agent that answers menu, opening hours and reservation questions. Backend language: Python.">Restaurant chatbot in Python</button>
-                    <button type="button" class="chip" data-story="Create a travel website called SkyTrail Travels with a chatbot agent that recommends destinations and packages. Backend language: JavaScript.">Travel chatbot in JavaScript</button>
-                    <button type="button" class="chip" data-story="Generate a dental clinic website called BrightSmile Dental with an AI assistant chatbot that explains services, prices and books visits. Backend language: C#.">Clinic chatbot in C#</button>
-                    <button type="button" class="chip" data-story="Build a wedding planning website called EverAfter with a chatbot agent that helps couples choose venues and photographers. Backend language: Kotlin.">Wedding chatbot in Kotlin</button>
-                </div>
             </div>
         </div>
     </main>
@@ -144,55 +119,30 @@ if __name__ == &quot;__main__&quot;:
                 </div>
                 <ul class="attach-list" id="attachList"></ul>
                 <div class="attach-actions">
-                    <button type="button" class="btn generate-bot" id="generateBot" title="Send the uploaded stories to BOT. It writes the user stories, the code, and the website.">&#9654; Generate with BOT</button>
-                    <span class="attach-note">Upload a file to add its text below. BOT can write user stories, code, and a website from it. A short countdown starts so you can stop and edit first. To convert a whole project, choose Convert as a project. To open the six-stage analysis, choose Import as user stories.</span>
+                    <button type="button" class="btn generate-bot" id="generateBot" title="Send the uploaded text to BOT.">&#9654; Generate with BOT</button>
+                    <span class="attach-note">Upload a file to add its text below. Convert it as a project, or import it as user stories for Stage bots.</span>
                     <button type="button" class="btn ghost small" id="toConvert">Convert as a project</button>
                     <button type="button" class="btn ghost small" id="toStages">Import as user stories</button>
                 </div>
             </div>
             <div class="image-tray" id="imageTray" hidden>
                 <ul class="thumbs" id="thumbs" aria-label="Attached images"></ul>
-                <p class="image-note" id="imageNote">BOT looks at your pictures when the connected model can see images; otherwise it uses them as the site's own images.</p>
+                <p class="image-note" id="imageNote">BOT looks at your pictures when the connected model can see images.</p>
             </div>
-            <div class="composer-tools">
-                <label class="tool-btn" title="Upload a file to add its text. BOT can then write user stories, code, and a website. You can also press Generate with BOT. Several files are added one after another.">
-                    <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
-                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"/></svg>
-                    Upload file <span class="tool-arrow" aria-hidden="true">&rarr; user stories + website</span>
-                </label>
-                <div class="system-menu" id="systemMenu">
-                    <button type="button" class="tool-btn system-toggle" id="systemToggle" aria-expanded="false"
-                            aria-controls="systemPanel" title="Standing instructions for BOT">
-                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M8 10v4M16 16v4"/></svg>
-                        System prompt
-                    </button>
-                    <div class="system-panel" id="systemPanel" role="dialog" aria-label="System prompt" hidden>
-                        <label for="systemPrompt">Standing instructions for BOT</label>
-                        <textarea id="systemPrompt" name="systemPrompt" rows="4" class="system-prompt"
-                                  placeholder="Example: Prefer calm palettes. Keep the brand name clean. Always add a chatbot agent to websites…"
-                                  th:field="*{systemPrompt}"></textarea>
-                        <button type="button" class="btn ghost small" id="systemDone">Done</button>
-                    </div>
+            <div hidden>
+                <input type="file" id="attachFiles" class="u-input" multiple="multiple"/>
+                <select id="langPick"><option value=""></option></select>
+                <textarea id="systemPrompt" name="systemPrompt" th:field="*{systemPrompt}"></textarea>
+                <div id="systemMenu">
+                    <button type="button" id="systemToggle" hidden></button>
+                    <div id="systemPanel" hidden></div>
+                    <button type="button" id="systemDone" hidden></button>
                 </div>
-                <label class="tool-select" title="Backend language for generated websites. Auto uses the language named in your prompt.">
-                    <span>Language</span>
-                    <select id="langPick">
-                        <option value="">From your prompt</option>
-                        <option value="Java">Java</option>
-                        <option value="Python">Python</option>
-                        <option value="JavaScript">JavaScript</option>
-                        <option value="TypeScript">TypeScript</option>
-                        <option value="Go">Go</option>
-                        <option value="Kotlin">Kotlin</option>
-                        <option value="C#">C#</option>
-                        <option value="Rust">Rust</option>
-                    </select>
-                </label>
             </div>
             <p class="bot-status" id="botStatus" role="status" aria-live="polite" hidden></p>
             <div class="composer-box" id="composerBox">
                 <textarea id="userStory" name="userStory" rows="2"
-                          placeholder="Describe a website, app, or code conversion. You can also drop a screenshot to show the look you want."></textarea>
+                          placeholder="Ask to convert code, or open Code converter and Stage bots."></textarea>
                 <button type="submit" class="send" id="sendBtn" title="Send" aria-label="Send">
                     <svg class="ico-send" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         <path fill="currentColor" d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
@@ -202,7 +152,7 @@ if __name__ == &quot;__main__&quot;:
                     </svg>
                 </button>
             </div>
-            <p class="hint">Press Enter to send. Shift+Enter starts a new line. Upload a file to add its text. Drop an image to show the look you want. Keep chatting to refine the result.</p>
+            <p class="hint">Enter to send. Shift+Enter for a new line.</p>
         </form>
     </footer>
 </div>
@@ -225,22 +175,25 @@ if __name__ == &quot;__main__&quot;:
   var historyEmpty = document.getElementById('historyEmpty');
   var activeHistoryId = null;
 
-  // The system prompt lives in a small menu next to Upload file, so the main view stays a clean conversation.
   var systemPanel = document.getElementById('systemPanel');
   var systemMenu = document.getElementById('systemMenu');
   function setSystemOpen(open) {
+    if (!systemPanel || !systemToggle) return;
     systemPanel.hidden = !open;
     systemToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (open) systemPrompt.focus();
+    if (open && systemPrompt) systemPrompt.focus();
   }
-  systemToggle.addEventListener('click', function () { setSystemOpen(systemPanel.hidden); });
-  document.getElementById('systemDone').addEventListener('click', function () { setSystemOpen(false); });
-  document.addEventListener('click', function (e) {
-    if (!systemPanel.hidden && !systemMenu.contains(e.target)) setSystemOpen(false);
-  });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !systemPanel.hidden) { setSystemOpen(false); systemToggle.focus(); }
-  });
+  if (systemToggle && systemPanel && systemMenu) {
+    systemToggle.addEventListener('click', function () { setSystemOpen(systemPanel.hidden); });
+    var systemDone = document.getElementById('systemDone');
+    if (systemDone) systemDone.addEventListener('click', function () { setSystemOpen(false); });
+    document.addEventListener('click', function (e) {
+      if (!systemPanel.hidden && !systemMenu.contains(e.target)) setSystemOpen(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !systemPanel.hidden) { setSystemOpen(false); systemToggle.focus(); }
+    });
+  }
 
   // The conversation so far (what the server gets as context for follow-ups and questions).
   var conversation = [];
@@ -269,7 +222,14 @@ if __name__ == &quot;__main__&quot;:
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function hideWelcome() {
+    var welcome = document.getElementById('welcomeMsg');
+    if (welcome) welcome.hidden = true;
+    document.body.classList.add('has-thread');
+  }
+
   function addUser(text, thumbUrls) {
+    hideWelcome();
     thread.appendChild(el(
       '<div class="msg user"><div class="bubble"><p></p></div></div>'
     ));
@@ -500,7 +460,6 @@ if __name__ == &quot;__main__&quot;:
             '<span class="history-text"></span>' +
             '<span class="history-actions">' +
               '<span class="history-meta"></span>' +
-              '<a class="history-edit" href="/edit">Edit</a>' +
             '</span>' +
           '</span>' +
           '<span class="history-del" title="Delete" aria-label="Delete">×</span>' +
@@ -533,9 +492,10 @@ if __name__ == &quot;__main__&quot;:
       var item = await res.json();
       setActiveHistory(item.id);
       thread.innerHTML = '';
+      hideWelcome();
       thread.appendChild(el(
         '<div class="msg bot"><div class="avatar-sm">B</div><div class="bubble">' +
-          '<p>Showing a saved result. Click <strong>Edit</strong> in the sidebar or below to change the site.</p>' +
+          '<p>Showing a saved result.</p>' +
         '</div></div>'
       ));
       addUser(item.userStory || '');
@@ -876,7 +836,7 @@ if __name__ == &quot;__main__&quot;:
 
   /** Adds "Backend language: X" for website prompts when a language is picked and the prompt names none. */
   function withLanguage(story) {
-    var lang = langPick.value;
+    var lang = langPick ? langPick.value : '';
     if (!lang || CONVERT_INTENT.test(story) || EDIT_INTENT.test(story) || !SITE_INTENT.test(story)) return story;
     if (builtOnce && !NEW_SITE_ASK.test(story)) return story; // a follow-up on the site that already exists
     if (/backend language\s*[:=]/i.test(story)) return story;

@@ -20,11 +20,11 @@
   max-width: none;
   min-height: 0;
   overscroll-behavior: contain;
-  padding-left: max(1.35rem, calc((100% - 860px) / 2));
-  padding-right: max(1.35rem, calc((100% - 860px) / 2));
+  padding: .75rem max(1rem, calc((100% - 860px) / 2)) .5rem;
   scroll-padding-bottom: 1rem;
 }
-.chat-composer { padding-top: .6rem; }
+.chat-composer { padding: .35rem 1rem .7rem; }
+#welcomeMsg[hidden] { display: none; }
 
 /* ---------- bubbles: clearly "you" and "BOT" ---------- */
 .msg.user .bubble {
