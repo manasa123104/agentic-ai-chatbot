@@ -4,6 +4,7 @@ import com.agentic.chatbot.model.CodeSample;
 import com.agentic.chatbot.model.ConversionRequest;
 import com.agentic.chatbot.model.ConversionResponse;
 import com.agentic.chatbot.model.ProgrammingLanguage;
+import com.agentic.chatbot.service.ChatHistoryService;
 import com.agentic.chatbot.service.CodeConversionService;
 import com.agentic.chatbot.service.CodeSampleLibrary;
 import org.springframework.http.ResponseEntity;
@@ -22,15 +23,19 @@ public class CodeConversionApiController {
 
     private final CodeConversionService conversionService;
     private final CodeSampleLibrary sampleLibrary;
+    private final ChatHistoryService historyService;
 
-    public CodeConversionApiController(CodeConversionService conversionService, CodeSampleLibrary sampleLibrary) {
+    public CodeConversionApiController(CodeConversionService conversionService, CodeSampleLibrary sampleLibrary,
+                                       ChatHistoryService historyService) {
         this.conversionService = conversionService;
         this.sampleLibrary = sampleLibrary;
+        this.historyService = historyService;
     }
 
     @PostMapping
     public ResponseEntity<ConversionResponse> convert(@RequestBody ConversionRequest request) {
         ConversionResponse response = conversionService.convert(request);
+        historyService.saveConversion(request, response);
         return response.success() ? ResponseEntity.ok(response) : ResponseEntity.badRequest().body(response);
     }
 

@@ -1292,9 +1292,42 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
   document.addEventListener('change', saveSoon);
   window.addEventListener('pagehide', saveState);
 
+  async function restoreFromUrl() {
+    const q = new URLSearchParams(location.search);
+    const jobId = q.get('job');
+    const historyId = q.get('history');
+    if (jobId) {
+      setMode('project');
+      try {
+        const res = await fetch('/api/convert/jobs/' + encodeURIComponent(jobId));
+        if (res.ok) openJob(await res.json(), true);
+      } catch (e) { /* ignore */ }
+      return true;
+    }
+    if (!historyId) return false;
+    try {
+      const res = await fetch('/api/history/' + encodeURIComponent(historyId));
+      if (!res.ok) return false;
+      const item = await res.json();
+      const conv = item.conversion;
+      if (!conv) return false;
+      setMode('paste');
+      const pickLang = (select, id) => {
+        if (id && [...select.options].some((o) => o.value === id)) select.value = id;
+      };
+      pickLang(sourceLang, conv.sourceLanguageId);
+      pickLang(targetLang, conv.targetLanguageId);
+      renderResult(conv);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   BotRun.register({ key: 'convert', label: 'Code converter', url: '/convert', onStop: stopRun, onResume: resumeRun });
   renderGallery();
   restoreState().then(async () => {
+    if (await restoreFromUrl()) return;
     // a stopped conversion from before a refresh: open it so Resume has its job on screen
     const saved = BotRun.current();
     if (saved.key === 'convert' && saved.runId && saved.runId !== PASTE_RUN && (!currentJob || currentJob.id !== saved.runId)) {

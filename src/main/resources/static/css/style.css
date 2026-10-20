@@ -248,6 +248,10 @@ body.chat-app {
   font-size: .7rem;
 }
 
+.history-source::after {
+  content: " · ";
+}
+
 .history-edit {
   color: #c3d3e2;
   font-size: .72rem;

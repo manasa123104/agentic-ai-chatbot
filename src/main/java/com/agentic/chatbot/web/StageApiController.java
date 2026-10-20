@@ -363,6 +363,12 @@ public class StageApiController {
                 request.feedback(), request.runId());
     }
 
+    /** Saved run.json so Previous results can reopen a six-stage run. */
+    @GetMapping("/runs/{runId}")
+    public Map<String, Object> getRun(@PathVariable String runId) {
+        return stages.runRecord(runId);
+    }
+
     /** Lightweight "does this run still exist?" check: 200 with the file count, or 404 (code run_not_found). */
     @GetMapping("/runs/{runId}/status")
     public Map<String, Object> runStatus(@PathVariable String runId) {

@@ -1873,7 +1873,46 @@
   window.addEventListener('pagehide', () => { persist(true); leaving = true; });
   window.addEventListener('pageshow', (e) => { if (e.persisted) leaving = false; });
 
+  function applyServerRun(data) {
+    if (!data || !data.runId) return;
+    setRun(data.runId);
+    const setIfOption = (id, value) => {
+      const sel = $(id);
+      if (value && sel && [...sel.options].some((o) => o.value === value)) sel.value = value;
+    };
+    setIfOption('domain', data.domainLabel || data.domain);
+    setIfOption('language', data.language);
+    const stages = data.stages || {};
+    Object.keys(stages).forEach((stage) => {
+      if (!card(stage)) return;
+      const st = stages[stage] || {};
+      const files = (st.files || st.written || []).map((f) => typeof f === 'string' ? { path: f } : f);
+      const meta = {
+        mode: st.mode, stageTitle: TITLES[stage], elapsedMs: st.durationMs, runId: data.runId,
+        notes: st.notes || [], files: files
+      };
+      results[stage] = meta;
+      if (q(stage, '.stage-mode')) paintMeta(stage, meta);
+      if (stage !== 'trainer' && st.input && q(stage, '.stage-input') && !q(stage, '.stage-input').value) {
+        q(stage, '.stage-input').value = st.input;
+      }
+      setStep(stage, 'done');
+      setMessage(stage, 'Opened from Previous results.', 'ok');
+    });
+  }
+
+  async function restoreRunFromUrl() {
+    const id = new URLSearchParams(location.search).get('run');
+    if (!id) return;
+    try {
+      const res = await fetch('/api/stages/runs/' + encodeURIComponent(id));
+      if (!res.ok) return;
+      applyServerRun(await res.json());
+    } catch (e) { /* ignore */ }
+  }
+
   restore();
+  restoreRunFromUrl();
   verifyCurrentRun(); // a run remembered from before a hosting restart may be gone from the server
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifyCurrentRun(); });
   if (BotRun.current().key === 'stages' && BotRun.current().state === 'stopped' && !runId && !Object.keys(results).length) {

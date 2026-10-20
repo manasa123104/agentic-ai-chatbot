@@ -11,6 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +73,7 @@ public class RepositoryConversionService {
     private final boolean allowLocalPaths;
     private final ObjectMapper json = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private final Map<String, ConversionJob> jobs = new ConcurrentHashMap<>();
+    private ChatHistoryService history;
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "repo-converter");
         t.setDaemon(true);
@@ -89,6 +91,11 @@ public class RepositoryConversionService {
         this.maxFiles = maxFiles;
         this.maxFileBytes = maxFileKb * 1024L;
         this.allowLocalPaths = allowLocalPaths;
+    }
+
+    @Autowired(required = false)
+    void setChatHistoryService(ChatHistoryService history) {
+        this.history = history;
     }
 
     @PostConstruct
@@ -297,6 +304,7 @@ public class RepositoryConversionService {
         job.setModel(converter.llmName().orElse("built-in samples only (no AI model)"));
         jobs.put(job.getId(), job);
         save(job);
+        remember(job);
         return job;
     }
 
@@ -933,9 +941,28 @@ public class RepositoryConversionService {
     }
 
     private void update(ConversionJob job, java.util.function.Consumer<ConversionJob> change) {
+        ConversionJob.Status before;
+        ConversionJob.Status after;
         synchronized (job) {
+            before = job.getStatus();
             change.accept(job);
+            after = job.getStatus();
             save(job);
+        }
+        if (before != after && (after == ConversionJob.Status.DONE || after == ConversionJob.Status.FAILED
+                || after == ConversionJob.Status.STOPPED)) {
+            remember(job);
+        }
+    }
+
+    private void remember(ConversionJob job) {
+        if (history == null || job == null) {
+            return;
+        }
+        try {
+            history.saveConversionJob(snapshot(job));
+        } catch (RuntimeException e) {
+            log.warn("Could not save conversion job {} to previous results: {}", job.getId(), e.getMessage());
         }
     }
 

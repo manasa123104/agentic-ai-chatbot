@@ -19,12 +19,16 @@ public class ChatHistoryEntry {
 
     private String id;
     private Instant createdAt;
+    /** home, convert or stages — where the request was sent. */
+    private String source;
     private String userStory;
     private boolean success;
     private String message;
     private String previewUrl;
     private String redirectPath;
     private String outputDirectory;
+    private String jobId;
+    private String runId;
     private List<BotStepLog> steps = new ArrayList<>();
     private ConversionResponse conversion;
 
@@ -48,6 +52,41 @@ public class ChatHistoryEntry {
     @JsonIgnore
     public String getCreatedLabel() {
         return createdAt == null ? "" : LABEL_FMT.format(createdAt);
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public void setSource(String source) {
+        this.source = source;
+    }
+
+    /** Sidebar label for the workspace that produced this result. */
+    public String getSourceLabel() {
+        if ("convert".equals(source)) {
+            return "Code converter";
+        }
+        if ("stages".equals(source)) {
+            return "Stage bots";
+        }
+        return "";
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
     }
 
     public String getUserStory() {

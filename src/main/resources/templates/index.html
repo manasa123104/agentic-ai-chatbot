@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" th:href="@{/css/style.css(v='20261020f')}"/>
-    <link rel="stylesheet" th:href="@{/css/site.css(v='20261020f')}"/>
-    <link rel="stylesheet" th:href="@{/css/mobile.css(v='20261020f')}"/>
-    <link rel="stylesheet" th:href="@{/css/home-chat.css(v='20261020f')}"/>
+    <link rel="stylesheet" th:href="@{/css/style.css(v='20261020g')}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css(v='20261020g')}"/>
+    <link rel="stylesheet" th:href="@{/css/mobile.css(v='20261020g')}"/>
+    <link rel="stylesheet" th:href="@{/css/home-chat.css(v='20261020g')}"/>
     <style>
         .home-landing { width: 100%; max-width: 920px; margin: 0 auto; display: grid; gap: 1.25rem; padding: .2rem 0 1.5rem; }
         .home-hero h1 { margin: 0 0 .45rem; font: 600 2rem/1.15 "Times New Roman", Times, serif; letter-spacing: -.015em; color: #1d2430; }
@@ -70,13 +70,16 @@
         <th:block th:if="${history != null and !history.isEmpty()}">
             <button type="button" class="history-item"
                     th:each="item : ${history}"
-                    th:attr="data-id=${item.id}, data-preview=${item.previewUrl}"
+                    th:attr="data-id=${item.id}, data-preview=${item.previewUrl}, data-redirect=${item.redirectPath}"
                     th:classappend="${item.success} ? '' : ' is-fail'">
                 <span class="history-status" th:classappend="${item.success} ? ' ok' : ' fail'"></span>
                 <span class="history-body">
                     <span class="history-text" th:text="${item.userStory}">Story</span>
                     <span class="history-actions">
-                        <span class="history-meta" th:text="${item.createdLabel}">When</span>
+                        <span class="history-meta">
+                            <span th:if="${item.sourceLabel}" class="history-source" th:text="${item.sourceLabel}"></span>
+                            <span th:text="${item.createdLabel}">When</span>
+                        </span>
                     </span>
                 </span>
                 <span class="history-del" title="Delete" aria-label="Delete">×</span>
@@ -84,7 +87,7 @@
         </th:block>
         <p class="history-empty" id="historyEmpty"
            th:style="${history != null and !history.isEmpty()} ? 'display:none' : ''">
-            No previous results yet. Send a request and BOT will keep it here.
+            No previous results yet. Requests from Code converter and Stage bots are kept here.
         </p>
     </div>
     <nav class="rail-links">
@@ -522,8 +525,22 @@
       if (e.target.closest('.history-edit')) {
         return;
       }
+      var dest = btn.getAttribute('data-redirect');
+      if (dest && /^\/(convert|stages)(\?|$)/.test(dest)) {
+        window.location.href = dest;
+        return;
+      }
       openHistory(itemId);
     });
+  }
+
+  function workspacePath(item) {
+    var path = item && item.redirectPath ? String(item.redirectPath) : '';
+    if (/^\/(convert|stages)(\?|$)/.test(path)) return path;
+    if (item && item.jobId) return '/convert?job=' + encodeURIComponent(item.jobId);
+    if (item && item.runId) return '/stages?run=' + encodeURIComponent(item.runId);
+    if (item && item.source === 'convert' && item.id) return '/convert?history=' + encodeURIComponent(item.id);
+    return '';
   }
 
   function renderHistory(items) {
@@ -534,8 +551,10 @@
     }
     historyEmpty.style.display = 'none';
     items.forEach(function (item) {
+      var dest = workspacePath(item);
       var btn = el(
-        '<button type="button" class="history-item" data-id="' + escapeHtml(item.id) + '">' +
+        '<button type="button" class="history-item" data-id="' + escapeHtml(item.id) + '"' +
+          (dest ? ' data-redirect="' + escapeHtml(dest) + '"' : '') + '>' +
           '<span class="history-status ' + (item.success ? 'ok' : 'fail') + '"></span>' +
           '<span class="history-body">' +
             '<span class="history-text"></span>' +
@@ -547,7 +566,9 @@
         '</button>'
       );
       btn.querySelector('.history-text').textContent = truncate(item.userStory, 72);
-      btn.querySelector('.history-meta').textContent = item.createdLabel || formatWhen(item.createdAt);
+      var when = item.createdLabel || formatWhen(item.createdAt);
+      var source = item.sourceLabel || '';
+      btn.querySelector('.history-meta').textContent = source ? source + ' · ' + when : when;
       if (item.id === activeHistoryId) btn.classList.add('active');
       bindHistoryItem(btn, item.id);
       historyList.appendChild(btn);
@@ -571,6 +592,11 @@
       var res = await fetch('/api/history/' + encodeURIComponent(id));
       if (!res.ok) return;
       var item = await res.json();
+      var dest = workspacePath(item);
+      if (dest) {
+        window.location.href = dest;
+        return;
+      }
       setActiveHistory(item.id);
       thread.innerHTML = '';
       hideWelcome();
@@ -1300,9 +1326,11 @@
   });
 
   var newChat = document.getElementById('newChat');
-  if (newChat) newChat.addEventListener('click', function () {
-    window.location.href = '/';
-  });
+  if (newChat) {
+    newChat.addEventListener('click', function () {
+      window.location.href = '/';
+    });
+  }
 
   document.getElementById('clearHistory').addEventListener('click', async function () {
     if (!confirm('Clear all saved queries and results?')) return;

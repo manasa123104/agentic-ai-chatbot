@@ -2,6 +2,7 @@ package com.agentic.chatbot.stage;
 
 import com.agentic.chatbot.llm.LlmClient;
 import com.agentic.chatbot.service.BotModelTrainingService;
+import com.agentic.chatbot.service.ChatHistoryService;
 import com.agentic.chatbot.stage.StageResponse.StageFile;
 import com.agentic.chatbot.stage.template.AutomationTemplates;
 import com.agentic.chatbot.stage.template.CodeTemplates;
@@ -18,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -106,6 +109,7 @@ public class StageService {
     private final BotModelTrainingService training;
     private final Path root;
     private final ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private ChatHistoryService history;
 
     /** What a stage produced before it is written to disk. {@code extras} are scaffold files not shown as output. */
     private record Generated(Map<String, String> files, Map<String, String> extras, List<String> notes,
@@ -139,6 +143,11 @@ public class StageService {
         this.llm = llm;
         this.training = training;
         this.root = Path.of(outputDir).toAbsolutePath().normalize().resolve("stages");
+    }
+
+    @Autowired(required = false)
+    void setChatHistoryService(ChatHistoryService history) {
+        this.history = history;
     }
 
     public Path root() {
@@ -208,8 +217,10 @@ public class StageService {
         long elapsed = System.currentTimeMillis() - start;
         log.info("Stage {} ({}, {}) run {} finished in {} ms via {}", stage.id(), ctx.domain().id(), ctx.lang().id(),
                 runId, elapsed, g.mode());
-        return new StageResponse(true, stage.id(), stage.title(), ctx.domain().id(), ctx.lang().id(), runId, g.mode(),
-                g.model(), output, files, g.notes(), nextStage, nextInput, elapsed);
+        StageResponse response = new StageResponse(true, stage.id(), stage.title(), ctx.domain().id(), ctx.lang().id(),
+                runId, g.mode(), g.model(), output, files, g.notes(), nextStage, nextInput, elapsed);
+        remember(response, input);
+        return response;
     }
 
     /**
@@ -1294,9 +1305,11 @@ public class StageService {
         recordRun(runId, StageType.TRAINER, new Ctx(domain, LanguageProfile.resolve(languageId, languageId),
                 StageAutomation.BOTH, request), input, g, files.keySet(), System.currentTimeMillis() - start);
         long elapsed = System.currentTimeMillis() - start;
-        return new StageResponse(true, StageType.TRAINER.id(), StageType.TRAINER.title(), domain.id(), languageId, runId,
-                "trainer", "training store", report, files.entrySet().stream()
+        StageResponse response = new StageResponse(true, StageType.TRAINER.id(), StageType.TRAINER.title(), domain.id(),
+                languageId, runId, "trainer", "training store", report, files.entrySet().stream()
                 .map(e -> new StageFile(e.getKey(), e.getValue())).toList(), notes, "", "", elapsed);
+        remember(response, input);
+        return response;
     }
 
     private String trainingReport(String runId, Map<String, Map<String, Object>> stages, StageDomain domain,
@@ -1668,6 +1681,51 @@ public class StageService {
             return (int) walk.filter(Files::isRegularFile).count();
         } catch (IOException e) {
             throw new UncheckedIOException("Could not read the run: " + e.getMessage(), e);
+        }
+    }
+
+    public Map<String, Object> runRecord(String runId) {
+        Path dir;
+        try {
+            dir = runDir(runId);
+        } catch (IllegalArgumentException e) {
+            throw new RunNotFoundException(String.valueOf(runId));
+        }
+        if (!Files.isDirectory(dir)) {
+            throw new RunNotFoundException(runId);
+        }
+        Map<String, Object> run = readRun(runId);
+        run.putIfAbsent("runId", runId);
+        return run;
+    }
+
+    public List<Map<String, Object>> listRuns() {
+        if (!Files.isDirectory(root)) {
+            return List.of();
+        }
+        try (Stream<Path> dirs = Files.list(root)) {
+            return dirs.filter(Files::isDirectory)
+                    .map(dir -> dir.getFileName().toString())
+                    .filter(id -> RUN_ID.matcher(id).matches())
+                    .sorted(Comparator.reverseOrder())
+                    .map(this::readRun)
+                    .filter(run -> !run.isEmpty())
+                    .limit(100)
+                    .toList();
+        } catch (IOException e) {
+            log.warn("Could not list stage runs: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private void remember(StageResponse response, String input) {
+        if (history == null || response == null) {
+            return;
+        }
+        try {
+            history.saveStage(response, input);
+        } catch (RuntimeException e) {
+            log.warn("Could not save stage run {} to previous results: {}", response.runId(), e.getMessage());
         }
     }
 
