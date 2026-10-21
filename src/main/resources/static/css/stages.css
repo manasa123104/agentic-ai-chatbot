@@ -127,8 +127,26 @@
   border-radius: 12px;
   background: #fbf6ea;
 }
-.guard-head { display: flex; align-items: center; gap: .6rem; }
+.guard-head { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .guard-head strong { font: 700 15px var(--font-ui); }
+.guard-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid #d6c9a8;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.guard-opt {
+  border: 0;
+  background: #fff;
+  padding: .22rem .75rem;
+  font: 600 12.5px var(--font-ui);
+  cursor: pointer;
+  color: #5c636b;
+}
+.guard-opt[aria-pressed="true"] { background: #2c5d68; color: #fff; }
+.guard-card.is-off { background: #f3f1ea; }
+.guard-card.is-off .guard-status { color: #5c636b; }
 .guard-lead, .guard-status, .guard-file { margin: .4rem 0 0; font-size: 14px; line-height: 1.45; }
 .guard-status { color: #2c5d68; font-weight: 600; }
 .guard-log { margin: .4rem 0 0; padding-left: 1.15rem; font-size: 13.5px; }

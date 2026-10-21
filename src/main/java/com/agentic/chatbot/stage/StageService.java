@@ -1128,7 +1128,7 @@ public class StageService {
 
     /**
      * Append a Guardrail check to this run and rewrite {@code GUARDRAIL.md}.
-     * Guardrail is always on. Missing runs are skipped.
+     * Missing runs are skipped.
      */
     public synchronized void recordGuardrail(String runId, String tool, GuardDecision d) {
         if (runId == null || !RUN_ID.matcher(runId).matches() || d == null) {
@@ -1171,8 +1171,7 @@ public class StageService {
     private static String guardrailMarkdown(String runId, List<Object> checks) {
         StringBuilder sb = new StringBuilder();
         sb.append("# Guardrail checks\n\n");
-        sb.append("Guardrail is always on. ");
-        sb.append("It inspects stage runs and GitHub pushes before they happen.\n\n");
+        sb.append("It inspects stage runs and GitHub pushes when Guardrail is On.\n\n");
         sb.append("Run: `").append(runId).append("`\n\n");
         sb.append("## This run\n\n");
         if (checks == null || checks.isEmpty()) {

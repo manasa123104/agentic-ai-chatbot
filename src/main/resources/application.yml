@@ -52,7 +52,7 @@ agentic:
   mcp:
     enabled: ${BOT_MCP_ENABLED:true}
     api-key: ${BOT_MCP_API_KEY:}
-  # Always-on Guardrail for MCP tools and sensitive stage/push actions.
+  # Guardrail for MCP tools and sensitive stage/push actions. Visitors can turn it Off on Stage bots.
   # ENFORCE blocks, OBSERVE only logs.
   guardrail:
     enabled: ${BOT_GUARDRAIL_ENABLED:true}

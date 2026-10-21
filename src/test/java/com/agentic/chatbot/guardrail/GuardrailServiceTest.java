@@ -1,5 +1,6 @@
 package com.agentic.chatbot.guardrail;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,6 +12,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GuardrailServiceTest {
+
+    @AfterEach
+    void clearOverride() {
+        GuardrailOverride.clear();
+    }
 
     private GuardrailService enforce() {
         GuardrailProperties p = new GuardrailProperties();
@@ -72,7 +78,8 @@ class GuardrailServiceTest {
         GuardrailService g = enforce();
         g.check("run_stage", Map.of("input", "fund transfer"));
         Map<String, Object> status = g.status();
-        assertEquals(true, status.get("alwaysOn"));
+        assertEquals(false, status.get("alwaysOn"));
+        assertEquals(true, status.get("canToggle"));
         assertEquals(false, status.get("pipelineStage"));
         assertEquals("ENFORCE", status.get("mode"));
         assertEquals(1, status.get("checks"));
@@ -81,5 +88,27 @@ class GuardrailServiceTest {
         java.util.List<Map<String, Object>> recent = (java.util.List<Map<String, Object>>) status.get("recent");
         assertEquals("run_stage", recent.get(0).get("tool"));
         assertEquals(true, recent.get(0).get("allowed"));
+    }
+
+    @Test
+    void visitorCanTurnChecksOff() {
+        GuardrailService g = enforce();
+        GuardrailOverride.set(false);
+        assertFalse(g.active());
+        assertFalse(g.check("push_run", Map.of(
+                "repoUrl", "https://github.com/o/r",
+                "branch", "main")).wouldDeny());
+        assertTrue(g.require("push_run", Map.of(
+                "repoUrl", "https://github.com/o/r",
+                "branch", "main")).allowed());
+        assertEquals(false, g.status().get("enabled"));
+    }
+
+    @Test
+    void headerOffMeansOff() {
+        assertEquals(Boolean.FALSE, GuardrailOverrideFilter.parse("off"));
+        assertEquals(Boolean.FALSE, GuardrailOverrideFilter.parse("false"));
+        assertEquals(Boolean.TRUE, GuardrailOverrideFilter.parse("on"));
+        assertEquals(null, GuardrailOverrideFilter.parse(""));
     }
 }

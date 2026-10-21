@@ -59,10 +59,8 @@ public class GuardrailService {
      */
     public GuardDecision check(String tool, Map<String, Object> args) {
         String name = tool == null ? "" : tool.trim().toLowerCase(Locale.ROOT);
-        if (!props.isEnabled()) {
-            GuardDecision allow = GuardDecision.allow();
-            remember(name, allow);
-            return allow;
+        if (!active()) {
+            return GuardDecision.allow();
         }
         Map<String, Object> a = args == null ? Map.of() : args;
         GuardDecision raw = switch (name) {
@@ -83,12 +81,22 @@ public class GuardrailService {
         return out;
     }
 
-    /** Live report card for Stage bots: always-on checks. */
+    /** True when this request should run checks. Server env can kill them; a visitor can also turn them Off. */
+    public boolean active() {
+        if (!props.isEnabled()) {
+            return false;
+        }
+        Boolean choice = GuardrailOverride.current();
+        return choice == null || choice;
+    }
+
+    /** Live report card for Stage bots. */
     public Map<String, Object> status() {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("enabled", props.isEnabled());
+        m.put("enabled", active());
         m.put("mode", props.getMode().name());
-        m.put("alwaysOn", true);
+        m.put("alwaysOn", false);
+        m.put("canToggle", props.isEnabled());
         m.put("pipelineStage", false);
         m.put("checks", checks.get());
         m.put("denials", denials.get());
