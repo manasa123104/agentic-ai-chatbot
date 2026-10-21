@@ -20,7 +20,15 @@ public final class DataAnalystTemplates {
 
     /** What the analyst report needs about the current run. */
     public record Context(StageDomain domain, String languageName, String feature, int storyCount, int codeFiles,
-                          int unitTests, int automationTests, int manualCases) {
+                          int unitTests, int automationTests, int manualCases, List<String> defectSources) {
+        public Context {
+            defectSources = defectSources == null ? List.of() : List.copyOf(defectSources);
+        }
+
+        public Context(StageDomain domain, String languageName, String feature, int storyCount, int codeFiles,
+                       int unitTests, int automationTests, int manualCases) {
+            this(domain, languageName, feature, storyCount, codeFiles, unitTests, automationTests, manualCases, List.of());
+        }
     }
 
     public static Map<String, String> files(Context ctx) {
@@ -281,6 +289,8 @@ public final class DataAnalystTemplates {
 
                 Raw numbers are in [`metrics.json`](metrics.json).
 
+                %s
+
                 ## Recommendations
 
                 1. Keep unit coverage above 80%% before release (%d%% estimated from this run).
@@ -303,6 +313,7 @@ public final class DataAnalystTemplates {
                 m.mixAnalysis(), m.qualityAnalysis(),
                 m.reasons().title(), m.reasons().what(), m.reasons().analysis(),
                 m.severity().title(), m.severity().what(), m.severity().analysis(),
+                sourcesMd(ctx),
                 m.coverage(), m.openDefects());
     }
 
@@ -640,6 +651,7 @@ public final class DataAnalystTemplates {
                 .replace("__SEV_TITLE__", escape(m.severity().title()))
                 .replace("__SEV_WHAT__", escape(m.severity().what()))
                 .replace("__SEV_ANALYSIS__", escape(m.severity().analysis()))
+                .replace("__DEFECT_SOURCES__", sourcesHtml(ctx))
                 .replace("__DEFECTS__", Integer.toString(m.defects()))
                 .replace("__LABELS__", jsonArrayStrings(m.labels()))
                 .replace("__VOLUME__", jsonArrayInts(m.volume()))
@@ -675,6 +687,12 @@ public final class DataAnalystTemplates {
                 .how { background: #e8f1f2; border: 1px solid #c5d7db; border-radius: 12px; padding: .9rem 1rem; }
                 .how strong { color: var(--accent); }
                 .how p { margin: .35rem 0 0; color: var(--ink); }
+                .sources { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; }
+                .sources strong { color: var(--accent); }
+                .sources p { margin: .35rem 0 0; }
+                .sources ul { margin: .45rem 0 0; padding-left: 1.2rem; }
+                .sources li { margin: .2rem 0; }
+                .sources a { color: var(--accent); }
                 .kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: .75rem; }
                 .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; }
                 .kpi b { display: block; font-size: 1.4rem; color: var(--accent); }
@@ -690,7 +708,7 @@ public final class DataAnalystTemplates {
                 .what em { font-style: normal; font-weight: 700; color: var(--accent); }
                 .analysis { background: #f7f1e4; border-left: 3px solid var(--gold); padding: .55rem .7rem; border-radius: 0 8px 8px 0; }
                 .analysis strong { color: #7a5a1a; }
-                canvas { max-height: 280px; background: #fff; }
+                canvas { max-height: 280px; }
                 .card.wide canvas { max-height: 300px; }
                 .dl-bar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
                 .dl-bar button, .dl a, .dl button { font: 13px/1.3 "Times New Roman", Times, serif; color: var(--accent); background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: .28rem .65rem; cursor: pointer; text-decoration: none; }
@@ -805,6 +823,11 @@ public final class DataAnalystTemplates {
                     <p class="analysis"><strong>Analysis.</strong> __SEV_ANALYSIS__</p>
                   </article>
                 </section>
+                <section class="sources" id="defectSources">
+                  <strong>Where the defect estimates come from</strong>
+                  <p>These counts are inferred from this run, not a ticket system. Open the files that fed the estimate.</p>
+                  __DEFECT_SOURCES__
+                </section>
               </main>
               <footer>Illustrative charts from BOT Data Analyst · Chart.js · Open this file from the run folder or after a GitHub push. Not live production telemetry.</footer>
               <script>
@@ -821,17 +844,6 @@ public final class DataAnalystTemplates {
                 const sevLabels = __SEV_LABELS__;
                 const sevValues = __SEV_VALUES__;
                 const cycle = __CYCLE__;
-                Chart.register({
-                  id: 'whiteBg',
-                  beforeDraw: function (chart) {
-                    var ctx = chart.ctx;
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'destination-over';
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, chart.width, chart.height);
-                    ctx.restore();
-                  }
-                });
                 const ink = '#2c5d68';
                 const gold = '#c4a35a';
                 const good = '#3d7a6a';
@@ -890,15 +902,8 @@ public final class DataAnalystTemplates {
                 function savePng(id, file) {
                   var canvas = document.getElementById(id);
                   if (!canvas || !canvas.toDataURL) return;
-                  var out = document.createElement('canvas');
-                  out.width = canvas.width;
-                  out.height = canvas.height;
-                  var ctx = out.getContext('2d');
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fillRect(0, 0, out.width, out.height);
-                  ctx.drawImage(canvas, 0, 0);
                   var a = document.createElement('a');
-                  a.href = out.toDataURL('image/png');
+                  a.href = canvas.toDataURL('image/png');
                   a.download = file + '.png';
                   a.click();
                 }
@@ -917,6 +922,54 @@ public final class DataAnalystTemplates {
             </body>
             </html>
             """;
+
+    private static String sourcesMd(Context ctx) {
+        List<String> src = ctx.defectSources();
+        StringBuilder sb = new StringBuilder();
+        sb.append("## Where the defect estimates come from\n\n");
+        sb.append("These counts are inferred from this run, not a ticket system.\n\n");
+        if (src == null || src.isEmpty()) {
+            sb.append("No stories.md or Tester files were in this run yet. ");
+            sb.append("Run Business Analyst and Tester first, then Data Analyst, to see file links here.\n");
+            return sb.toString();
+        }
+        sb.append("Open the files that fed the estimate:\n\n");
+        for (String path : src) {
+            sb.append("- [`").append(path).append("`](../").append(path).append(") — ").append(sourceLabel(path)).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static String sourcesHtml(Context ctx) {
+        List<String> src = ctx.defectSources();
+        if (src == null || src.isEmpty()) {
+            return "<p>No stories.md or Tester files were in this run yet. "
+                    + "Run Business Analyst and Tester first, then Data Analyst, to see file links here.</p>";
+        }
+        StringBuilder sb = new StringBuilder("<ul>");
+        for (String path : src) {
+            sb.append("<li><a href=\"../").append(escape(path)).append("\">").append(escape(path))
+                    .append("</a> — ").append(escape(sourceLabel(path))).append("</li>");
+        }
+        return sb.append("</ul>").toString();
+    }
+
+    private static String sourceLabel(String path) {
+        String p = path == null ? "" : path.toLowerCase(Locale.ROOT);
+        if (p.equals("stories.md") || p.endsWith("/stories.md")) {
+            return "user stories from the Business Analyst";
+        }
+        if (p.startsWith("manual-tests/")) {
+            return "Tester manual case";
+        }
+        if (p.contains("selenium") || p.contains("playwright") || p.contains("cypress") || p.contains(".spec.")) {
+            return "Tester automation";
+        }
+        if (p.startsWith("src/test/") || p.contains("/test_") || p.contains("_test.")) {
+            return "Tester unit test";
+        }
+        return "run file used for the defect estimate";
+    }
 
     private static String escape(String s) {
         return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

@@ -125,6 +125,10 @@ class StageServiceTest {
         assertTrue(content(analyst, "dashboard.html").contains("Weekly transfer volume"), content(analyst, "dashboard.html"));
         assertTrue(content(analyst, "dashboard.html").contains("Download PNG"), content(analyst, "dashboard.html"));
         assertTrue(content(analyst, "STATS.md").contains("What each graph shows"), content(analyst, "STATS.md"));
+        assertTrue(content(analyst, "STATS.md").contains("Where the defect estimates come from"), content(analyst, "STATS.md"));
+        assertTrue(content(analyst, "STATS.md").contains("stories.md"), content(analyst, "STATS.md"));
+        assertTrue(content(analyst, "STATS.md").contains("FundTransferServiceTest.java"), content(analyst, "STATS.md"));
+        assertTrue(content(analyst, "dashboard.html").contains("href=\"../stories.md\""), content(analyst, "dashboard.html"));
         assertTrue(analyst.nextInput().contains("FundTransferService"), "deploy still gets the developer's code");
 
         StageResponse deploy = run.get(4);
@@ -541,6 +545,21 @@ class StageServiceTest {
         assertTrue(content(analyst, "dashboard.html").contains("High-level overview"));
         assertTrue(content(analyst, "dashboard.html").contains("Weekly transfer volume"));
         assertTrue(content(analyst, "STATS.md").contains("What each graph shows"));
+        assertTrue(content(analyst, "STATS.md").contains("No stories.md or Tester files were in this run yet"));
+    }
+
+    @Test
+    void recordGuardrailWritesRunReport() throws Exception {
+        StageService service = service(OFFLINE);
+        StageResponse ba = service.run(StageType.BA, request("banking", "fund transfer between accounts", Map.of()));
+        service.recordGuardrail(ba.runId(), "run_stage", com.agentic.chatbot.guardrail.GuardDecision.allow());
+        Path report = service.runDir(ba.runId()).resolve("GUARDRAIL.md");
+        assertTrue(Files.exists(report));
+        String md = Files.readString(report);
+        assertTrue(md.contains("not a seventh pipeline stage"), md);
+        assertTrue(md.contains("run_stage"), md);
+        Map<String, Object> run = service.runRecord(ba.runId());
+        assertTrue(run.get("guardrail") instanceof java.util.List, run.toString());
     }
 
     // ------------------------------------------------------------------ chaining through the model

@@ -18,7 +18,7 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Stage bots</strong>
-            <small>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer. Any language, any domain.</small>
+            <small>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer. Guardrail stays on for every step.</small>
         </div>
     </div>
     <nav class="code-actions">
@@ -152,7 +152,7 @@
                 <dl>
                     <dt>Role</dt><dd>Stage 4. Acts as a data analyst for the selected domain. The dashboard presents nine charts (operations and quality), each with a description and an analysis, together with a KPI summary.</dd>
                     <dt>Input</dt><dd>The Developer&rsquo;s code, and the run&rsquo;s stories and tests when they are available.</dd>
-                    <dt>Output</dt><dd><code>analytics/STATS.md</code> (written analysis), <code>analytics/dashboard.html</code> (interactive charts with descriptions) and <code>analytics/metrics.json</code>. Download them from this card or open the HTML file in a browser.</dd>
+                    <dt>Output</dt><dd><code>analytics/STATS.md</code> (written analysis), <code>analytics/dashboard.html</code> (interactive charts with descriptions) and <code>analytics/metrics.json</code>. Defect bars link back to <code>stories.md</code> and Tester files from this run. Download them from this card or open the HTML file in a browser.</dd>
                     <dt>Next stage</dt><dd>The <strong>Deploy</strong> stage prepares the same Developer code for release.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="data-analyst">Go to the Data Analyst &darr;</button>
@@ -180,6 +180,16 @@
                 <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
             </article>
         </div>
+        <aside class="guard-card" id="guardCard">
+            <div class="guard-head">
+                <strong>Guardrail</strong>
+                <span class="badge" id="guardMode">Always on</span>
+            </div>
+            <p class="guard-lead">This is not a seventh stage. It checks every stage run and GitHub push as they happen: secrets in the input, pushes to main or master, and repository hosts.</p>
+            <p class="guard-status" id="guardStatus">Checks appear when you run a stage or push.</p>
+            <ul class="guard-log" id="guardLog"></ul>
+            <p class="guard-file" id="guardFile" hidden>Saved on this run as <code>GUARDRAIL.md</code>.</p>
+        </aside>
         <p class="run-info" id="runInfo">No run in progress. Execute any stage individually, or select Run all stages.</p>
         <p class="run-timer-row"><span id="totalTimer"></span></p>
     </section>
@@ -220,7 +230,7 @@
                 <li><strong>Failure reasons</strong> &mdash; why items left the happy path.</li>
                 <li><strong>Defect severity</strong> &mdash; critical / major / minor / info split of estimated defects.</li>
             </ul>
-            <p>Figures are illustrative, domain-flavoured metrics derived from the stories, code and tests in the run &mdash; not a live database. Deploy still uses the Developer&rsquo;s code next.</p>
+            <p>Figures are illustrative, domain-flavoured metrics derived from the stories, code and tests in the run &mdash; not a live database. The quality snapshot names the Tester files and <code>stories.md</code> the defect estimates come from. Deploy still uses the Developer&rsquo;s code next.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'deploy'}">
             <summary>What is Deploy?</summary>
@@ -1210,6 +1220,7 @@
       btn.textContent = 'Run';
       applyLock();
       persist();
+      loadGuardrail();
       if (!busy) { // inside Run all, the loop reports the state itself
         if (cancelled) {
           resumeStage = stage; // a stage is one request: Resume runs it again, the earlier stages stay as they are
@@ -1424,6 +1435,7 @@
       btn.textContent = 'Run all stages';
       applyLock();
       persist();
+      loadGuardrail();
     }
   }
 
@@ -1873,9 +1885,53 @@
   window.addEventListener('pagehide', () => { persist(true); leaving = true; });
   window.addEventListener('pageshow', (e) => { if (e.persisted) leaving = false; });
 
+  function paintGuard(data) {
+    if (!data) return;
+    const mode = $('guardMode');
+    const status = $('guardStatus');
+    const log = $('guardLog');
+    const file = $('guardFile');
+    if (mode) {
+      mode.textContent = data.enabled === false ? 'Off' : (data.mode || 'ENFORCE') + ' · always on';
+    }
+    const n = data.checks || 0;
+    const d = data.denials || 0;
+    if (status) {
+      status.textContent = n === 0
+        ? 'No checks in this session yet. They appear when you run a stage or push.'
+        : n + (n === 1 ? ' check' : ' checks') + ' this session'
+          + (d ? ', ' + d + (d === 1 ? ' would block.' : ' would block.') : '. All allowed.');
+    }
+    if (log) {
+      log.innerHTML = '';
+      (data.recent || []).slice(0, 8).forEach((row) => {
+        const li = document.createElement('li');
+        li.className = row.wouldDeny ? 'deny' : 'ok';
+        const tool = row.tool || 'check';
+        li.textContent = row.wouldDeny
+          ? tool + ' — ' + (row.reason || row.ruleId || 'blocked')
+          : tool + ' — allowed';
+        log.appendChild(li);
+      });
+    }
+    if (file && Array.isArray(data.guardrail) && data.guardrail.length) file.hidden = false;
+  }
+
+  async function loadGuardrail() {
+    try {
+      const res = await fetch('/api/guardrail');
+      if (!res.ok) return;
+      paintGuard(await res.json());
+    } catch (e) { /* ignore */ }
+  }
+
   function applyServerRun(data) {
     if (!data || !data.runId) return;
     setRun(data.runId);
+    if ($('guardFile') && Array.isArray(data.guardrail) && data.guardrail.length) {
+      $('guardFile').hidden = false;
+    }
+    loadGuardrail();
     const setIfOption = (id, value) => {
       const sel = $(id);
       if (value && sel && [...sel.options].some((o) => o.value === value)) sel.value = value;
@@ -1913,6 +1969,7 @@
 
   restore();
   restoreRunFromUrl();
+  loadGuardrail();
   verifyCurrentRun(); // a run remembered from before a hosting restart may be gone from the server
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifyCurrentRun(); });
   if (BotRun.current().key === 'stages' && BotRun.current().state === 'stopped' && !runId && !Object.keys(results).length) {

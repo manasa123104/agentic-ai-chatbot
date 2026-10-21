@@ -5,9 +5,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 /**
@@ -24,7 +29,12 @@ public class GuardrailService {
             "(?i)\\b(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|gho_[A-Za-z0-9]{20,}"
                     + "|sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z\\-_]{20,})\\b");
 
+    private static final int RECENT_CAP = 40;
+
     private final GuardrailProperties props;
+    private final AtomicInteger checks = new AtomicInteger();
+    private final AtomicInteger denials = new AtomicInteger();
+    private final List<Map<String, Object>> recent = Collections.synchronizedList(new ArrayList<>());
 
     public GuardrailService(GuardrailProperties props) {
         this.props = props;
@@ -48,11 +58,13 @@ public class GuardrailService {
      * Unknown tools are allowed so new tools are not fail-closed by default.
      */
     public GuardDecision check(String tool, Map<String, Object> args) {
+        String name = tool == null ? "" : tool.trim().toLowerCase(Locale.ROOT);
         if (!props.isEnabled()) {
-            return GuardDecision.allow();
+            GuardDecision allow = GuardDecision.allow();
+            remember(name, allow);
+            return allow;
         }
         Map<String, Object> a = args == null ? Map.of() : args;
-        String name = tool == null ? "" : tool.trim().toLowerCase(Locale.ROOT);
         GuardDecision raw = switch (name) {
             case "push_run", "stages.push", "push" -> checkPush(a);
             case "run_stage", "stages.run", "run_all_stages", "stages.run_all" -> checkStageInput(a);
@@ -67,7 +79,42 @@ public class GuardrailService {
             log.info("guardrail {} tool={} rule={} reason={}",
                     out.allowed() ? "observe-deny" : "enforce-deny", name, raw.ruleId(), raw.reason());
         }
+        remember(name, out);
         return out;
+    }
+
+    /** Live report card for Stage bots: always-on checks, not a seventh pipeline stage. */
+    public Map<String, Object> status() {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("enabled", props.isEnabled());
+        m.put("mode", props.getMode().name());
+        m.put("alwaysOn", true);
+        m.put("pipelineStage", false);
+        m.put("checks", checks.get());
+        m.put("denials", denials.get());
+        synchronized (recent) {
+            m.put("recent", List.copyOf(recent));
+        }
+        m.put("blocks", List.of(
+                "Secrets pasted into a stage input",
+                "A direct push to main or master",
+                "Repository URLs that are not https",
+                "Git hosts outside the allowlist"));
+        return m;
+    }
+
+    private void remember(String tool, GuardDecision d) {
+        checks.incrementAndGet();
+        if (d.wouldDeny()) {
+            denials.incrementAndGet();
+        }
+        Map<String, Object> row = receipt(d, tool);
+        synchronized (recent) {
+            recent.add(0, row);
+            while (recent.size() > RECENT_CAP) {
+                recent.remove(recent.size() - 1);
+            }
+        }
     }
 
     private GuardDecision checkPush(Map<String, Object> a) {
@@ -172,7 +219,8 @@ public class GuardrailService {
     /** Compact receipt for MCP clients and the stages UI. */
     public Map<String, Object> receipt(GuardDecision d, String tool) {
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("tool", tool);
+        m.put("at", Instant.now().toString());
+        m.put("tool", tool == null ? "" : tool);
         m.put("allowed", d.allowed());
         m.put("wouldDeny", d.wouldDeny());
         m.put("ruleId", d.ruleId());

@@ -66,4 +66,20 @@ class GuardrailServiceTest {
         assertEquals("repo-host", g.check("push_run", Map.of(
                 "repoUrl", "https://gitlab.com/o/r", "branch", "bot/x")).ruleId());
     }
+
+    @Test
+    void statusCountsChecksAndIsNotAPipelineStage() {
+        GuardrailService g = enforce();
+        g.check("run_stage", Map.of("input", "fund transfer"));
+        Map<String, Object> status = g.status();
+        assertEquals(true, status.get("alwaysOn"));
+        assertEquals(false, status.get("pipelineStage"));
+        assertEquals("ENFORCE", status.get("mode"));
+        assertEquals(1, status.get("checks"));
+        assertEquals(0, status.get("denials"));
+        @SuppressWarnings("unchecked")
+        java.util.List<Map<String, Object>> recent = (java.util.List<Map<String, Object>>) status.get("recent");
+        assertEquals("run_stage", recent.get(0).get("tool"));
+        assertEquals(true, recent.get(0).get("allowed"));
+    }
 }

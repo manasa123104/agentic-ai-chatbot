@@ -104,6 +104,20 @@ class StagePushTest {
     }
 
     @Test
+    void pushToMainIsBlockedWhenGuardrailIsOn() {
+        com.agentic.chatbot.guardrail.GuardrailProperties gp = new com.agentic.chatbot.guardrail.GuardrailProperties();
+        StageApiController controller = new StageApiController(stages(), null, new GitService("", "BOT", "bot@example.com"),
+                new com.agentic.chatbot.service.GitHubPreflight(""),
+                new com.agentic.chatbot.guardrail.GuardrailService(gp));
+        com.agentic.chatbot.guardrail.GuardrailDeniedException e =
+                assertThrows(com.agentic.chatbot.guardrail.GuardrailDeniedException.class, () ->
+                        controller.push("20261020-000000-abcdef",
+                                new StageApiController.PushRequest("run", "https://github.com/o/r", "main",
+                                        "", "", "", "", true), local()));
+        assertEquals("protected-branch", e.ruleId());
+    }
+
+    @Test
     void unknownRunIsReportedAsNotFound() {
         StageApiController controller = controller(stages());
         IllegalArgumentException e = assertThrows(RunNotFoundException.class,

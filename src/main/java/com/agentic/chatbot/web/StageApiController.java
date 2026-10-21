@@ -1,5 +1,6 @@
 package com.agentic.chatbot.web;
 
+import com.agentic.chatbot.guardrail.GuardDecision;
 import com.agentic.chatbot.guardrail.GuardrailDeniedException;
 import com.agentic.chatbot.guardrail.GuardrailService;
 import com.agentic.chatbot.service.GitHubPreflight;
@@ -83,7 +84,8 @@ public class StageApiController {
     public Map<String, Object> checkToken(@RequestBody TokenCheckRequest body, HttpServletRequest request) {
         String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
         GitService.validateRepoUrl(repoUrl);
-        guardrails.require("test_github_token", Map.of("repoUrl", repoUrl, "token", body.token() == null ? "" : body.token()));
+        requireGuard("test_github_token",
+                Map.of("repoUrl", repoUrl, "token", body.token() == null ? "" : body.token()), null);
         String token = GitPushPolicy.authorize(request, repoUrl, body.token());
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("repoUrl", repoUrl);
@@ -119,6 +121,11 @@ public class StageApiController {
                                              @RequestParam(required = false) List<MultipartFile> files,
                                              HttpServletRequest request) throws IOException {
         boolean host = RequestOrigin.isHost(request);
+        GuardDecision gitCheck = null;
+        if ("git".equals(inputType)) {
+            gitCheck = requireGuard("import_stories_git",
+                    Map.of("repoUrl", repoUrl == null ? "" : repoUrl), runId);
+        }
         StoryImportService.Imported imported = switch (inputType) {
             case "upload" -> stories.fromUploads(files, runId);
             case "git" -> stories.fromGit(repoUrl, branch, subfolder, GitPushPolicy.validToken(token), runId, !host);
@@ -137,6 +144,9 @@ public class StageApiController {
         body.put("skipped", imported.skipped());
         body.put("truncated", imported.truncated());
         body.put("totalFiles", imported.totalFiles());
+        if (gitCheck != null) {
+            stages.recordGuardrail(imported.runId(), "import_stories_git", gitCheck);
+        }
         return body;
     }
 
@@ -150,6 +160,12 @@ public class StageApiController {
         // a typo such as a trailing "." must be fixed (or reported) before anything else, not surface as a git failure
         String repoUrl = GitService.normalizeRepoUrl(body.repoUrl());
         GitService.validateRepoUrl(repoUrl);
+        String branch = body.branch() == null || body.branch().isBlank() ? "bot/" + runId : body.branch().trim();
+        GuardDecision guard = requireGuard("push_run", Map.of(
+                "repoUrl", repoUrl,
+                "branch", branch,
+                "folder", body.folder() == null ? "" : body.folder(),
+                "token", body.token() == null ? "" : body.token()), runId);
         String token = GitPushPolicy.authorize(request, repoUrl, body.token());
         if (token != null) {
             // ask GitHub first: a token that cannot write is explained precisely instead of failing inside git
@@ -160,7 +176,6 @@ public class StageApiController {
         }
         String scope = body.stage() == null ? "" : body.stage().trim().toLowerCase(Locale.ROOT);
         StageType stage = scope.isEmpty() || scope.equals("run") ? null : stageOf(scope);
-        String branch = body.branch() == null || body.branch().isBlank() ? "bot/" + runId : body.branch().trim();
         String message = body.commitMessage() == null || body.commitMessage().isBlank()
                 ? "Add " + (stage == null ? "generated project" : stage.title() + " output") + " from BOT run " + runId
                 : body.commitMessage();
@@ -193,6 +208,7 @@ public class StageApiController {
                         + "on GitHub if you want Actions, or create a new classic token with both the repo and workflow "
                         + "scopes and push again.");
             }
+            stages.recordGuardrail(runId, "push_run", guard);
             return out;
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException(friendlyGitError(e.getMessage(), repoUrl));
@@ -303,10 +319,11 @@ public class StageApiController {
 
     @PostMapping("/run-all")
     public Map<String, Object> runAll(@RequestBody StageRequest request) {
-        guardrails.require("run_all_stages", Map.of(
+        GuardDecision guard = requireGuard("run_all_stages", Map.of(
                 "domain", request.domain() == null ? "" : request.domain(),
-                "input", request.input() == null ? "" : request.input()));
+                "input", request.input() == null ? "" : request.input()), request.runId());
         List<StageResponse> results = stages.runAll(request);
+        stages.recordGuardrail(results.get(0).runId(), "run_all_stages", guard);
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("runId", results.get(0).runId());
         body.put("stages", results);
@@ -350,11 +367,13 @@ public class StageApiController {
 
     @PostMapping("/{stage}")
     public StageResponse run(@PathVariable String stage, @RequestBody StageRequest request) {
-        guardrails.require("run_stage", Map.of(
+        GuardDecision guard = requireGuard("run_stage", Map.of(
                 "stage", stage,
                 "domain", request.domain() == null ? "" : request.domain(),
-                "input", request.input() == null ? "" : request.input()));
-        return stages.run(stageOf(stage), legacy(stage, request));
+                "input", request.input() == null ? "" : request.input()), request.runId());
+        StageResponse result = stages.run(stageOf(stage), legacy(stage, request));
+        stages.recordGuardrail(result.runId(), "run_stage", guard);
+        return result;
     }
 
     @PostMapping("/{stage}/approve")
@@ -430,6 +449,15 @@ public class StageApiController {
             }
         }
         return r;
+    }
+
+    private GuardDecision requireGuard(String tool, Map<String, Object> args, String runId) {
+        try {
+            return guardrails.require(tool, args);
+        } catch (GuardrailDeniedException e) {
+            stages.recordGuardrail(runId, tool, e.decision());
+            throw e;
+        }
     }
 
     private static StageType stageOf(String id) {

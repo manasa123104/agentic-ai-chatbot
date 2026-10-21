@@ -22,6 +22,11 @@ class HomeTemplateTest {
         assertTrue(markup.contains("Delivery stages"));
         assertTrue(markup.contains("/convert"));
         assertTrue(markup.contains("/stages"));
+        assertTrue(markup.contains("start-convert.jpg"));
+        assertTrue(markup.contains("start-stages.jpg"));
+        assertTrue(markup.contains("home-guard"));
+        assertTrue(markup.contains("Guardrail"));
+        assertTrue(markup.contains("Not a seventh stage"));
         assertTrue(markup.contains("class=\"chat-composer\" hidden"));
         assertFalse(markup.contains("New prompt"));
         assertFalse(markup.contains("Choose a workspace"));

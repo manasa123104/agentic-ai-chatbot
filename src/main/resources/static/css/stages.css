@@ -120,6 +120,23 @@
 .pipe-step.failed { border-color: #c24141; background: #fde8e8; }
 .pipe-step.failed b { background: #c24141; color: #fff; }
 
+.guard-card {
+  margin-top: .75rem;
+  padding: .85rem 1rem;
+  border: 1px solid #d6c9a8;
+  border-radius: 12px;
+  background: #fbf6ea;
+}
+.guard-head { display: flex; align-items: center; gap: .6rem; }
+.guard-head strong { font: 700 15px var(--font-ui); }
+.guard-lead, .guard-status, .guard-file { margin: .4rem 0 0; font-size: 14px; line-height: 1.45; }
+.guard-status { color: #2c5d68; font-weight: 600; }
+.guard-log { margin: .4rem 0 0; padding-left: 1.15rem; font-size: 13.5px; }
+.guard-log:empty { display: none; }
+.guard-log li.deny { color: #a12b2b; }
+.guard-log li.ok { color: #3d7a6a; }
+.guard-file code { font-size: 13px; }
+
 .run-info { margin: .6rem 0 0; font: 400 12.5px "IBM Plex Mono", Consolas, monospace; color: var(--muted, #5c636b); }
 
 .stage-head {

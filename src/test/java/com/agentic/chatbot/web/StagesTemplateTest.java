@@ -126,6 +126,19 @@ class StagesTemplateTest {
         assertTrue(html.contains("Daily outcomes"));
         assertTrue(html.contains("Failure reasons"));
         assertTrue(html.contains("nine charts"));
+        assertTrue(html.contains("Tester files and <code>stories.md</code>"));
+    }
+
+    @Test
+    void guardrailIsAReportCardNotAPipelineStage() throws Exception {
+        String html = page();
+        assertTrue(html.contains("id=\"guardCard\""));
+        assertTrue(html.contains("This is not a seventh stage"));
+        assertTrue(html.contains("/api/guardrail"));
+        assertTrue(html.contains("GUARDRAIL.md"));
+        assertFalse(html.contains("data-stage=\"guardrail\""));
+        assertFalse(html.contains("pipeBtn-guardrail"));
+        assertFalse(html.contains("pipeHelp-guardrail"));
     }
 
     @Test

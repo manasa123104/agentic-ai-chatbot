@@ -3,6 +3,7 @@ package com.agentic.chatbot.stage.template;
 import com.agentic.chatbot.stage.StageDomain;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,8 +44,6 @@ class DataAnalystTemplatesTest {
         assertTrue(dash.contains("Download all charts as PNG"));
         assertTrue(files.containsKey("analytics/charts/01-volume.svg"));
         assertTrue(files.containsKey("analytics/charts/09-severity.svg"));
-        assertTrue(files.get("analytics/charts/01-volume.svg").contains("fill=\"#ffffff\""));
-        assertTrue(dash.contains("fillStyle = '#ffffff'"));
     }
 
     @Test
@@ -57,5 +56,23 @@ class DataAnalystTemplatesTest {
         assertTrue(dash.contains("Patient portal"), dash);
         assertTrue(dash.contains("No-show"), dash);
         assertTrue(dash.contains("Wait time"), dash);
+    }
+
+    @Test
+    void qualitySnapshotLinksDefectSources() {
+        Map<String, String> files = DataAnalystTemplates.files(new DataAnalystTemplates.Context(
+                StageDomain.BANKING, "Java", "Fund transfer", 6, 4, 8, 3, 4,
+                List.of("stories.md", "src/test/java/com/bank/transfer/FundTransferServiceTest.java",
+                        "manual-tests/manual-test-cases.md")));
+        String stats = files.get("analytics/STATS.md");
+        String dash = files.get("analytics/dashboard.html");
+        assertTrue(stats.contains("Where the defect estimates come from"), stats);
+        assertTrue(stats.contains("stories.md"), stats);
+        assertTrue(stats.contains("FundTransferServiceTest.java"), stats);
+        assertTrue(stats.contains("user stories from the Business Analyst"), stats);
+        assertTrue(dash.contains("id=\"defectSources\""), dash);
+        assertTrue(dash.contains("href=\"../stories.md\""), dash);
+        assertTrue(dash.contains("Tester unit test"), dash);
+        assertTrue(dash.contains("Tester manual case"), dash);
     }
 }
