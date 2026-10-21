@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** Always-on Guardrail report card. Not a seventh pipeline stage. */
+/** Always-on Guardrail report card. */
 @RestController
 @RequestMapping("/api/guardrail")
 public class GuardrailApiController {

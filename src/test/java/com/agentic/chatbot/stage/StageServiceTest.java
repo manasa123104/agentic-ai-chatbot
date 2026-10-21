@@ -556,7 +556,7 @@ class StageServiceTest {
         Path report = service.runDir(ba.runId()).resolve("GUARDRAIL.md");
         assertTrue(Files.exists(report));
         String md = Files.readString(report);
-        assertTrue(md.contains("not a seventh pipeline stage"), md);
+        assertTrue(md.contains("Guardrail is always on"), md);
         assertTrue(md.contains("run_stage"), md);
         Map<String, Object> run = service.runRecord(ba.runId());
         assertTrue(run.get("guardrail") instanceof java.util.List, run.toString());

@@ -83,7 +83,7 @@ public class GuardrailService {
         return out;
     }
 
-    /** Live report card for Stage bots: always-on checks, not a seventh pipeline stage. */
+    /** Live report card for Stage bots: always-on checks. */
     public Map<String, Object> status() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("enabled", props.isEnabled());

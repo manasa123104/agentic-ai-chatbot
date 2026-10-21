@@ -26,7 +26,7 @@ class HomeTemplateTest {
         assertTrue(markup.contains("start-stages.jpg"));
         assertTrue(markup.contains("home-guard"));
         assertTrue(markup.contains("Guardrail"));
-        assertTrue(markup.contains("Not a seventh stage"));
+        assertTrue(markup.contains("Always on"));
         assertTrue(markup.contains("class=\"chat-composer\" hidden"));
         assertFalse(markup.contains("New prompt"));
         assertFalse(markup.contains("Choose a workspace"));

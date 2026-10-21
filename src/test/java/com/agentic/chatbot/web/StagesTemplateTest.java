@@ -133,7 +133,7 @@ class StagesTemplateTest {
     void guardrailIsAReportCardNotAPipelineStage() throws Exception {
         String html = page();
         assertTrue(html.contains("id=\"guardCard\""));
-        assertTrue(html.contains("This is not a seventh stage"));
+        assertTrue(html.contains("It checks every stage run and GitHub push"));
         assertTrue(html.contains("/api/guardrail"));
         assertTrue(html.contains("GUARDRAIL.md"));
         assertFalse(html.contains("data-stage=\"guardrail\""));
