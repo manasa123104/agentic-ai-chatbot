@@ -55,10 +55,10 @@ Flash-card landing for Code converter and Stage bots. The sidebar **Previous res
 - **Deploy:** Dockerfile, CI/CD pipeline, Kubernetes manifests and `DEPLOY.md`.
 - **Trainer:** learns from approved outputs, stored in `data/bot-training.json`.
 - **Previous results:** converter and Stage bots requests are saved on Home and open the matching job or run.
-- **MCP + Guardrails:** agents call `POST /api/mcp` (`tools/list`, `tools/call`) for stages and GitHub push; every call is checked by guardrails (block secrets, protect `main`/`master`, allowlist `github.com`).
+- **MCP:** agents call `POST /api/mcp` (`tools/list`, `tools/call`) for stages and GitHub push.
 - **Code converter:** paste code, give a GitHub repo URL, or upload a file or ZIP. Handles large files by chunking, adds comments, explains business logic in plain English, and links modules. Download a file or ZIP, push to a branch, and see run timers.
 
-### MCP + Guardrails
+### MCP
 
 ```http
 POST /api/mcp
@@ -68,8 +68,7 @@ Content-Type: application/json
 ```
 
 Tools: `run_stage`, `run_all_stages`, `push_run`, `test_github_token`, `get_run_status`, `list_stages`.  
-Optional header `X-BOT-MCP-Key` when `BOT_MCP_API_KEY` is set.  
-Guardrail mode: `BOT_GUARDRAIL_MODE=ENFORCE` (default) or `OBSERVE`.
+Optional header `X-BOT-MCP-Key` when `BOT_MCP_API_KEY` is set.
 
 ## Pages
 
@@ -78,7 +77,7 @@ Guardrail mode: `BOT_GUARDRAIL_MODE=ENFORCE` (default) or `OBSERVE`.
 | `/` | Home: Code converter and Stage bots, Previous results |
 | `/convert` | Code converter |
 | `/stages` | 6-stage pipeline, run each stage or Run all |
-| `/api/mcp` | MCP JSON-RPC for agents (tools + guardrails) |
+| `/api/mcp` | MCP JSON-RPC for agents |
 
 ## Run locally
 

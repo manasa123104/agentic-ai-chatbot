@@ -52,11 +52,8 @@ class StagePushTest {
     }
 
     private static StageApiController controller(StageService stages) {
-        com.agentic.chatbot.guardrail.GuardrailProperties gp = new com.agentic.chatbot.guardrail.GuardrailProperties();
-        gp.setEnabled(false);
         return new StageApiController(stages, null, new GitService("", "BOT", "bot@example.com"),
-                new com.agentic.chatbot.service.GitHubPreflight(""),
-                new com.agentic.chatbot.guardrail.GuardrailService(gp));
+                new com.agentic.chatbot.service.GitHubPreflight(""));
     }
 
     private static MockHttpServletRequest local() {
@@ -101,20 +98,6 @@ class StagePushTest {
                 () -> controller.push(id, push("https://github.com/manasa123104/tester"), local()));
         assertTrue(e.getMessage().contains("Run " + id + " has no generated files"), e.getMessage());
         assertFalse(e.getMessage().contains("run the stage first"), e.getMessage());
-    }
-
-    @Test
-    void pushToMainIsBlockedWhenGuardrailIsOn() {
-        com.agentic.chatbot.guardrail.GuardrailProperties gp = new com.agentic.chatbot.guardrail.GuardrailProperties();
-        StageApiController controller = new StageApiController(stages(), null, new GitService("", "BOT", "bot@example.com"),
-                new com.agentic.chatbot.service.GitHubPreflight(""),
-                new com.agentic.chatbot.guardrail.GuardrailService(gp));
-        com.agentic.chatbot.guardrail.GuardrailDeniedException e =
-                assertThrows(com.agentic.chatbot.guardrail.GuardrailDeniedException.class, () ->
-                        controller.push("20261020-000000-abcdef",
-                                new StageApiController.PushRequest("run", "https://github.com/o/r", "main",
-                                        "", "", "", "", true), local()));
-        assertEquals("protected-branch", e.ruleId());
     }
 
     @Test

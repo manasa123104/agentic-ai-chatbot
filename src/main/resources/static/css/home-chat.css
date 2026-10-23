@@ -282,23 +282,6 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
   font: 600 .82rem/1 "Times New Roman", Times, serif;
   color: #2c5d68;
 }
-.home-guard {
-  padding: .85rem 1.05rem;
-  border: 1px solid #d6c9a8;
-  border-radius: 14px;
-  background: #fbf6ea;
-}
-.home-guard strong {
-  display: block;
-  font: 700 15px "Times New Roman", Times, serif;
-  color: #1d2430;
-}
-.home-guard p {
-  margin: .3rem 0 0;
-  font-size: .92rem;
-  line-height: 1.45;
-  color: #3a424c;
-}
 @media (min-width: 900px) {
   .flash-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

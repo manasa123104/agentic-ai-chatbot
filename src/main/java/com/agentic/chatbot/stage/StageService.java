@@ -1,6 +1,5 @@
 package com.agentic.chatbot.stage;
 
-import com.agentic.chatbot.guardrail.GuardDecision;
 import com.agentic.chatbot.llm.LlmClient;
 import com.agentic.chatbot.service.BotModelTrainingService;
 import com.agentic.chatbot.service.ChatHistoryService;
@@ -1124,84 +1123,6 @@ public class StageService {
         } catch (IOException e) {
             return List.of();
         }
-    }
-
-    /**
-     * Append a Guardrail check to this run and rewrite {@code GUARDRAIL.md}.
-     * Missing runs are skipped.
-     */
-    public synchronized void recordGuardrail(String runId, String tool, GuardDecision d) {
-        if (runId == null || !RUN_ID.matcher(runId).matches() || d == null) {
-            return;
-        }
-        Path dir;
-        try {
-            dir = runDir(runId);
-        } catch (IllegalArgumentException e) {
-            return;
-        }
-        if (!Files.isDirectory(dir)) {
-            return;
-        }
-        try {
-            Map<String, Object> run = readRun(runId);
-            run.put("runId", runId);
-            @SuppressWarnings("unchecked")
-            List<Object> checks = (List<Object>) run.computeIfAbsent("guardrail", k -> new ArrayList<>());
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("at", Instant.now().toString());
-            row.put("tool", tool == null ? "" : tool);
-            row.put("allowed", d.allowed());
-            row.put("wouldDeny", d.wouldDeny());
-            row.put("ruleId", d.ruleId() == null ? "" : d.ruleId());
-            row.put("reason", d.reason() == null ? "" : d.reason());
-            checks.add(row);
-            while (checks.size() > 100) {
-                checks.remove(0);
-            }
-            Path file = dir.resolve("run.json");
-            Files.createDirectories(dir);
-            Files.writeString(file, mapper.writeValueAsString(run), StandardCharsets.UTF_8);
-            Files.writeString(dir.resolve("GUARDRAIL.md"), guardrailMarkdown(runId, checks), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            log.warn("Could not record guardrail for {}: {}", runId, e.getMessage());
-        }
-    }
-
-    private static String guardrailMarkdown(String runId, List<Object> checks) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("# Guardrail checks\n\n");
-        sb.append("It inspects stage runs and GitHub pushes when Guardrail is On.\n\n");
-        sb.append("Run: `").append(runId).append("`\n\n");
-        sb.append("## This run\n\n");
-        if (checks == null || checks.isEmpty()) {
-            sb.append("No checks have been recorded on this run yet.\n");
-            return sb.toString();
-        }
-        sb.append("| When | Action | Allowed | Rule | Note |\n");
-        sb.append("| --- | --- | --- | --- | --- |\n");
-        for (Object raw : checks) {
-            if (!(raw instanceof Map<?, ?> row)) {
-                continue;
-            }
-            sb.append("| ").append(cell(row.get("at")))
-                    .append(" | ").append(cell(row.get("tool")))
-                    .append(" | ").append(Boolean.TRUE.equals(row.get("allowed")) ? "yes" : "no")
-                    .append(" | ").append(cell(row.get("ruleId")))
-                    .append(" | ").append(cell(row.get("reason")))
-                    .append(" |\n");
-        }
-        sb.append("\n## What it blocks\n\n");
-        sb.append("- Secrets pasted into a stage input\n");
-        sb.append("- A direct push to main or master\n");
-        sb.append("- Repository URLs that are not https\n");
-        sb.append("- Git hosts outside the allowlist\n");
-        return sb.toString();
-    }
-
-    private static String cell(Object value) {
-        String s = value == null ? "" : String.valueOf(value).replace('|', '/').replace('\n', ' ');
-        return s.isBlank() ? "—" : s;
     }
 
     // ---------------------------------------------------------------- deploy

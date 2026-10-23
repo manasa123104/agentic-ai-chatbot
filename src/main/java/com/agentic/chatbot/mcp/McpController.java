@@ -1,19 +1,12 @@
 package com.agentic.chatbot.mcp;
 
-import com.agentic.chatbot.guardrail.GuardDecision;
-import com.agentic.chatbot.guardrail.GuardrailDeniedException;
-import com.agentic.chatbot.guardrail.GuardrailService;
-import com.agentic.chatbot.service.GitHubPreflight;
 import com.agentic.chatbot.stage.StageRequest;
 import com.agentic.chatbot.stage.StageResponse;
 import com.agentic.chatbot.stage.StageService;
 import com.agentic.chatbot.stage.StageType;
 import com.agentic.chatbot.web.StageApiController;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -27,7 +20,7 @@ import java.util.Map;
 
 /**
  * Minimal Model Context Protocol (JSON-RPC 2.0) surface for BOT.
- * Agents call {@code tools/list} and {@code tools/call}; every call is checked by {@link GuardrailService} first.
+ * Agents call {@code tools/list} and {@code tools/call}.
  *
  * <p>Endpoint: {@code POST /api/mcp} with body {@code {"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}}.</p>
  */
@@ -36,14 +29,11 @@ import java.util.Map;
 public class McpController {
 
     private final McpProperties props;
-    private final GuardrailService guardrails;
     private final StageService stages;
     private final StageApiController stagesApi;
 
-    public McpController(McpProperties props, GuardrailService guardrails, StageService stages,
-                         StageApiController stagesApi) {
+    public McpController(McpProperties props, StageService stages, StageApiController stagesApi) {
         this.props = props;
-        this.guardrails = guardrails;
         this.stages = stages;
         this.stagesApi = stagesApi;
     }
@@ -69,17 +59,14 @@ public class McpController {
                 case "ping" -> Map.of("ok", true);
                 case "tools/list" -> Map.of("tools", tools());
                 case "tools/call" -> callTool(params, request);
-                case "guardrail/check" -> guardrailPreview(params);
                 default -> throw new IllegalArgumentException("Unknown MCP method: " + method
-                        + ". Use initialize, tools/list, tools/call, guardrail/check or ping.");
+                        + ". Use initialize, tools/list, tools/call or ping.");
             };
             Map<String, Object> ok = new LinkedHashMap<>();
             ok.put("jsonrpc", "2.0");
             ok.put("id", id);
             ok.put("result", result);
             return ok;
-        } catch (GuardrailDeniedException e) {
-            return error(id, -32010, e.getMessage(), Map.of("code", e.code(), "ruleId", e.ruleId()));
         } catch (IllegalArgumentException e) {
             return error(id, -32602, e.getMessage());
         } catch (Exception e) {
@@ -97,8 +84,7 @@ public class McpController {
         out.put("protocolVersion", "2024-11-05");
         out.put("capabilities", caps);
         out.put("serverInfo", server);
-        out.put("instructions", "BOT stage pipeline MCP. All tools/call requests pass through guardrails "
-                + "(mode=" + guardrails.properties().getMode() + "). Prefer bot/* branches for push_run.");
+        out.put("instructions", "BOT stage pipeline MCP. Prefer bot/* branches for push_run.");
         return out;
     }
 
@@ -123,7 +109,7 @@ public class McpController {
                         "offline", Map.of("type", "boolean")
                 ), "required", List.of("domain", "input"))));
         list.add(tool("push_run",
-                "Push a whole run (or one stage) to a new GitHub branch. Guardrails block main/master and secret leaks.",
+                "Push a whole run (or one stage) to a new GitHub branch.",
                 Map.of("type", "object", "properties", Map.of(
                         "runId", Map.of("type", "string"),
                         "repoUrl", Map.of("type", "string"),
@@ -163,7 +149,6 @@ public class McpController {
         @SuppressWarnings("unchecked")
         Map<String, Object> args = params.get("arguments") instanceof Map<?, ?> m
                 ? (Map<String, Object>) m : Map.of();
-        GuardDecision decision = guardrails.require(name, args);
         Object payload = switch (name) {
             case "list_stages" -> listStages();
             case "get_run_status" -> stagesApi.runStatus(str(args, "runId"));
@@ -179,16 +164,7 @@ public class McpController {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("content", List.of(content));
         out.put("structuredContent", payload);
-        out.put("guardrail", guardrails.receipt(decision, name));
         return out;
-    }
-
-    private Map<String, Object> guardrailPreview(Map<String, Object> params) {
-        String name = str(params, "name", "tool");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> args = params.get("arguments") instanceof Map<?, ?> m
-                ? (Map<String, Object>) m : params;
-        return guardrails.receipt(guardrails.check(name, args), name);
     }
 
     private List<Map<String, String>> listStages() {
@@ -274,13 +250,5 @@ public class McpController {
         out.put("id", id);
         out.put("error", err);
         return out;
-    }
-
-    @ExceptionHandler(GuardrailDeniedException.class)
-    public ResponseEntity<Map<String, Object>> denied(GuardrailDeniedException e) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                "error", e.getMessage(),
-                "code", e.code(),
-                "ruleId", e.ruleId()));
     }
 }

@@ -52,17 +52,6 @@ agentic:
   mcp:
     enabled: ${BOT_MCP_ENABLED:true}
     api-key: ${BOT_MCP_API_KEY:}
-  # Guardrail for MCP tools and sensitive stage/push actions. Visitors can turn it Off on Stage bots.
-  # ENFORCE blocks, OBSERVE only logs.
-  guardrail:
-    enabled: ${BOT_GUARDRAIL_ENABLED:true}
-    mode: ${BOT_GUARDRAIL_MODE:ENFORCE}
-    allowed-repo-hosts:
-      - github.com
-    allowed-repos: []
-    block-secrets: true
-    block-dot-github-workflows: true
-    require-https-remote: true
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
     client-secret: ${GOOGLE_CLIENT_SECRET:}

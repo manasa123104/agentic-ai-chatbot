@@ -548,20 +548,6 @@ class StageServiceTest {
         assertTrue(content(analyst, "STATS.md").contains("No stories.md or Tester files were in this run yet"));
     }
 
-    @Test
-    void recordGuardrailWritesRunReport() throws Exception {
-        StageService service = service(OFFLINE);
-        StageResponse ba = service.run(StageType.BA, request("banking", "fund transfer between accounts", Map.of()));
-        service.recordGuardrail(ba.runId(), "run_stage", com.agentic.chatbot.guardrail.GuardDecision.allow());
-        Path report = service.runDir(ba.runId()).resolve("GUARDRAIL.md");
-        assertTrue(Files.exists(report));
-        String md = Files.readString(report);
-        assertTrue(md.contains("when Guardrail is On"), md);
-        assertTrue(md.contains("run_stage"), md);
-        Map<String, Object> run = service.runRecord(ba.runId());
-        assertTrue(run.get("guardrail") instanceof java.util.List, run.toString());
-    }
-
     // ------------------------------------------------------------------ chaining through the model
 
     @Test

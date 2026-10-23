@@ -18,7 +18,7 @@
         <a class="rail-mark" href="/">B</a>
         <div>
             <strong>Stage bots</strong>
-            <small>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer. Guardrail stays on for every step.</small>
+            <small>Business Analyst, Developer, Tester, Data Analyst, Deploy, and Trainer.</small>
         </div>
     </div>
     <nav class="code-actions">
@@ -180,20 +180,6 @@
                 <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
             </article>
         </div>
-        <aside class="guard-card" id="guardCard">
-            <div class="guard-head">
-                <strong>Guardrail</strong>
-                <span class="badge" id="guardMode">On</span>
-                <div class="guard-toggle" role="group" aria-label="Guardrail">
-                    <button type="button" class="guard-opt" id="guardOnBtn" aria-pressed="true">On</button>
-                    <button type="button" class="guard-opt" id="guardOffBtn" aria-pressed="false">Off</button>
-                </div>
-            </div>
-            <p class="guard-lead">When On, it checks every stage run and GitHub push: secrets in the input, pushes to main or master, and repository hosts. Turn it Off when you do not need those checks.</p>
-            <p class="guard-status" id="guardStatus">Checks appear when you run a stage or push.</p>
-            <ul class="guard-log" id="guardLog"></ul>
-            <p class="guard-file" id="guardFile" hidden>Saved on this run as <code>GUARDRAIL.md</code>.</p>
-        </aside>
         <p class="run-info" id="runInfo">No run in progress. Execute any stage individually, or select Run all stages.</p>
         <p class="run-timer-row"><span id="totalTimer"></span></p>
     </section>
@@ -553,18 +539,6 @@
   const MANUAL_ROOT = /^manual-tests\//;
 
   const $ = (id) => document.getElementById(id);
-  const GUARD_KEY = 'bot.guardrail';
-  function guardOn() {
-    try { return localStorage.getItem(GUARD_KEY) !== 'off'; } catch (e) { return true; }
-  }
-  function setGuardOn(on) {
-    try { localStorage.setItem(GUARD_KEY, on ? 'on' : 'off'); } catch (e) { /* ignore */ }
-  }
-  function guardHeaders(extra) {
-    const h = { 'X-BOT-Guardrail': guardOn() ? 'on' : 'off' };
-    if (extra) Object.keys(extra).forEach((k) => { h[k] = extra[k]; });
-    return h;
-  }
   const card = (stage) => document.querySelector('.stage-card[data-stage="' + stage + '"]');
   const q = (stage, sel) => card(stage).querySelector(sel);
   let runId = null;
@@ -1144,7 +1118,7 @@
     const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
     let res;
     try {
-      res = await fetch(url, { method: 'POST', headers: guardHeaders({ 'Content-Type': 'application/json' }),
+      res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body), signal: abort.signal });
     } catch (e) {
       if (e.name === 'AbortError') {
@@ -1236,7 +1210,6 @@
       btn.textContent = 'Run';
       applyLock();
       persist();
-      loadGuardrail();
       if (!busy) { // inside Run all, the loop reports the state itself
         if (cancelled) {
           resumeStage = stage; // a stage is one request: Resume runs it again, the earlier stages stay as they are
@@ -1451,7 +1424,6 @@
       btn.textContent = 'Run all stages';
       applyLock();
       persist();
-      loadGuardrail();
     }
   }
 
@@ -1695,7 +1667,7 @@
     buttons.forEach((b) => { b.disabled = true; });
     importStatus(kind === 'git' ? 'Cloning the repository...' : 'Reading the stories...', '');
     try {
-      const res = await fetch('/api/stages/ba/import', { method: 'POST', headers: guardHeaders(), body: form });
+      const res = await fetch('/api/stages/ba/import', { method: 'POST', body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error((data && data.error) || 'Import failed (HTTP ' + res.status + ').');
       box.value = data.content;
@@ -1901,79 +1873,9 @@
   window.addEventListener('pagehide', () => { persist(true); leaving = true; });
   window.addEventListener('pageshow', (e) => { if (e.persisted) leaving = false; });
 
-  function applyGuardButtons(on) {
-    const onBtn = $('guardOnBtn');
-    const offBtn = $('guardOffBtn');
-    if (onBtn) onBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    if (offBtn) offBtn.setAttribute('aria-pressed', on ? 'false' : 'true');
-    const cardEl = $('guardCard');
-    if (cardEl) cardEl.classList.toggle('is-off', !on);
-  }
-
-  function paintGuard(data) {
-    if (!data) return;
-    const mode = $('guardMode');
-    const status = $('guardStatus');
-    const log = $('guardLog');
-    const file = $('guardFile');
-    const on = data.enabled !== false;
-    applyGuardButtons(on);
-    if (mode) {
-      mode.textContent = on ? (data.mode || 'ENFORCE') : 'Off';
-    }
-    const n = data.checks || 0;
-    const d = data.denials || 0;
-    if (status) {
-      status.textContent = !on
-        ? 'Off for this visit. Stage runs and GitHub pushes are not checked.'
-        : n === 0
-        ? 'No checks in this session yet. They appear when you run a stage or push.'
-        : n + (n === 1 ? ' check' : ' checks') + ' this session'
-          + (d ? ', ' + d + (d === 1 ? ' would block.' : ' would block.') : '. All allowed.');
-    }
-    if (log) {
-      log.innerHTML = '';
-      (data.recent || []).slice(0, 8).forEach((row) => {
-        const li = document.createElement('li');
-        li.className = row.wouldDeny ? 'deny' : 'ok';
-        const tool = row.tool || 'check';
-        li.textContent = row.wouldDeny
-          ? tool + ' — ' + (row.reason || row.ruleId || 'blocked')
-          : tool + ' — allowed';
-        log.appendChild(li);
-      });
-    }
-    if (file && Array.isArray(data.guardrail) && data.guardrail.length) file.hidden = false;
-  }
-
-  async function loadGuardrail() {
-    try {
-      const res = await fetch('/api/guardrail', { headers: guardHeaders() });
-      if (!res.ok) return;
-      paintGuard(await res.json());
-    } catch (e) { /* ignore */ }
-  }
-
-  async function setGuardrail(on) {
-    setGuardOn(on);
-    applyGuardButtons(on);
-    try {
-      const res = await fetch('/api/guardrail', {
-        method: 'POST',
-        headers: guardHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ enabled: on })
-      });
-      if (res.ok) paintGuard(await res.json());
-    } catch (e) { /* ignore */ }
-  }
-
   function applyServerRun(data) {
     if (!data || !data.runId) return;
     setRun(data.runId);
-    if ($('guardFile') && Array.isArray(data.guardrail) && data.guardrail.length) {
-      $('guardFile').hidden = false;
-    }
-    loadGuardrail();
     const setIfOption = (id, value) => {
       const sel = $(id);
       if (value && sel && [...sel.options].some((o) => o.value === value)) sel.value = value;
@@ -2011,12 +1913,6 @@
 
   restore();
   restoreRunFromUrl();
-  applyGuardButtons(guardOn());
-  const guardOnBtn = $('guardOnBtn');
-  const guardOffBtn = $('guardOffBtn');
-  if (guardOnBtn) guardOnBtn.addEventListener('click', () => setGuardrail(true));
-  if (guardOffBtn) guardOffBtn.addEventListener('click', () => setGuardrail(false));
-  loadGuardrail();
   verifyCurrentRun(); // a run remembered from before a hosting restart may be gone from the server
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') verifyCurrentRun(); });
   if (BotRun.current().key === 'stages' && BotRun.current().state === 'stopped' && !runId && !Object.keys(results).length) {

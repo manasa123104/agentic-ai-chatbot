@@ -130,18 +130,14 @@ class StagesTemplateTest {
     }
 
     @Test
-    void guardrailIsAReportCardNotAPipelineStage() throws Exception {
+    void stagesPageHasNoGuardrail() throws Exception {
         String html = page();
-        assertTrue(html.contains("id=\"guardCard\""));
-        assertTrue(html.contains("id=\"guardOnBtn\""));
-        assertTrue(html.contains("id=\"guardOffBtn\""));
-        assertTrue(html.contains("Turn it Off when you do not need those checks"));
-        assertTrue(html.contains("X-BOT-Guardrail"));
-        assertTrue(html.contains("/api/guardrail"));
-        assertTrue(html.contains("GUARDRAIL.md"));
-        assertFalse(html.contains("data-stage=\"guardrail\""));
-        assertFalse(html.contains("pipeBtn-guardrail"));
-        assertFalse(html.contains("pipeHelp-guardrail"));
+        assertFalse(html.contains("id=\"guardCard\""));
+        assertFalse(html.contains("id=\"guardOnBtn\""));
+        assertFalse(html.contains("/api/guardrail"));
+        assertFalse(html.contains("GUARDRAIL.md"));
+        assertFalse(html.contains("X-BOT-Guardrail"));
+        assertFalse(html.contains("Guardrail"));
     }
 
     @Test

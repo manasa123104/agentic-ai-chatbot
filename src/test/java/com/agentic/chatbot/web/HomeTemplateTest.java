@@ -24,11 +24,9 @@ class HomeTemplateTest {
         assertTrue(markup.contains("/stages"));
         assertTrue(markup.contains("start-convert.jpg"));
         assertTrue(markup.contains("start-stages.jpg"));
-        assertTrue(markup.contains("home-guard"));
-        assertTrue(markup.contains("Guardrail"));
-        assertTrue(markup.contains("On by default"));
-        assertTrue(markup.contains("Turn it off"));
         assertTrue(markup.contains("class=\"chat-composer\" hidden"));
+        assertFalse(markup.contains("Guardrail"));
+        assertFalse(markup.contains("home-guard"));
         assertFalse(markup.contains("New prompt"));
         assertFalse(markup.contains("Choose a workspace"));
         assertFalse(markup.contains("Websites in your language"));
