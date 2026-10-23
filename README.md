@@ -35,7 +35,7 @@ Each stage is independent or chainable, and **Run all** executes the whole chain
 ```mermaid
 flowchart LR
     IN["Input<br/>paste, GitHub repo URL, upload or ZIP"] --> PRE["Prepare<br/>large-file chunking"]
-    PRE --> CONV["Convert with LLM<br/>comments, plain-English business logic, module linking"]
+    PRE --> CONV["Convert with LLM<br/>comments, Business logic, module linking"]
     CONV --> OUT["Output"]
     OUT --> D["Download file or ZIP"]
     OUT --> PU["Push to a branch"]
@@ -44,7 +44,7 @@ flowchart LR
 
 ### Home (`/`)
 
-Flash-card landing for Code converter and Stage bots. The sidebar **Previous results** list keeps converter jobs and six-stage runs so you can open them again.
+Home shows two full-width workspace cards, one under the other: **Code converter**, then **Stage bots**. Each card has a photo on top and the text below. Open **Previous results** from the Menu to reopen a converter job or a six-stage run.
 
 ## Features
 
@@ -56,7 +56,8 @@ Flash-card landing for Code converter and Stage bots. The sidebar **Previous res
 - **Trainer:** learns from approved outputs, stored in `data/bot-training.json`.
 - **Previous results:** converter and Stage bots requests are saved on Home and open the matching job or run.
 - **MCP:** agents call `POST /api/mcp` (`tools/list`, `tools/call`) for stages and GitHub push.
-- **Code converter:** paste code, give a GitHub repo URL, or upload a file or ZIP. Handles large files by chunking, adds comments, explains business logic in plain English, and links modules. Download a file or ZIP, push to a branch, and see run timers.
+- **Code converter:** paste code, give a GitHub repo URL, or upload a file or ZIP. Handles large files by chunking, adds comments, and links modules. Tick **Describe what the code does (Business logic)** to get a Markdown description with the converted files. Download a file or ZIP, push to a branch, and see run timers.
+- **One run folder:** stories, code, tests, charts, and deploy files stay together. Download them, or push them to GitHub.
 
 ### MCP
 
@@ -74,7 +75,7 @@ Optional header `X-BOT-MCP-Key` when `BOT_MCP_API_KEY` is set.
 
 | URL | What it does |
 |-----|--------------|
-| `/` | Home: Code converter and Stage bots, Previous results |
+| `/` | Home: Code converter and Stage bots stacked top and bottom, Previous results |
 | `/convert` | Code converter |
 | `/stages` | 6-stage pipeline, run each stage or Run all |
 | `/api/mcp` | MCP JSON-RPC for agents |
