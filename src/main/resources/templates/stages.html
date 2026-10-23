@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
     <link rel="stylesheet" th:href="@{/css/convert.css}"/>
-    <link rel="stylesheet" th:href="@{/css/stages.css}"/>
+    <link rel="stylesheet" th:href="@{/css/stages.css(v='20261023s')}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
@@ -124,7 +124,7 @@
                 <p class="pipe-lead">The Developer reads the user stories and produces <strong>commented, working source code</strong> in the selected language (Java, Python, JavaScript, C#, Go and others).</p>
                 <dl>
                     <dt>Role</dt><dd>Stage 2. Acts as a senior engineer for the chosen domain and language, following the stories and any approved training examples.</dd>
-                    <dt>Input</dt><dd>User stories from the Business Analyst, or stories you paste directly.</dd>
+                    <dt>Input</dt><dd>User stories from the Business Analyst, stories you paste, <em>or</em> story files you upload (folder or ZIP) or pull from a GitHub repository. You can run this stage on its own.</dd>
                     <dt>Output</dt><dd>Source files with comments. You may edit the code, download a file, the stage ZIP or a business-logic summary, or push it to GitHub.</dd>
                     <dt>Next stage</dt><dd>The code proceeds to the <strong>Tester</strong>. The <strong>Deploy</strong> stage uses the same implementation.</dd>
                 </dl>
@@ -140,7 +140,7 @@
                 </ul>
                 <dl>
                     <dt>Role</dt><dd>Stage 3. Acts as a tester who demonstrates that the stories were implemented correctly.</dd>
-                    <dt>Input</dt><dd>The Developer&rsquo;s code, together with the run&rsquo;s user stories for automation and manual cases.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, code you paste, <em>or</em> source files you upload (folder or ZIP) or pull from a GitHub repository. You can run this stage on its own.</dd>
                     <dt>Output</dt><dd>Test files in three tabs (unit, automation, manual). Select which types to generate from the list above the results, then download them as files or a ZIP archive.</dd>
                     <dt>Next stage</dt><dd>When the tests are acceptable, the <strong>Data Analyst</strong> produces KPIs and charts, then <strong>Deploy</strong> packages the code.</dd>
                 </dl>
@@ -151,7 +151,7 @@
                 <p class="pipe-lead">The Data Analyst produces <strong>graphs and statistics</strong> for the run: key performance indicators, a Chart.js dashboard and a metrics JSON file. Open <code>dashboard.html</code> — each chart includes a <em>high-level overview</em> and an <em>analysis</em> of the figures.</p>
                 <dl>
                     <dt>Role</dt><dd>Stage 4. Acts as a data analyst for the selected domain. The dashboard presents nine charts (operations and quality), each with a description and an analysis, together with a KPI summary.</dd>
-                    <dt>Input</dt><dd>The Developer&rsquo;s code, and the run&rsquo;s stories and tests when they are available.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, a project you paste, <em>or</em> files you upload (folder or ZIP) or pull from a GitHub repository. You can run this stage on its own.</dd>
                     <dt>Output</dt><dd><code>analytics/STATS.md</code> (written analysis), <code>analytics/dashboard.html</code> (interactive charts with descriptions) and <code>analytics/metrics.json</code>. Defect bars link back to <code>stories.md</code> and Tester files from this run. Download them from this card or open the HTML file in a browser.</dd>
                     <dt>Next stage</dt><dd>The <strong>Deploy</strong> stage prepares the same Developer code for release.</dd>
                 </dl>
@@ -162,7 +162,7 @@
                 <p class="pipe-lead">Deploy prepares the implementation so the application can be <strong>packaged and released</strong>. It generates the files only; it does not publish or start the application.</p>
                 <dl>
                     <dt>Role</dt><dd>Stage 5. Acts as a DevOps engineer for the selected language: it writes the artefacts required to build and run the application in a typical environment.</dd>
-                    <dt>Input</dt><dd>The Developer&rsquo;s code.</dd>
+                    <dt>Input</dt><dd>The Developer&rsquo;s code, code you paste, <em>or</em> files you upload (folder or ZIP) or pull from a GitHub repository. You can run this stage on its own.</dd>
                     <dt>Output</dt><dd>A Dockerfile, build scripts, a GitHub Actions CI/CD workflow, Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide. Download them from the Deploy card as a file or a ZIP archive. You may also select &ldquo;Build image locally&rdquo; when Docker is installed.</dd>
                     <dt>Next stage</dt><dd>The <strong>Trainer</strong> reviews the completed run and stores the outputs you approve.</dd>
                 </dl>
@@ -173,14 +173,14 @@
                 <p class="pipe-lead">The Trainer is BOT&rsquo;s memory. It does not generate or deploy artefacts; it retains the outputs <em>you approve</em> so later runs in the same domain and language improve.</p>
                 <dl>
                     <dt>Role</dt><dd>Stage 6, the final stage. Reviews the run and stores approved (and corrected) outputs as few-shot examples.</dd>
-                    <dt>Input</dt><dd>The run: Business Analyst stories, Developer code, Tester cases, Data Analyst charts and Deploy files. Select the stages to store. Edits you make in an output field are saved as corrected, and you may add feedback such as &ldquo;always include an AML screening story&rdquo;.</dd>
+                    <dt>Input</dt><dd>The current run, <em>or</em> files you upload (folder or ZIP) or pull from a GitHub repository, then press Review run. Select the stages to store. Edits you make in an output field are saved as corrected, and you may add feedback such as &ldquo;always include an AML screening story&rdquo;.</dd>
                     <dt>Output</dt><dd>A training report, with examples stored in <code>data/bot-training.json</code> on the machine that runs BOT. On the public hosted site that file is temporary and is cleared on restart or redeploy, so treat training there as a demonstration. Nothing is stored automatically: use <em>Save this run as training</em>.</dd>
                     <dt>Next stage</dt><dd>The pipeline is complete. Stored examples are provided to the model the next time you run a stage for the same domain. An <strong>All 6 stages done &mdash; Push to GitHub</strong> panel at the end of the page lets you push the full run to a new GitHub branch and obtain a link.</dd>
                 </dl>
                 <button type="button" class="link-btn pipe-jump" data-jump="trainer">Go to the Trainer &darr;</button>
             </article>
         </div>
-        <p class="run-info" id="runInfo">No run in progress. Execute any stage individually, or select Run all stages.</p>
+        <p class="run-info" id="runInfo">No run in progress. Run any stage on its own: paste text, upload files or a folder, or pull a GitHub repo. Or select Run all stages.</p>
         <p class="run-timer-row"><span id="totalTimer"></span></p>
     </section>
 
@@ -198,12 +198,12 @@
         <details class="help-tip" open="open" th:if="${s.id == 'ba'}">
             <summary>What is Business Analyst?</summary>
             <p>The Business Analyst turns a plain requirement (for example &ldquo;transfer money between accounts&rdquo;) into clear <strong>user stories</strong> for the domain you picked, each with acceptance criteria written as Given / When / Then.</p>
-            <p>You can type the requirement, upload story files (or a ZIP or folder), or pull existing stories from a GitHub repository. The stories become the input for the Developer.</p>
+            <p>You can type the requirement, upload story files (or a ZIP or folder), or pull existing stories from a GitHub repository. Then press Run on this card only. The stories become the input for the Developer if you send them on.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'developer'}">
             <summary>What is Developer?</summary>
             <p>The Developer reads the user stories and writes <strong>working, commented code</strong> that implements them, in the language you chose (Java, Python, JavaScript, C#, Go and many more).</p>
-            <p>Edit the code if you like, download it, or push it to GitHub. The Tester, Data Analyst and Deploy stages build on this code.</p>
+            <p>Paste stories, or upload story files / a GitHub repo, then press Run on this card only. Edit the code if you like, download it, or push it to GitHub.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'data-analyst'}">
             <summary>What is Data Analyst?</summary>
@@ -220,12 +220,13 @@
                 <li><strong>Failure reasons</strong> &mdash; why items left the happy path.</li>
                 <li><strong>Defect severity</strong> &mdash; critical / major / minor / info split of estimated defects.</li>
             </ul>
+            <p>Paste code, or upload a project / a GitHub repo, then press Run on this card only.</p>
             <p>Figures are illustrative, domain-flavoured metrics derived from the stories, code and tests in the run &mdash; not a live database. The quality snapshot names the Tester files and <code>stories.md</code> the defect estimates come from. Deploy still uses the Developer&rsquo;s code next.</p>
         </details>
         <details class="help-tip" open="open" th:if="${s.id == 'deploy'}">
             <summary>What is Deploy?</summary>
             <p>Deploy prepares the code so the app can be <strong>packaged and released</strong>. It writes a Dockerfile, build scripts, a CI/CD workflow (GitHub Actions), Kubernetes YAML, docker-compose and a <code>DEPLOY.md</code> guide that explains how to run it.</p>
-            <p>It only produces the files; download them from this card. The Trainer comes next.</p>
+            <p>Paste code, or upload a project / a GitHub repo, then press Run on this card only. It only produces the files; download them from this card.</p>
         </details>
         <div class="ba-import" th:if="${s.id == 'ba'}">
             <div class="ba-import-head">
@@ -288,6 +289,67 @@
             </label>
         </div>
 
+        <div class="ba-import stage-import" th:if="${s.id != 'ba'}">
+            <div class="ba-import-head">
+                <strong th:if="${s.id == 'developer'}">Already have user stories? Bring them in</strong>
+                <strong th:if="${s.id == 'tester'}">Already have code to test? Bring it in</strong>
+                <strong th:if="${s.id == 'data-analyst'}">Already have a project to analyse? Bring it in</strong>
+                <strong th:if="${s.id == 'deploy'}">Already have code to deploy? Bring it in</strong>
+                <span class="hint" th:if="${s.id == 'developer'}">Upload story files, a folder or a ZIP, or pull them from a GitHub repo. Then press Run on this card only.</span>
+                <span class="hint" th:unless="${s.id == 'developer'}">Upload source files, a folder or a ZIP, or pull a GitHub repo. Then press Run on this card only. You do not need the earlier stages.</span>
+            </div>
+            <div class="ba-import-limits" role="note">
+                <strong>Upload limits</strong>
+                <ul>
+                    <li><b>55,000</b> characters in the Input box</li>
+                    <li><b>5 MB</b> per file</li>
+                    <li><b>1,000 files</b> / <b>100 MB</b> per ZIP</li>
+                    <li th:if="${s.id == 'developer'}">Types: .md, .txt, .docx, .csv, .feature, .json</li>
+                    <li th:unless="${s.id == 'developer'}">Types: source files (.java, .py, .js and others) or a ZIP</li>
+                </ul>
+            </div>
+            <div class="ba-import-grid">
+                <div class="ba-import-col">
+                    <span class="setup-label">From your computer</span>
+                    <div class="upload-pick">
+                        <label class="upload-btn" th:for="'import-files-' + ${s.id}">
+                            <span class="u-title">Upload files or a ZIP</span>
+                            <span class="u-sub" th:if="${s.id == 'developer'}">.md, .txt, .docx, .csv, .feature, .json or .zip · max 5 MB each</span>
+                            <span class="u-sub" th:unless="${s.id == 'developer'}">Source files or a .zip of the project · max 5 MB each</span>
+                        </label>
+                        <input type="file" class="u-input import-files" multiple="multiple"
+                               th:id="'import-files-' + ${s.id}"
+                               th:accept="${s.id == 'developer'} ? '.md,.markdown,.txt,.docx,.csv,.tsv,.feature,.story,.json,.zip' : '.java,.py,.js,.ts,.cs,.go,.kt,.rb,.php,.swift,.rs,.c,.cpp,.sql,.xml,.yml,.yaml,.json,.html,.css,.md,.txt,.zip'"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
+                    <div class="upload-pick">
+                        <label class="upload-btn" th:for="'import-folder-' + ${s.id}">
+                            <span class="u-title">Upload a whole folder</span>
+                            <span class="u-sub">Every supported file inside it, sub-folders included</span>
+                        </label>
+                        <input type="file" class="u-input import-folder" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"
+                               th:id="'import-folder-' + ${s.id}"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
+                    <button type="button" class="btn ghost small import-btn import-upload-btn">Import uploaded files</button>
+                </div>
+                <div class="ba-import-col">
+                    <span class="setup-label">From GitHub</span>
+                    <input type="text" class="import-repo" placeholder="Input repository URL" autocomplete="off"/>
+                    <input type="text" class="import-branch" placeholder="Input branch (optional)" autocomplete="off"/>
+                    <input type="text" class="import-sub" placeholder="Only this sub-folder (optional)" autocomplete="off"/>
+                    <input type="password" class="import-token" placeholder="GitHub token (private repos only)" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn import-git-btn">Import from GitHub</button>
+                </div>
+                <div class="ba-import-col" th:if="${isHost}">
+                    <span class="setup-label">Folder on this computer (host only)</span>
+                    <input type="text" class="import-local" placeholder="C:\Users\you\project" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn import-local-btn">Import folder</button>
+                </div>
+            </div>
+            <p class="import-status" role="status" aria-live="polite"></p>
+        </div>
+
         <details class="help-tip" open="open" th:if="${s.id == 'tester'}">
             <summary>What is Tester?</summary>
             <p>The Tester checks that the Developer's code works. There are three kinds of test, and you can ask for any of them or all:</p>
@@ -296,7 +358,7 @@
                 <li><strong>Automation (Selenium)</strong> &ndash; scripts that open a real browser and click through the app like a robot user.</li>
                 <li><strong>Manual / Functional testing</strong> &ndash; step-by-step test cases (preconditions, steps, expected result) that a person runs by hand against the running app.</li>
             </ul>
-            <p>Pick the mode in the drop-down above the results. Everything it writes can be downloaded as files or a ZIP.</p>
+            <p>Paste code, or upload a project / a GitHub repo, then press Run on this card only. Pick the mode in the drop-down above the results.</p>
         </details>
 
         <div class="convert-panes">
@@ -407,6 +469,57 @@
             </ul>
             <p>When the Trainer finishes, the whole pipeline is complete: the <strong>All 6 stages done &mdash; Push to GitHub</strong> panel appears at the very end of this page, so you can push everything this run generated to a new GitHub branch and get a new link.</p>
         </details>
+        <div class="ba-import stage-import">
+            <div class="ba-import-head">
+                <strong>Already have a run to review? Bring it in</strong>
+                <span class="hint">Upload the files, a folder or a ZIP, or pull a GitHub repo. Then press Review run. You do not need the earlier stages.</span>
+            </div>
+            <div class="ba-import-limits" role="note">
+                <strong>Upload limits</strong>
+                <ul>
+                    <li><b>55,000</b> characters shown in the review</li>
+                    <li><b>5 MB</b> per file</li>
+                    <li><b>1,000 files</b> / <b>100 MB</b> per ZIP</li>
+                </ul>
+            </div>
+            <div class="ba-import-grid">
+                <div class="ba-import-col">
+                    <span class="setup-label">From your computer</span>
+                    <div class="upload-pick">
+                        <label class="upload-btn" for="import-files-trainer">
+                            <span class="u-title">Upload files or a ZIP</span>
+                            <span class="u-sub">Source files or a .zip of the run · max 5 MB each</span>
+                        </label>
+                        <input type="file" id="import-files-trainer" class="u-input import-files" multiple="multiple"
+                               accept=".java,.py,.js,.ts,.cs,.go,.kt,.rb,.php,.md,.txt,.json,.yml,.yaml,.html,.zip"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
+                    <div class="upload-pick">
+                        <label class="upload-btn" for="import-folder-trainer">
+                            <span class="u-title">Upload a whole folder</span>
+                            <span class="u-sub">Every supported file inside it, sub-folders included</span>
+                        </label>
+                        <input type="file" id="import-folder-trainer" class="u-input import-folder" webkitdirectory="webkitdirectory" directory="directory" multiple="multiple"/>
+                        <span class="u-count">Nothing chosen yet</span>
+                    </div>
+                    <button type="button" class="btn ghost small import-btn import-upload-btn">Import uploaded files</button>
+                </div>
+                <div class="ba-import-col">
+                    <span class="setup-label">From GitHub</span>
+                    <input type="text" class="import-repo" placeholder="Input repository URL" autocomplete="off"/>
+                    <input type="text" class="import-branch" placeholder="Input branch (optional)" autocomplete="off"/>
+                    <input type="text" class="import-sub" placeholder="Only this sub-folder (optional)" autocomplete="off"/>
+                    <input type="password" class="import-token" placeholder="GitHub token (private repos only)" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn import-git-btn">Import from GitHub</button>
+                </div>
+                <div class="ba-import-col" th:if="${isHost}">
+                    <span class="setup-label">Folder on this computer (host only)</span>
+                    <input type="text" class="import-local" placeholder="C:\Users\you\run" autocomplete="off"/>
+                    <button type="button" class="btn ghost small import-btn import-local-btn">Import folder</button>
+                </div>
+            </div>
+            <p class="import-status" role="status" aria-live="polite"></p>
+        </div>
         <div class="convert-panes">
             <div class="pane trainer-pane">
                 <div class="pane-head"><span class="pane-title">Save this run as training</span></div>
@@ -1440,7 +1553,7 @@
     document.querySelectorAll('.save-state').forEach((e) => { e.textContent = ''; });
     lastSample = null;
     $('baModeField').hidden = true;
-    importStatus('');
+    importStatus('ba', '');
     setRun(null);
     $('runGone').hidden = true;
     loadDomainRequirement(false);
@@ -1572,7 +1685,8 @@
         if (blocked()) return;
         q(stage, '.stage-input').value = '';
         resetStage(stage);
-        if (stage === 'ba') { lastSample = null; $('baModeField').hidden = true; importStatus(''); }
+        if (stage === 'ba') { lastSample = null; $('baModeField').hidden = true; importStatus('ba', ''); }
+        else importStatus(stage, '');
         q(stage, '.stage-input').focus();
         persist();
       });
@@ -1629,68 +1743,102 @@
 
   card('tester').querySelectorAll('.out-tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-  // ---- Business Analyst: bring your own stories (upload, folder, ZIP, GitHub, host folder) ----------
-  function importStatus(text, kind) {
-    const el = $('importStatus');
-    el.textContent = text || '';
-    el.className = 'import-status' + (kind ? ' ' + kind : '');
+  // ---- Bring your own files into any stage (upload, folder, ZIP, GitHub, host folder) ----------
+  function importPanel(stage) {
+    return card(stage).querySelector('.ba-import');
+  }
+  function importStatus(stage, text, kind) {
+    const panel = typeof stage === 'string' ? importPanel(stage) : null;
+    const el = (panel && panel.querySelector('.import-status')) || $('importStatus');
+    if (!el) return;
+    el.textContent = (typeof stage === 'string' ? text : stage) || '';
+    el.className = 'import-status' + ((typeof stage === 'string' ? kind : text) ? ' ' + (typeof stage === 'string' ? kind : text) : '');
   }
 
   let handoffEntries = [];
 
   async function importStories(kind) {
+    return importIntoStage('ba', kind);
+  }
+
+  async function importIntoStage(stage, kind) {
     if (blocked()) return;
+    const panel = importPanel(stage);
+    if (!panel) return;
     const form = new FormData();
     form.append('inputType', kind);
     if (runId) form.append('runId', runId);
+    const filesInput = stage === 'ba' ? $('storyFiles') : panel.querySelector('.import-files');
+    const folderInput = stage === 'ba' ? $('storyFolder') : panel.querySelector('.import-folder');
+    const repoInput = stage === 'ba' ? $('storyRepo') : panel.querySelector('.import-repo');
+    const branchInput = stage === 'ba' ? $('storyBranch') : panel.querySelector('.import-branch');
+    const subInput = stage === 'ba' ? $('storySub') : panel.querySelector('.import-sub');
+    const tokenInput = stage === 'ba' ? $('storyToken') : panel.querySelector('.import-token');
+    const localInput = stage === 'ba' ? $('storyLocal') : panel.querySelector('.import-local');
     if (kind === 'upload') {
-      const chosen = BotUpload.collect($('storyFiles'), $('storyFolder'));
-      const files = chosen.length ? chosen : handoffEntries;
-      if (!files.length) { importStatus('Choose story files, a folder or a ZIP first.', 'error'); return; }
+      const chosen = BotUpload.collect(filesInput, folderInput);
+      const files = (stage === 'ba' && chosen.length === 0) ? handoffEntries : chosen;
+      if (!files.length) { importStatus(stage, 'Choose files, a folder or a ZIP first.', 'error'); return; }
       files.forEach((e) => form.append('files', e.file, e.path));
     } else if (kind === 'git') {
-      const url = $('storyRepo').value.trim();
-      if (!url) { importStatus('Enter the GitHub repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
+      const url = repoInput && repoInput.value.trim();
+      if (!url) { importStatus(stage, 'Enter the GitHub repository URL, e.g. https://github.com/owner/repo.', 'error'); return; }
       form.append('repoUrl', url);
-      form.append('branch', $('storyBranch').value.trim());
-      form.append('subfolder', $('storySub').value.trim());
-      if ($('storyToken').value.trim()) form.append('token', $('storyToken').value.trim());
+      form.append('branch', branchInput ? branchInput.value.trim() : '');
+      form.append('subfolder', subInput ? subInput.value.trim() : '');
+      if (tokenInput && tokenInput.value.trim()) form.append('token', tokenInput.value.trim());
     } else {
-      const path = $('storyLocal').value.trim();
-      if (!path) { importStatus('Enter the folder path on this computer.', 'error'); return; }
+      const path = localInput && localInput.value.trim();
+      if (!path) { importStatus(stage, 'Enter the folder path on this computer.', 'error'); return; }
       form.append('localPath', path);
     }
-    const box = q('ba', '.stage-input');
-    if (box.value.trim() && box.value !== lastSample
-        && !confirm('Replace the text in the Business Analyst box with the imported stories?')) return;
-    const buttons = document.querySelectorAll('.import-btn');
+    const box = q(stage, '.stage-input');
+    if (stage !== 'trainer' && box && box.value.trim() && box.value !== lastSample
+        && !confirm('Replace the text in this stage box with the imported files?')) return;
+    const buttons = panel.querySelectorAll('.import-btn');
     buttons.forEach((b) => { b.disabled = true; });
-    importStatus(kind === 'git' ? 'Cloning the repository...' : 'Reading the stories...', '');
+    importStatus(stage, kind === 'git' ? 'Cloning the repository...' : 'Reading the files...', '');
     try {
-      const res = await fetch('/api/stages/ba/import', { method: 'POST', body: form });
+      const res = await fetch('/api/stages/' + stage + '/import', { method: 'POST', body: form });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) throw new Error((data && data.error) || 'Import failed (HTTP ' + res.status + ').');
-      box.value = data.content;
-      lastSample = null;
       setRun(data.runId);
-      $('baModeField').hidden = false;
-      let msg = 'Imported ' + data.files.length + ' of ' + data.totalFiles + ' story file(s) into the Input box.';
-      if (data.truncated) msg += ' The Input box holds the first part only (size limit); the rest is saved in the run folder. Import a sub-folder to continue.';
+      if (stage === 'trainer') {
+        $('trainerRun').value = data.runId;
+      } else if (box) {
+        box.value = data.content;
+        lastSample = null;
+      }
+      if (stage === 'ba' && $('baModeField')) $('baModeField').hidden = false;
+      const noun = (data.kind === 'source') ? 'source file(s)' : 'story file(s)';
+      let msg = 'Imported ' + data.files.length + ' of ' + data.totalFiles + ' ' + noun + '.';
+      if (data.truncated) msg += ' The Input box holds the first part only (size limit); the rest is saved in the run folder.';
       if ((data.skipped || []).length) msg += ' Skipped: ' + data.skipped.slice(0, 3).join('; ') + (data.skipped.length > 3 ? ' and ' + (data.skipped.length - 3) + ' more' : '') + '.';
-      importStatus(msg, 'ok');
-      $('storyToken').value = '';
-      setMessage('ba', 'Stories imported. Choose below what the Business Analyst should do with them, edit the text if you like, then press Run.', '');
+      importStatus(stage, msg, 'ok');
+      if (tokenInput) tokenInput.value = '';
+      const next = stage === 'trainer' ? 'Press Review run.' : 'Edit the text if you like, then press Run.';
+      setMessage(stage, 'Files imported. You can run this stage on its own. ' + next, '');
       persist();
     } catch (e) {
-      importStatus(e.message, 'error');
+      importStatus(stage, e.message, 'error');
     } finally {
       buttons.forEach((b) => { b.disabled = false; });
       applyLock();
     }
   }
-  $('importUploadBtn').addEventListener('click', () => importStories('upload'));
-  $('importGitBtn').addEventListener('click', () => importStories('git'));
-  if ($('importLocalBtn')) $('importLocalBtn').addEventListener('click', () => importStories('local'));
+  $('importUploadBtn').addEventListener('click', () => importIntoStage('ba', 'upload'));
+  $('importGitBtn').addEventListener('click', () => importIntoStage('ba', 'git'));
+  if ($('importLocalBtn')) $('importLocalBtn').addEventListener('click', () => importIntoStage('ba', 'local'));
+  document.querySelectorAll('.stage-card').forEach((el) => {
+    const stage = el.getAttribute('data-stage');
+    if (!stage || stage === 'ba') return;
+    const upload = el.querySelector('.import-upload-btn');
+    const git = el.querySelector('.import-git-btn');
+    const local = el.querySelector('.import-local-btn');
+    if (upload) upload.addEventListener('click', () => importIntoStage(stage, 'upload'));
+    if (git) git.addEventListener('click', () => importIntoStage(stage, 'git'));
+    if (local) local.addEventListener('click', () => importIntoStage(stage, 'local'));
+  });
 
   // ---- Push to GitHub (after Developer; the whole run is pushed from the Trainer card) -----------------------------------------
   const GH_TEXT_FIELDS = ['gh-repo', 'gh-branch', 'gh-folder', 'gh-token'];
@@ -1928,7 +2076,7 @@
   BotUpload.take('stages').then((entries) => {
     if (!entries || !entries.length) return;
     handoffEntries = entries;
-    importStatus('From the home page: ' + BotUpload.describe(entries) + '. Importing...', '');
+    importStatus('ba', 'From the home page: ' + BotUpload.describe(entries) + '. Importing...', '');
     importStories('upload');
   });
 </script>

@@ -457,6 +457,27 @@ class StageServiceTest {
     }
 
     @Test
+    void testerWorksAloneOnImportedSourceFolder() throws Exception {
+        StageService service = service(OFFLINE);
+        String runId = "20261023-143000-a1b2c3";
+        Path src = service.runDir(runId).resolve("source-input/src/main/java/com/bank/fees/FeeCalculator.java");
+        Files.createDirectories(src.getParent());
+        Files.writeString(src, """
+                package com.bank.fees;
+
+                public class FeeCalculator {
+                    public long fee(long amountCents) {
+                        return amountCents > 100_000 ? 0 : 250;
+                    }
+                }
+                """);
+        StageResponse unit = service.run(StageType.TESTER,
+                new StageRequest("banking", "  ", Map.of("testerPart", "unit"), runId));
+        assertTrue(paths(unit).contains("src/test/java/com/bank/fees/FeeCalculatorTest.java"), paths(unit).toString());
+        assertEquals(runId, unit.runId());
+    }
+
+    @Test
     void testerFallsBackToTemplatesAndStopsCallingAFailingModel() {
         List<String> prompts = new ArrayList<>();
         LlmClient failing = new LlmClient() {

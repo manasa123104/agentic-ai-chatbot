@@ -110,6 +110,25 @@ class StoryImportServiceTest {
     }
 
     @Test
+    void sourceUploadKeepsJavaAndBundlesFileMarkers() throws Exception {
+        StoryImportService importer = importer();
+        StoryImportService.Imported imported = importer.fromUploads(List.of(
+                new MockMultipartFile("files", "src/Bank.java", "text/x-java-source",
+                        "package com.bank;\npublic class Bank { }\n".getBytes(StandardCharsets.UTF_8)),
+                new MockMultipartFile("files", "readme.md", "text/markdown",
+                        "# Bank\nTransfer money.\n".getBytes(StandardCharsets.UTF_8)),
+                new MockMultipartFile("files", "logo.png", "image/png", new byte[] {1, 2, 3})),
+                null, StoryImportService.ImportKind.SOURCE);
+
+        assertTrue(imported.files().contains("src/Bank.java"), imported.files().toString());
+        assertTrue(imported.content().contains("=== FILE: src/Bank.java ==="));
+        assertTrue(imported.content().contains("public class Bank"));
+        assertTrue(imported.skipped().stream().anyMatch(s -> s.contains("logo.png")));
+        assertTrue(Files.exists(tmp.resolve("generated-app/stages").resolve(imported.runId())
+                .resolve("source-input/src/Bank.java")));
+    }
+
+    @Test
     void gitImportNeedsAnHttpsGithubUrlForRemoteVisitors() {
         StoryImportService importer = importer();
         assertThrows(IllegalArgumentException.class, () -> importer.fromGit("file:///c:/secret", "", "", null, null, true));

@@ -172,14 +172,20 @@ public class StageService {
         if (stage == StageType.TRAINER) {
             return trainer(request, start);
         }
+        Ctx ctx = context(request);
+        String runId = resolveRunId(request.runId());
+        Path dir = runDir(runId);
         String input = request.input() == null ? "" : request.input().strip();
         if (input.isBlank()) {
+            input = importedInput(stage, dir);
+        }
+        if (input.isBlank()) {
             throw new IllegalArgumentException(switch (stage) {
-                case BA -> "Enter a requirement, e.g. \"fund transfer between accounts\".";
-                case DEVELOPER -> "Paste user stories, or run the Business Analyst stage first.";
-                case TESTER -> "Paste code (and/or user stories for the automation tests), or run the Developer stage first.";
-                case DATA_ANALYST -> "Paste the project's code (and optional stories), or run the Developer / Tester stages first.";
-                case DEPLOY -> "Paste the code to deploy, or run the Developer stage first.";
+                case BA -> "Enter a requirement, upload story files, or pull them from GitHub.";
+                case DEVELOPER -> "Paste user stories, upload story files, pull them from GitHub, or run the Business Analyst first.";
+                case TESTER -> "Paste code, upload a folder or ZIP, pull a GitHub repo, or run the Developer first.";
+                case DATA_ANALYST -> "Paste code, upload a project, pull a GitHub repo, or run the Developer first.";
+                case DEPLOY -> "Paste code, upload a project, pull a GitHub repo, or run the Developer first.";
                 case TRAINER -> "";
             });
         }
@@ -187,9 +193,6 @@ public class StageService {
             throw new IllegalArgumentException("Input is too long (" + input.length() + " characters; limit "
                     + MAX_INPUT_CHARS + "). Split it and run the stage per part.");
         }
-        Ctx ctx = context(request);
-        String runId = resolveRunId(request.runId());
-        Path dir = runDir(runId);
         Optional<LlmClient> model = request.flag("offline") ? Optional.empty() : llm.active();
 
         Generated g = generate(stage, ctx, input, model, dir);
@@ -412,7 +415,78 @@ public class StageService {
         if (s.isEmpty() && dir != null) {
             s = readQuietly(dir.resolve("stories.md")).strip();
         }
+        if (dir != null) {
+            appendImportedSource(dir.resolve("source-input"), code);
+        }
         return new TesterInput(code.toString().strip(), s);
+    }
+
+    /** Text saved by a file / folder / GitHub import for this stage. */
+    private String importedInput(StageType stage, Path dir) {
+        Path root = dir.resolve(stage == StageType.BA || stage == StageType.DEVELOPER
+                ? StoryImportService.DIR : StoryImportService.ImportKind.SOURCE.dir());
+        if (!Files.isDirectory(root)) {
+            return "";
+        }
+        StoryImportService.ImportKind kind = StoryImportService.ImportKind.forStage(stage);
+        StringBuilder text = new StringBuilder();
+        try (Stream<Path> walk = Files.walk(root)) {
+            List<Path> files = walk.filter(Files::isRegularFile)
+                    .sorted(Comparator.comparing(p -> root.relativize(p).toString().toLowerCase(Locale.ROOT)))
+                    .toList();
+            int limit = MAX_INPUT_CHARS - 5_000;
+            for (Path file : files) {
+                String rel = root.relativize(file).toString().replace('\\', '/');
+                int dot = rel.lastIndexOf('.');
+                String ext = dot < 0 ? "" : rel.substring(dot + 1).toLowerCase(Locale.ROOT);
+                if (!StoryImportService.accepted(rel, ext, kind)) {
+                    continue;
+                }
+                String content = readQuietly(file).strip();
+                if (content.isEmpty() || text.length() + content.length() + rel.length() + 24 > limit) {
+                    continue;
+                }
+                if (kind == StoryImportService.ImportKind.SOURCE) {
+                    text.append("=== FILE: ").append(rel).append(" ===\n").append(content).append('\n');
+                } else {
+                    text.append("<!-- source: ").append(rel).append(" -->\n").append(content).append("\n\n");
+                }
+            }
+        } catch (IOException e) {
+            return "";
+        }
+        return text.toString().strip();
+    }
+
+    private static void appendImportedSource(Path root, StringBuilder code) {
+        if (!Files.isDirectory(root)) {
+            return;
+        }
+        String have = code.toString();
+        try (Stream<Path> walk = Files.walk(root)) {
+            List<Path> files = walk.filter(Files::isRegularFile)
+                    .sorted(Comparator.comparing(p -> root.relativize(p).toString().toLowerCase(Locale.ROOT)))
+                    .toList();
+            for (Path file : files) {
+                String rel = root.relativize(file).toString().replace('\\', '/');
+                int dot = rel.lastIndexOf('.');
+                String ext = dot < 0 ? "" : rel.substring(dot + 1).toLowerCase(Locale.ROOT);
+                if (!StoryImportService.accepted(rel, ext, StoryImportService.ImportKind.SOURCE)) {
+                    continue;
+                }
+                if (have.contains("=== FILE: " + rel + " ===")) {
+                    continue;
+                }
+                String content = readQuietly(file).strip();
+                if (content.isEmpty() || code.length() + content.length() > MAX_INPUT_CHARS - 5_000) {
+                    continue;
+                }
+                code.append("\n=== FILE: ").append(rel).append(" ===\n").append(content).append('\n');
+                have = code.toString();
+            }
+        } catch (IOException ignored) {
+            // keep the textarea / earlier files
+        }
     }
 
     private static boolean isStories(String text) {

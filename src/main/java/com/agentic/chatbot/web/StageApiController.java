@@ -99,33 +99,39 @@ public class StageApiController {
     }
 
     /**
-     * Business Analyst input from uploaded files / a folder / a ZIP (inputType upload), a GitHub repository (git) or a folder
-     * on the host machine (local). Returns the combined story text for the input box and the run that stores the files.
+     * Files for one stage: upload / folder / ZIP, GitHub, or a host folder. BA and Developer take story files;
+     * Tester, Data Analyst, Deploy and Trainer take source files. Returns text for the input box and the run id.
+     * {@code POST /api/stages/ba/import} still works.
      */
-    @PostMapping(value = "/ba/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Map<String, Object> importStories(@RequestParam String inputType,
-                                             @RequestParam(required = false) String runId,
-                                             @RequestParam(required = false) String repoUrl,
-                                             @RequestParam(required = false) String branch,
-                                             @RequestParam(required = false) String subfolder,
-                                             @RequestParam(required = false) String localPath,
-                                             @RequestParam(required = false) String token,
-                                             @RequestParam(required = false) List<MultipartFile> files,
-                                             HttpServletRequest request) throws IOException {
+    @PostMapping(value = "/{stage}/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Map<String, Object> importIntoStage(@PathVariable String stage,
+                                               @RequestParam String inputType,
+                                               @RequestParam(required = false) String runId,
+                                               @RequestParam(required = false) String repoUrl,
+                                               @RequestParam(required = false) String branch,
+                                               @RequestParam(required = false) String subfolder,
+                                               @RequestParam(required = false) String localPath,
+                                               @RequestParam(required = false) String token,
+                                               @RequestParam(required = false) List<MultipartFile> files,
+                                               HttpServletRequest request) throws IOException {
+        StageType type = stageOf(stage);
+        StoryImportService.ImportKind kind = StoryImportService.ImportKind.forStage(type);
         boolean host = RequestOrigin.isHost(request);
         StoryImportService.Imported imported = switch (inputType) {
-            case "upload" -> stories.fromUploads(files, runId);
-            case "git" -> stories.fromGit(repoUrl, branch, subfolder, GitPushPolicy.validToken(token), runId, !host);
+            case "upload" -> stories.fromUploads(files, runId, kind);
+            case "git" -> stories.fromGit(repoUrl, branch, subfolder, GitPushPolicy.validToken(token), runId, !host, kind);
             case "local" -> {
                 if (!host) {
                     throw new RequestOrigin.HostOnlyException(RequestOrigin.HOST_ONLY_LOCAL_FOLDER);
                 }
-                yield stories.fromLocal(localPath, runId);
+                yield stories.fromLocal(localPath, runId, kind);
             }
             default -> throw new IllegalArgumentException("inputType must be upload, git or local.");
         };
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("runId", imported.runId());
+        body.put("stage", type.id());
+        body.put("kind", kind.name().toLowerCase(Locale.ROOT));
         body.put("content", imported.content());
         body.put("files", imported.files());
         body.put("skipped", imported.skipped());

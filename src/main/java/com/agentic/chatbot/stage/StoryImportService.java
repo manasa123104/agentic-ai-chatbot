@@ -22,12 +22,31 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipFile;
 
 /**
- * Brings user stories into the Business Analyst stage from uploaded files, a folder, a ZIP, a GitHub repository or (host
- * only) a folder on the BOT machine. The files are stored under {@code generated-app/stages/<run>/stories-input/} and
- * their text is combined for the stage's input box.
+ * Brings files into any stage from uploads, a folder, a ZIP, a GitHub repository or (host only) a folder on the BOT
+ * machine. Story stages store them under {@code stories-input/}; code stages store them under {@code source-input/}.
  */
 @Service
 public class StoryImportService {
+
+    /** Stories for BA / Developer, or source files for Tester / Data Analyst / Deploy / Trainer. */
+    public enum ImportKind {
+        STORIES("stories-input"),
+        SOURCE("source-input");
+
+        private final String dir;
+
+        ImportKind(String dir) {
+            this.dir = dir;
+        }
+
+        public String dir() {
+            return dir;
+        }
+
+        public static ImportKind forStage(StageType stage) {
+            return stage == StageType.BA || stage == StageType.DEVELOPER ? STORIES : SOURCE;
+        }
+    }
 
     /** Result of an import: the run that holds the files, what was read and the combined text for the input box. */
     public record Imported(String runId, List<String> files, List<String> skipped, String content, boolean truncated,
@@ -37,6 +56,12 @@ public class StoryImportService {
     static final String DIR = "stories-input";
     private static final Set<String> TEXT_EXTENSIONS = Set.of("md", "markdown", "txt", "csv", "tsv", "feature", "story",
             "adoc", "rst", "docx", "json");
+    private static final Set<String> SOURCE_EXTENSIONS = Set.of("java", "py", "js", "mjs", "cjs", "ts", "tsx", "jsx",
+            "cs", "go", "kt", "kts", "rb", "php", "swift", "rs", "c", "cc", "cpp", "h", "hpp", "sql", "xml", "yml",
+            "yaml", "json", "html", "htm", "css", "scss", "md", "markdown", "txt", "properties", "gradle", "groovy",
+            "feature", "story", "sh", "bat", "ps1", "csv", "tsv", "adoc", "rst");
+    private static final Set<String> SOURCE_NAMES = Set.of("dockerfile", "makefile", "jenkinsfile", "gemfile",
+            "procfile", "vagrantfile", "pom.xml");
     private static final Set<String> SKIP_DIRS = Set.of(".git", ".github", "node_modules", "target", "build", "dist", ".idea",
             ".vscode", "__pycache__", "vendor", ".venv", "venv");
     private static final int MAX_FILES = 1000;
@@ -51,18 +76,27 @@ public class StoryImportService {
         this.git = git;
     }
 
-    /** Uploaded files keep their relative names (folder uploads); ZIP files are extracted. */
     public Imported fromUploads(List<MultipartFile> files, String runId) throws IOException {
+        return fromUploads(files, runId, ImportKind.STORIES);
+    }
+
+    /** Uploaded files keep their relative names (folder uploads); ZIP files are extracted. */
+    public Imported fromUploads(List<MultipartFile> files, String runId, ImportKind kind) throws IOException {
+        ImportKind mode = kind == null ? ImportKind.STORIES : kind;
         if (files == null || files.isEmpty() || files.stream().allMatch(MultipartFile::isEmpty)) {
-            throw new IllegalArgumentException("Choose story files, a folder or a ZIP to upload.");
+            throw new IllegalArgumentException(mode == ImportKind.STORIES
+                    ? "Choose story files, a folder or a ZIP to upload."
+                    : "Choose source files, a folder or a ZIP to upload.");
         }
-        Path target = freshTarget(runId);
+        Path target = freshTarget(runId, mode);
         try {
             for (MultipartFile file : files) {
                 if (file.isEmpty()) {
                     continue;
                 }
-                String name = file.getOriginalFilename() == null ? "stories.txt" : file.getOriginalFilename();
+                String name = file.getOriginalFilename() == null
+                        ? (mode == ImportKind.STORIES ? "stories.txt" : "source.txt")
+                        : file.getOriginalFilename();
                 try (InputStream in = file.getInputStream()) {
                     if (name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
                         unzip(in, target);
@@ -77,12 +111,18 @@ public class StoryImportService {
             GitService.deleteQuietly(target);
             throw e;
         }
-        return read(runIdOf(target), target);
+        return read(runIdOf(target), target, mode);
+    }
+
+    public Imported fromGit(String repoUrl, String branch, String subfolder, String userToken, String runId,
+                            boolean httpsOnly) throws IOException {
+        return fromGit(repoUrl, branch, subfolder, userToken, runId, httpsOnly, ImportKind.STORIES);
     }
 
     /** Clones a repository (optionally with the visitor's own token for private repos) and keeps one sub-folder. */
     public Imported fromGit(String repoUrl, String branch, String subfolder, String userToken, String runId,
-                            boolean httpsOnly) throws IOException {
+                            boolean httpsOnly, ImportKind kind) throws IOException {
+        ImportKind mode = kind == null ? ImportKind.STORIES : kind;
         if (repoUrl == null || repoUrl.isBlank()) {
             throw new IllegalArgumentException("Enter a GitHub repository URL such as https://github.com/owner/repo.");
         }
@@ -90,8 +130,8 @@ public class StoryImportService {
             throw new IllegalArgumentException("Only https:// repository URLs are available here - use a GitHub https URL or upload.");
         }
         String folder = cleanFolder(subfolder);
-        Path target = freshTarget(runId);
-        Path clone = target.resolveSibling(DIR + "-clone");
+        Path target = freshTarget(runId, mode);
+        Path clone = target.resolveSibling(mode.dir() + "-clone");
         try {
             GitService.deleteQuietly(clone);
             git.cloneRepo(repoUrl.trim(), branch, clone, userToken);
@@ -99,36 +139,46 @@ public class StoryImportService {
             if (!from.startsWith(clone) || !Files.isDirectory(from)) {
                 throw new IllegalArgumentException("Sub-folder \"" + folder + "\" does not exist in the repository.");
             }
-            copyTexts(from, target);
+            copyTexts(from, target, mode);
         } catch (IOException | RuntimeException e) {
             GitService.deleteQuietly(target);
             throw e;
         } finally {
             GitService.deleteQuietly(clone);
         }
-        return read(runIdOf(target), target);
+        return read(runIdOf(target), target, mode);
+    }
+
+    public Imported fromLocal(String folder, String runId) throws IOException {
+        return fromLocal(folder, runId, ImportKind.STORIES);
     }
 
     /** A folder on the BOT machine; the controller only allows this for the host. */
-    public Imported fromLocal(String folder, String runId) throws IOException {
+    public Imported fromLocal(String folder, String runId, ImportKind kind) throws IOException {
+        ImportKind mode = kind == null ? ImportKind.STORIES : kind;
         Path from = Path.of(folder == null ? "" : folder.trim().replaceAll("^\"|\"$", "")).toAbsolutePath().normalize();
         if (folder == null || folder.isBlank() || !Files.isDirectory(from)) {
             throw new IllegalArgumentException("Folder not found on the BOT machine: " + folder);
         }
-        Path target = freshTarget(runId);
+        Path target = freshTarget(runId, mode);
         try {
-            copyTexts(from, target);
+            copyTexts(from, target, mode);
         } catch (IOException | RuntimeException e) {
             GitService.deleteQuietly(target);
             throw e;
         }
-        return read(runIdOf(target), target);
+        return read(runIdOf(target), target, mode);
     }
 
     // ---------------------------------------------------------------- reading
 
-    /** Reads every supported file under {@code target} into one text, capped to the stage's input limit. */
     Imported read(String runId, Path target) throws IOException {
+        return read(runId, target, ImportKind.STORIES);
+    }
+
+    /** Reads every supported file under {@code target} into one text, capped to the stage's input limit. */
+    Imported read(String runId, Path target, ImportKind kind) throws IOException {
+        ImportKind mode = kind == null ? ImportKind.STORIES : kind;
         List<Path> files = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(target)) {
             walk.filter(Files::isRegularFile).sorted(Comparator.comparing(p -> target.relativize(p).toString().toLowerCase(Locale.ROOT)))
@@ -143,7 +193,7 @@ public class StoryImportService {
         for (Path file : files) {
             String rel = target.relativize(file).toString().replace('\\', '/');
             String ext = extension(rel);
-            if (!TEXT_EXTENSIONS.contains(ext)) {
+            if (!accepted(rel, ext, mode)) {
                 skipped.add(rel + " (unsupported type)");
                 continue;
             }
@@ -152,25 +202,55 @@ public class StoryImportService {
                 skipped.add(rel + " (larger than " + MAX_FILE_BYTES / 1024 / 1024 + " MB)");
                 continue;
             }
-            String content = normalise(ext.equals("docx") ? docxText(file) : Files.readString(file, StandardCharsets.UTF_8)).strip();
+            boolean docx = ext.equals("docx") && mode == ImportKind.STORIES;
+            String content;
+            try {
+                content = normalise(docx ? docxText(file) : Files.readString(file, StandardCharsets.UTF_8)).strip();
+            } catch (IOException e) {
+                skipped.add(rel + " (could not read)");
+                continue;
+            }
             if (content.isEmpty()) {
                 skipped.add(rel + " (empty)");
                 continue;
             }
-            if (truncated || text.length() + content.length() + rel.length() + 20 > limit) {
+            int extra = mode == ImportKind.SOURCE ? rel.length() + 24 : rel.length() + 20;
+            if (truncated || text.length() + content.length() + extra > limit) {
                 truncated = true;
                 skipped.add(rel + " (over the " + limit + " character input limit; still saved in the run folder)");
                 continue;
             }
-            text.append("<!-- source: ").append(rel).append(" -->\n").append(content).append("\n\n");
+            if (mode == ImportKind.SOURCE) {
+                text.append("=== FILE: ").append(rel).append(" ===\n").append(content).append('\n');
+            } else {
+                text.append("<!-- source: ").append(rel).append(" -->\n").append(content).append("\n\n");
+            }
             used.add(rel);
         }
         if (used.isEmpty()) {
             GitService.deleteQuietly(target);
-            throw new IllegalArgumentException("No story files found. Supported types: .md, .txt, .docx, .csv, .feature, .json "
-                    + "(or a ZIP / folder of them).");
+            throw new IllegalArgumentException(mode == ImportKind.STORIES
+                    ? "No story files found. Supported types: .md, .txt, .docx, .csv, .feature, .json (or a ZIP / folder of them)."
+                    : "No source files found. Upload code files, a folder, a ZIP, or a GitHub repo.");
         }
         return new Imported(runId, used, skipped, text.toString().strip() + "\n", truncated, supported);
+    }
+
+    /** Combined text from an earlier import in this run, or empty if that folder is not there. */
+    public String existingContent(String runId, ImportKind kind) {
+        if (runId == null || runId.isBlank()) {
+            return "";
+        }
+        ImportKind mode = kind == null ? ImportKind.STORIES : kind;
+        Path target = stages.runDir(runId).resolve(mode.dir());
+        if (!Files.isDirectory(target)) {
+            return "";
+        }
+        try {
+            return read(runId, target, mode).content();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     static String docxText(Path file) throws IOException {
@@ -194,16 +274,30 @@ public class StoryImportService {
     }
 
     private static String extension(String name) {
-        int dot = name.lastIndexOf('.');
-        return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+        String base = slash < 0 ? name : name.substring(slash + 1);
+        int dot = base.lastIndexOf('.');
+        return dot < 0 ? "" : base.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private static String fileName(String relative) {
+        int slash = Math.max(relative.lastIndexOf('/'), relative.lastIndexOf('\\'));
+        return (slash < 0 ? relative : relative.substring(slash + 1)).toLowerCase(Locale.ROOT);
+    }
+
+    static boolean accepted(String relative, String ext, ImportKind kind) {
+        if (kind == ImportKind.SOURCE) {
+            return SOURCE_EXTENSIONS.contains(ext) || SOURCE_NAMES.contains(fileName(relative));
+        }
+        return TEXT_EXTENSIONS.contains(ext);
     }
 
     // ---------------------------------------------------------------- files
 
-    /** An empty stories-input folder in the run (a new run when {@code runId} is blank). */
-    private Path freshTarget(String runId) throws IOException {
+    /** An empty import folder in the run (a new run when {@code runId} is blank). */
+    private Path freshTarget(String runId, ImportKind kind) throws IOException {
         String id = stages.resolveRunId(runId);
-        Path target = stages.runDir(id).resolve(DIR);
+        Path target = stages.runDir(id).resolve(kind.dir());
         GitService.deleteQuietly(target);
         Files.createDirectories(target);
         return target;
@@ -221,7 +315,7 @@ public class StoryImportService {
         return folder;
     }
 
-    private static void copyTexts(Path from, Path to) throws IOException {
+    private static void copyTexts(Path from, Path to, ImportKind kind) throws IOException {
         List<Path> files = new ArrayList<>();
         Files.walkFileTree(from, new java.nio.file.SimpleFileVisitor<>() {
             @Override
@@ -232,8 +326,8 @@ public class StoryImportService {
 
             @Override
             public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes a) {
-                if (a.isRegularFile() && TEXT_EXTENSIONS.contains(extension(file.getFileName().toString()))
-                        && files.size() < MAX_FILES) {
+                String name = file.getFileName().toString();
+                if (a.isRegularFile() && accepted(name, extension(name), kind) && files.size() < MAX_FILES) {
                     files.add(file);
                 }
                 return java.nio.file.FileVisitResult.CONTINUE;

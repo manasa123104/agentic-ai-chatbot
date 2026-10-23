@@ -90,10 +90,11 @@ class StagesTemplateTest {
         int tabs = html.indexOf("<details class=\"help-tip\" open=\"open\" th:if=\"${s.id == 'tester'}\">");
         assertTrue(tabs > 0);
         String help = html.substring(tabs, html.indexOf("</details>", tabs)).toLowerCase();
-        assertFalse(help.contains("push") || help.contains("github"), "Tester card help must not mention a push");
+        assertFalse(help.contains("push"), "Tester card help must not mention a push");
         int strip = html.indexOf("id=\"pipeHelp-tester\"");
         String stripHelp = html.substring(strip, html.indexOf("</article>", strip)).toLowerCase();
-        assertFalse(stripHelp.contains("push") || stripHelp.contains("github"), "the Tester dropdown must not mention a push");
+        assertFalse(stripHelp.contains("push"), "the Tester dropdown must not mention a push");
+        assertTrue(stripHelp.contains("github"), "Tester can take a GitHub repo as input");
         assertFalse(html.contains("'tester' ? 'Pushes the code plus its tests"), "no Tester push hint text");
         assertTrue(html.contains("th:if=\"${s.id == 'developer'}\""));
         assertTrue(html.contains("class=\"gh-panel\"") || html.contains("class=\"gh-panel "),
@@ -151,5 +152,23 @@ class StagesTemplateTest {
         assertTrue(html.contains("1,000 files"));
         assertTrue(html.contains("100 MB"));
         assertFalse(html.contains("about 100 stories is fine"));
+    }
+
+    @Test
+    void everyStageCanImportFilesOrGithub() throws Exception {
+        String html = page();
+        assertTrue(html.contains("/api/stages/' + stage + '/import'"));
+        assertTrue(html.contains("function importIntoStage"));
+        for (String stage : new String[] {"developer", "tester", "data-analyst", "deploy", "trainer"}) {
+            assertTrue(html.contains("th:id=\"'import-files-' + ${s.id}\"")
+                            || html.contains("id=\"import-files-" + stage + "\""),
+                    "missing file picker for " + stage);
+        }
+        assertTrue(html.contains("Already have code to test? Bring it in"));
+        assertTrue(html.contains("Already have a project to analyse? Bring it in"));
+        assertTrue(html.contains("Already have code to deploy? Bring it in"));
+        assertTrue(html.contains("Already have a run to review? Bring it in"));
+        assertTrue(html.contains("Import from GitHub"));
+        assertTrue(html.contains("You can run this stage on its own"));
     }
 }
