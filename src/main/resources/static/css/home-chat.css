@@ -248,8 +248,8 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
 .flash-visual { padding: 0; overflow: hidden; min-height: 0; }
 .flash-stack .flash-visual {
   display: grid;
-  grid-template-columns: minmax(15rem, 1.2fr) minmax(16rem, 1fr);
-  min-height: 15.5rem;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto;
 }
 .flash-stack .flash-card-lg { min-height: 0; }
 .flash-photo {
@@ -260,13 +260,12 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
   background: #ece8e0;
 }
 .flash-stack .flash-photo {
-  height: 100%;
-  min-height: 15.5rem;
+  height: 16rem;
+  min-height: 0;
 }
 .flash-body { display: grid; gap: .4rem; padding: 1rem 1.1rem 1.05rem; }
 .flash-stack .flash-body {
-  padding: 1.45rem 1.6rem 1.5rem;
-  align-content: center;
+  padding: 1.35rem 1.45rem 1.4rem;
   gap: .5rem;
 }
 .flash-stack .flash-card h2 { font-size: 1.5rem; }
@@ -309,8 +308,7 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
   .flash-stack { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
-  .flash-stack .flash-visual { grid-template-columns: 1fr; min-height: 0; }
-  .flash-stack .flash-photo { height: 11rem; min-height: 0; }
+  .flash-stack .flash-photo { height: 12rem; }
 }
 @media (max-width: 640px) {
   .home-hero h1 { font-size: 1.6rem; }
