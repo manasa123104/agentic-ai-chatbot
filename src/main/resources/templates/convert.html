@@ -78,7 +78,7 @@
 
         <div class="convert-options">
             <label class="check"><input type="checkbox" id="optComments"/> Add comments to the converted code</label>
-            <label class="check"><input type="checkbox" id="optLogic"/> Describe what the code does in everyday language</label>
+            <label class="check"><input type="checkbox" id="optLogic"/> Describe what the code does (Business logic)</label>
         </div>
 
         <div id="pasteMode">
@@ -126,7 +126,7 @@
             </div>
         </div>
         <div class="business" id="businessBox" hidden>
-            <p class="pipe-label">What the code does in everyday language</p>
+            <p class="pipe-label">Describe what the code does (Business logic)</p>
             <div class="business-text" id="businessText"></div>
         </div>
         </div>
@@ -1095,7 +1095,7 @@ const ALLOW_LOCAL = /*[[${allowLocalPaths}]]*/ true;
       if (currentJob.projectSummary && (!info || currentJob.files.length > 1)) parts.push('Whole project:\n' + currentJob.projectSummary);
       renderLogic($('fileLogic'), parts.join('\n\n') || (currentJob.explainLogic
         ? 'No plain-English description for this file.'
-        : 'Tick "Describe what the code does in everyday language" before converting to get a description of every file.'));
+        : 'Tick "Describe what the code does (Business logic)" before converting to get a description of every file.'));
     }
   }
 

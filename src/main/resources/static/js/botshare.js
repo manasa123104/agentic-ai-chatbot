@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
 
-  var NOT_REQUESTED = 'A description was not requested for this conversion. Tick "Describe what the code does in everyday language" ' +
+  var NOT_REQUESTED = 'A description was not requested for this conversion. Tick "Describe what the code does (Business logic)" ' +
     'before converting to get a description of the code.';
 
   /** Saves text as a file in the browser (no server round trip). */

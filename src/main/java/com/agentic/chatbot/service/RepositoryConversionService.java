@@ -637,7 +637,7 @@ public class RepositoryConversionService {
     }
 
     private static String businessReport(ConversionJob job) {
-        StringBuilder sb = new StringBuilder("# What the code does in everyday language\n\n")
+        StringBuilder sb = new StringBuilder("# Describe what the code does (Business logic)\n\n")
                 .append("Project: ").append(job.getSourceLabel()).append("\n\n");
         if (job.getProjectSummary() != null) {
             sb.append("## Whole project\n\n").append(job.getProjectSummary()).append("\n\n");
