@@ -44,6 +44,18 @@ class DataAnalystTemplatesTest {
         assertTrue(dash.contains("Download all charts as PNG"));
         assertTrue(files.containsKey("analytics/charts/01-volume.svg"));
         assertTrue(files.containsKey("analytics/charts/09-severity.svg"));
+        assertTrue(dash.contains("id: 'valueLabels'"), dash);
+        assertTrue(dash.contains("Chart.register(valueLabels)"), dash);
+        assertTrue(dash.contains("plugins: [valueLabels]"), dash);
+        assertTrue(files.get("analytics/charts/01-volume.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/02-success.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/03-outcomes.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/04-channels.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/05-cycle.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/06-test-mix.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/07-quality.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/08-failure-reasons.svg").contains("paint-order=\"stroke\""));
+        assertTrue(files.get("analytics/charts/09-severity.svg").contains("paint-order=\"stroke\""));
     }
 
     @Test

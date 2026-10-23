@@ -434,8 +434,8 @@ public final class DataAnalystTemplates {
         int w = 720;
         int h = 380;
         int left = horizontal ? 150 : 56;
-        int right = 24;
-        int top = 48;
+        int right = horizontal ? 48 : 24;
+        int top = 56;
         int bottom = 56;
         int plotW = w - left - right;
         int plotH = h - top - bottom;
@@ -453,6 +453,7 @@ public final class DataAnalystTemplates {
                 sb.append("<text x=\"").append(left - 8).append("\" y=\"").append(round(y + row * 0.52))
                         .append("\" text-anchor=\"end\" font-size=\"12\" fill=\"#1c2430\">")
                         .append(escape(labels.get(i))).append("</text>");
+                svgNumber(sb, left + bar + 10, y + row * 0.52, values.get(i), "start");
             }
         } else {
             double col = plotW / (double) n;
@@ -465,6 +466,8 @@ public final class DataAnalystTemplates {
                 sb.append("<text x=\"").append(round(x + col * 0.32)).append("\" y=\"").append(h - 18)
                         .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
                         .append(escape(labels.get(i))).append("</text>");
+                double labelY = bar >= 22 ? top + plotH - bar + 16 : top + plotH - bar - 6;
+                svgNumber(sb, x + col * 0.32, labelY, values.get(i), "middle");
             }
         }
         return sb.append("</svg>\n").toString();
@@ -499,6 +502,14 @@ public final class DataAnalystTemplates {
             sb.append("<text x=\"").append(round(x + col * 0.32)).append("\" y=\"").append(h - 36)
                     .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
                     .append(escape(labels.get(i))).append("</text>");
+            if (b >= 16) {
+                svgNumber(sb, x + col * 0.32, top + plotH - b / 2 + 4, bottom.get(i), "middle");
+            }
+            if (t >= 16) {
+                svgNumber(sb, x + col * 0.32, top + plotH - b - t / 2 + 4, topSeries.get(i), "middle");
+            } else if (topSeries.get(i) > 0) {
+                svgNumber(sb, x + col * 0.32, top + plotH - b - t - 6, topSeries.get(i), "middle");
+            }
         }
         sb.append("<rect x=\"56\" y=\"").append(h - 22).append("\" width=\"12\" height=\"12\" fill=\"").append(bottomColor)
                 .append("\"/><text x=\"72\" y=\"").append(h - 12).append("\" font-size=\"12\">").append(escape(bottomName))
@@ -539,6 +550,7 @@ public final class DataAnalystTemplates {
             sb.append("<text x=\"").append(round(x)).append("\" y=\"").append(h - 18)
                     .append("\" text-anchor=\"middle\" font-size=\"12\" fill=\"#1c2430\">")
                     .append(escape(labels.get(i))).append("</text>");
+            svgNumber(sb, x, y - 10, values.get(i), "middle");
         }
         if (fill) {
             String last = round(left + plotW) + "," + (top + plotH) + " " + left + "," + (top + plotH);
@@ -568,6 +580,10 @@ public final class DataAnalystTemplates {
                     .append(color).append("\"/>");
             sb.append("<text x=\"452\" y=\"").append(100 + i * 28).append("\" font-size=\"13\" fill=\"#1c2430\">")
                     .append(escape(labels.get(i))).append(" (").append(values.get(i)).append(")</text>");
+            double mid = angle + slice / 2;
+            double lx = cx + Math.cos(mid) * ((r + inner) / 2);
+            double ly = cy + Math.sin(mid) * ((r + inner) / 2);
+            svgNumber(sb, lx, ly + 4, values.get(i), "middle");
             angle += slice;
         }
         return sb.append("</svg>\n").toString();
@@ -606,6 +622,25 @@ public final class DataAnalystTemplates {
 
     private static String round(double v) {
         return String.format(Locale.ROOT, "%.1f", v);
+    }
+
+    private static void svgNumber(StringBuilder sb, double x, double y, int value, String anchor) {
+        svgNumberText(sb, x, y, Integer.toString(value), anchor);
+    }
+
+    private static void svgNumber(StringBuilder sb, double x, double y, double value, String anchor) {
+        String text = Math.abs(value - Math.round(value)) < 0.05
+                ? Integer.toString((int) Math.round(value))
+                : String.format(Locale.ROOT, "%.1f", value);
+        svgNumberText(sb, x, y, text, anchor);
+    }
+
+    private static void svgNumberText(StringBuilder sb, double x, double y, String value, String anchor) {
+        sb.append("<text x=\"").append(round(x)).append("\" y=\"").append(round(y))
+                .append("\" text-anchor=\"").append(anchor)
+                .append("\" font-size=\"12\" font-weight=\"600\" fill=\"#1c2430\"")
+                .append(" stroke=\"#ffffff\" stroke-width=\"3\" paint-order=\"stroke\">")
+                .append(escape(value)).append("</text>");
     }
 
     private static String dashboardHtml(Context ctx, Metrics m) {
@@ -849,53 +884,128 @@ public final class DataAnalystTemplates {
                 const good = '#3d7a6a';
                 const bad = '#a12b2b';
                 const palette = [ink, good, gold, '#6b8cae', '#8b5e3c'];
+                function fmtValue(v) {
+                  if (typeof v !== 'number') return String(v);
+                  return (Math.abs(v - Math.round(v)) < 0.05) ? String(Math.round(v)) : v.toFixed(1);
+                }
+                const valueLabels = {
+                  id: 'valueLabels',
+                  afterDatasetsDraw: function (chart) {
+                    var type = chart.config.type;
+                    var ctx = chart.ctx;
+                    ctx.save();
+                    ctx.font = '600 12px "Times New Roman", Times, serif';
+                    ctx.fillStyle = '#1c2430';
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 3;
+                    chart.data.datasets.forEach(function (ds, di) {
+                      var meta = chart.getDatasetMeta(di);
+                      if (!meta || meta.hidden) return;
+                      meta.data.forEach(function (el, i) {
+                        var v = ds.data[i];
+                        if (v == null) return;
+                        var text = fmtValue(v);
+                        if (type === 'doughnut' || type === 'pie') {
+                          var pos = el.tooltipPosition();
+                          ctx.textAlign = 'center';
+                          ctx.textBaseline = 'middle';
+                          ctx.strokeText(text, pos.x, pos.y);
+                          ctx.fillText(text, pos.x, pos.y);
+                          return;
+                        }
+                        if (type === 'line') {
+                          ctx.textAlign = 'center';
+                          ctx.textBaseline = 'bottom';
+                          ctx.strokeText(text, el.x, el.y - 8);
+                          ctx.fillText(text, el.x, el.y - 8);
+                          return;
+                        }
+                        var horiz = chart.options.indexAxis === 'y';
+                        var props = el.getProps(['x', 'y', 'base'], true);
+                        ctx.textBaseline = 'middle';
+                        if (horiz) {
+                          var w = Math.abs(props.x - props.base);
+                          if (w >= 22) {
+                            ctx.textAlign = 'center';
+                            ctx.strokeText(text, (props.x + props.base) / 2, props.y);
+                            ctx.fillText(text, (props.x + props.base) / 2, props.y);
+                          } else {
+                            ctx.textAlign = 'left';
+                            ctx.fillText(text, Math.max(props.x, props.base) + 6, props.y);
+                          }
+                        } else {
+                          var hgt = Math.abs(props.y - props.base);
+                          ctx.textAlign = 'center';
+                          if (hgt >= 18) {
+                            ctx.strokeText(text, props.x, (props.y + props.base) / 2);
+                            ctx.fillText(text, props.x, (props.y + props.base) / 2);
+                          } else {
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(text, props.x, Math.min(props.y, props.base) - 3);
+                          }
+                        }
+                      });
+                    });
+                    ctx.restore();
+                  }
+                };
+                Chart.register(valueLabels);
                 new Chart(document.getElementById('vol'), {
                   type: 'bar',
+                  plugins: [valueLabels],
                   data: { labels, datasets: [{ label: '__VOL_UNIT__', data: volume, backgroundColor: ink }] },
-                  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: '__VOL_UNIT__' } } } }
+                  options: { layout: { padding: { top: 12, right: 8 } }, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: '__VOL_UNIT__' } } } }
                 });
                 new Chart(document.getElementById('ok'), {
                   type: 'line',
+                  plugins: [valueLabels],
                   data: { labels, datasets: [{ label: 'Success %', data: success, borderColor: ink, tension: .3, fill: false }] },
-                  options: { scales: { y: { min: 80, max: 100, title: { display: true, text: 'percent' } } } }
+                  options: { layout: { padding: { top: 16 } }, scales: { y: { min: 80, max: 100, title: { display: true, text: 'percent' } } } }
                 });
                 new Chart(document.getElementById('out'), {
                   type: 'bar',
+                  plugins: [valueLabels],
                   data: { labels, datasets: [
                     { label: 'Completed', data: done, backgroundColor: good, stack: 'day' },
                     { label: 'Unsuccessful', data: fail, backgroundColor: bad, stack: 'day' }
                   ] },
-                  options: { scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: '__VOL_UNIT__' } } } }
+                  options: { layout: { padding: { top: 12 } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: '__VOL_UNIT__' } } } }
                 });
                 new Chart(document.getElementById('ch'), {
                   type: 'doughnut',
+                  plugins: [valueLabels],
                   data: { labels: chLabels, datasets: [{ data: chValues, backgroundColor: palette }] },
                   options: { plugins: { legend: { position: 'bottom' } } }
                 });
                 new Chart(document.getElementById('cycle'), {
                   type: 'line',
+                  plugins: [valueLabels],
                   data: { labels, datasets: [{ label: '__CY_UNIT__', data: cycle, borderColor: gold, backgroundColor: 'rgba(196,163,90,.18)', fill: true, tension: .3 }] },
-                  options: { scales: { y: { beginAtZero: true, title: { display: true, text: '__CY_UNIT__' } } } }
+                  options: { layout: { padding: { top: 16 } }, scales: { y: { beginAtZero: true, title: { display: true, text: '__CY_UNIT__' } } } }
                 });
                 new Chart(document.getElementById('mix'), {
                   type: 'doughnut',
+                  plugins: [valueLabels],
                   data: { labels: ['Unit', 'Automation', 'Manual'],
                     datasets: [{ data: mix, backgroundColor: [ink, good, gold] }] },
                   options: { plugins: { legend: { position: 'bottom' } } }
                 });
                 new Chart(document.getElementById('qual'), {
                   type: 'bar',
+                  plugins: [valueLabels],
                   data: { labels: ['Estimated defects', 'Still open'],
                     datasets: [{ label: 'count', data: [__DEFECTS__, __OPEN__], backgroundColor: [ink, gold] }] },
-                  options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                  options: { layout: { padding: { top: 12 } }, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
                 });
                 new Chart(document.getElementById('rsn'), {
                   type: 'bar',
+                  plugins: [valueLabels],
                   data: { labels: rsnLabels, datasets: [{ label: 'count', data: rsnValues, backgroundColor: ink }] },
-                  options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+                  options: { indexAxis: 'y', layout: { padding: { right: 28 } }, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
                 });
                 new Chart(document.getElementById('sev'), {
                   type: 'doughnut',
+                  plugins: [valueLabels],
                   data: { labels: sevLabels, datasets: [{ data: sevValues, backgroundColor: [bad, '#c47a3a', gold, '#6b8cae'] }] },
                   options: { plugins: { legend: { position: 'bottom' } } }
                 });
