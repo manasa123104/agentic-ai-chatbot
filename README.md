@@ -42,6 +42,27 @@ flowchart LR
     OUT --> T["Run timers"]
 ```
 
+**What you give (input)**
+
+- Paste one snippet or file, or load a built-in sample.
+- Or convert a whole project: a GitHub / Git repo URL (optional branch and sub-folder), uploaded files, a folder, or a ZIP.
+- Choose the **From** language (or Auto-detect) and the **To** language.
+- Optional: tick **Add comments to the converted code**.
+- Optional: tick **Describe what the code does (Business logic)**.
+- Optional: short instructions for the AI, for example “use a class” or “keep method names”.
+
+**What you receive (output)**
+
+- The converted code in the language you picked.
+- Comments in the code, if you asked for them.
+- A **Business logic** note (Markdown) that describes what the code does, if you asked for it.
+- A short “how to run it” command for pasted snippets.
+- Download one converted file, or a ZIP of the whole converted project (original and converted files).
+- Push the converted project to a new GitHub branch.
+- The conversion is saved in **Previous results** on Home so you can open it again.
+
+Large files are split and converted in parts. In a project, files are converted in dependency order and linked to the modules they use. Build folders such as `target`, `build`, `node_modules`, and `.git` are skipped. Resource files are copied unchanged.
+
 ### Home (`/`)
 
 Home shows two full-width workspace cards, one under the other: **Code converter**, then **Stage bots**. Each card has a photo on top and the text below. Open **Previous results** from the Menu to reopen a converter job or a six-stage run.
