@@ -173,7 +173,7 @@ body.is-running .send:hover { background: #000; }
 /* ---------- home landing (composer stays hidden; this is the start page) ---------- */
 .home-landing {
   width: 100%;
-  max-width: 980px;
+  max-width: 1040px;
   margin: 0 auto;
   display: grid;
   gap: 1.45rem;
@@ -219,6 +219,7 @@ body.is-running .send:hover { background: #000; }
   color: #244a54;
 }
 .flash-row { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+.flash-stack { grid-template-columns: 1fr; gap: 1.15rem; }
 .flash-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .flash-row-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .flash-row-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -245,6 +246,12 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
 }
 .flash-card-lg { min-height: 12rem; }
 .flash-visual { padding: 0; overflow: hidden; min-height: 0; }
+.flash-stack .flash-visual {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1.2fr) minmax(16rem, 1fr);
+  min-height: 15.5rem;
+}
+.flash-stack .flash-card-lg { min-height: 0; }
 .flash-photo {
   display: block;
   width: 100%;
@@ -252,7 +259,19 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
   object-fit: cover;
   background: #ece8e0;
 }
+.flash-stack .flash-photo {
+  height: 100%;
+  min-height: 15.5rem;
+}
 .flash-body { display: grid; gap: .4rem; padding: 1rem 1.1rem 1.05rem; }
+.flash-stack .flash-body {
+  padding: 1.45rem 1.6rem 1.5rem;
+  align-content: center;
+  gap: .5rem;
+}
+.flash-stack .flash-card h2 { font-size: 1.5rem; }
+.flash-stack .flash-card p { font-size: 1.02rem; max-width: 46ch; }
+.flash-stack .flash-go { font-size: .95rem; margin-top: .45rem; }
 .flash-label {
   margin: 0;
   font: 600 .7rem/1.2 "Times New Roman", Times, serif;
@@ -287,10 +306,17 @@ a.flash-card:link, a.flash-card:visited { color: #1d2430; text-decoration: none;
 }
 @media (max-width: 820px) {
   .flash-row, .flash-row-3, .flash-row-6, .flash-row-4 { grid-template-columns: 1fr 1fr; }
+  .flash-stack { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .flash-stack .flash-visual { grid-template-columns: 1fr; min-height: 0; }
+  .flash-stack .flash-photo { height: 11rem; min-height: 0; }
 }
 @media (max-width: 640px) {
   .home-hero h1 { font-size: 1.6rem; }
   .flash-row, .flash-row-3, .flash-row-6, .flash-row-4 { grid-template-columns: 1fr; }
+  .flash-stack { grid-template-columns: 1fr; }
   .flash-card, .flash-card-lg { min-height: 0; }
   .flash-photo { height: 8rem; }
+  .flash-stack .flash-photo { height: 10rem; }
 }

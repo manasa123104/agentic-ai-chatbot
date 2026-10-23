@@ -24,6 +24,7 @@ class HomeTemplateTest {
         assertTrue(markup.contains("/stages"));
         assertTrue(markup.contains("start-convert.jpg"));
         assertTrue(markup.contains("start-stages.jpg"));
+        assertTrue(markup.contains("flash-stack"));
         assertTrue(markup.contains("class=\"chat-composer\" hidden"));
         assertFalse(markup.contains("Guardrail"));
         assertFalse(markup.contains("home-guard"));

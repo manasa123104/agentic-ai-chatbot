@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>BOT</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" th:href="@{/css/style.css(v='20261020h')}"/>
-    <link rel="stylesheet" th:href="@{/css/site.css(v='20261020h')}"/>
-    <link rel="stylesheet" th:href="@{/css/mobile.css(v='20261020h')}"/>
-    <link rel="stylesheet" th:href="@{/css/home-chat.css(v='20261020h')}"/>
+    <link rel="stylesheet" th:href="@{/css/style.css(v='20261022a')}"/>
+    <link rel="stylesheet" th:href="@{/css/site.css(v='20261022a')}"/>
+    <link rel="stylesheet" th:href="@{/css/mobile.css(v='20261022a')}"/>
+    <link rel="stylesheet" th:href="@{/css/home-chat.css(v='20261022a')}"/>
     <style>
         .btn.generate-bot { background: var(--accent, #1f5f6b); color: #fff; border: 1px solid var(--accent-strong, #174a54); font-weight: 700; font-size: .95rem; padding: .6rem 1.2rem; cursor: pointer; box-shadow: 0 2px 8px rgba(31, 95, 107, .3); }
         .btn.generate-bot:hover:not(:disabled) { filter: brightness(1.1); }
@@ -91,7 +91,7 @@
                 <p class="home-lead">BOT converts source code between languages and takes a requirement from user stories through implementation, testing, analysis, deployment, and training.</p>
                 <p class="home-note">Pick a workspace to start. Open Previous results from the Menu.</p>
             </header>
-            <nav class="flash-row" aria-label="Workspaces">
+            <nav class="flash-row flash-stack" aria-label="Workspaces">
                 <a class="flash-card flash-card-lg flash-visual" href="/convert">
                     <img class="flash-photo" th:src="@{/img/start-convert.jpg}" src="/img/start-convert.jpg" alt="" width="960" height="600" loading="eager"/>
                     <div class="flash-body">
