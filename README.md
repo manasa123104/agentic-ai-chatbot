@@ -42,10 +42,12 @@ flowchart LR
     OUT --> T["Run timers"]
 ```
 
+The converter page labels these on screen: **Input** (the code or input repository to convert) and **Output** (the converted files, ZIP, and output repository you push to).
+
 **What you give (input)**
 
 - Paste one snippet or file, or load a built-in sample.
-- Or convert a whole project: a GitHub / Git repo URL (optional branch and sub-folder), uploaded files, a folder, or a ZIP.
+- Or convert a whole project: an **Input repository URL** (optional branch and sub-folder), uploaded files, a folder, or a ZIP.
 - Choose the **From** language (or Auto-detect) and the **To** language.
 - Optional: tick **Add comments to the converted code**.
 - Optional: tick **Describe what the code does (Business logic)**.
@@ -58,7 +60,7 @@ flowchart LR
 - A **Business logic** note (Markdown) that describes what the code does, if you asked for it.
 - A short “how to run it” command for pasted snippets.
 - Download one converted file, or a ZIP of the whole converted project (original and converted files).
-- Push the converted project to a new GitHub branch.
+- Push the converted project to an **Output repository URL** on a new GitHub branch. That link is not the input repo.
 - The conversion is saved in **Previous results** on Home so you can open it again.
 
 Large files are split and converted in parts. In a project, files are converted in dependency order and linked to the modules they use. Build folders such as `target`, `build`, `node_modules`, and `.git` are skipped. Resource files are copied unchanged.

@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
     <link rel="stylesheet" th:href="@{/css/style.css}"/>
     <link rel="stylesheet" th:href="@{/css/code.css}"/>
-    <link rel="stylesheet" th:href="@{/css/convert.css}"/>
+    <link rel="stylesheet" th:href="@{/css/convert.css(v='20261023a')}"/>
     <link rel="stylesheet" th:href="@{/css/site.css}"/>
     <link rel="stylesheet" th:href="@{/css/mobile.css}"/>
 </head>
@@ -35,6 +35,7 @@
     </section>
 
     <section class="convert-card">
+        <p class="io-banner input-banner">Input — the code or repository you want to convert.</p>
         <div class="mode-tabs" role="tablist">
             <button type="button" class="mode-tab active" data-mode="paste">Paste code</button>
             <button type="button" class="mode-tab" data-mode="project">Project / repository</button>
@@ -85,7 +86,7 @@
         <div class="convert-panes">
             <div class="pane">
                 <div class="pane-head">
-                    <span class="pane-title">Source code</span>
+                    <span class="pane-title">Input · Source code</span>
                     <span class="badge subtle" id="detectedBadge" hidden></span>
                     <button type="button" class="link-btn" id="clearBtn">Clear</button>
                 </div>
@@ -94,7 +95,7 @@
             </div>
             <div class="pane">
                 <div class="pane-head">
-                    <span class="pane-title">Converted code</span>
+                    <span class="pane-title">Output · Converted code</span>
                     <span class="badge" id="modeBadge" hidden></span>
                     <button type="button" class="link-btn" id="copyBtn" disabled>Copy</button>
                     <button type="button" class="link-btn dl-btn" id="downloadBtn" disabled>&#11015; Download</button>
@@ -140,9 +141,10 @@
             </div>
             <div class="project-form">
                 <div class="kind-fields" data-kind="git">
-                    <label class="field wide"><span>Repository URL</span>
+                    <p class="io-tag">Input repository — the GitHub link of the code to convert. This is not the output.</p>
+                    <label class="field wide"><span>Input repository URL</span>
                         <input type="text" id="repoUrl" placeholder="https://github.com/owner/repo.git"/></label>
-                    <label class="field"><span>Branch</span>
+                    <label class="field"><span>Input branch</span>
                         <input type="text" id="repoBranch" placeholder="main"/></label>
                 </div>
                 <div class="kind-fields" data-kind="upload" hidden>
@@ -190,6 +192,7 @@
         <p class="convert-message" id="jobMessage" role="status" aria-live="polite"></p>
 
         <div class="job-panel" id="jobPanel" hidden>
+            <p class="io-banner output-banner">Output — the converted files. Download the ZIP, or push them to an output repository.</p>
             <div class="job-head">
                 <div>
                     <strong id="jobTitle">Conversion</strong>
@@ -237,9 +240,10 @@
             </div>
 
             <div class="push-box">
-                <p class="pipe-label">Upload to your code repository</p>
+                <p class="pipe-label">Output repository</p>
+                <p class="io-tag">This GitHub link is the output. Converted code is pushed here. It is not the input repository.</p>
                 <div class="push-fields">
-                    <label class="field wide"><span>Repository URL</span>
+                    <label class="field wide"><span>Output repository URL</span>
                         <input type="text" id="pushRepo" placeholder="https://github.com/owner/repo.git"/></label>
                     <label class="field"><span>New branch</span>
                         <input type="text" id="pushBranch" placeholder="converted/python"/></label>
